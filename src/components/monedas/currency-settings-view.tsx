@@ -155,6 +155,7 @@ export function CurrencySettingsView() {
   }
 
   const functionalLabel = findCurrencyLabel(currencies, settings.functional_currency_code);
+  const functionalCurrencyCode = settings.functional_currency_code;
   const reportingCodes = settings.reporting_currency_codes ?? [];
   const indexedLabel = settings.indexed_unit_enabled
     ? findCurrencyLabel(currencies, settings.indexed_unit_currency_code)
@@ -164,12 +165,16 @@ export function CurrencySettingsView() {
      functional (típicamente UF → CLP). Determinístico, sin cálculo de
      negocio (regla §16.3 del addendum). */
   const tcPairs: ExchangeRateCardProps[] = [
-    ...reportingCodes.map((code: string) => ({
-      base: code,
-      quote: settings.functional_currency_code,
-    })),
-    ...(settings.indexed_unit_enabled && settings.indexed_unit_currency_code
-      ? [{ base: settings.indexed_unit_currency_code, quote: settings.functional_currency_code }]
+    ...(functionalCurrencyCode
+      ? reportingCodes.map((code: string) => ({
+          base: code,
+          quote: functionalCurrencyCode,
+        }))
+      : []),
+    ...(functionalCurrencyCode &&
+    settings.indexed_unit_enabled &&
+    settings.indexed_unit_currency_code
+      ? [{ base: settings.indexed_unit_currency_code, quote: functionalCurrencyCode }]
       : []),
   ];
 

@@ -66,6 +66,7 @@ function run(item = scenario()): CashProjectionRun {
     horizon_days: 14,
     currency: "CLP",
     calculation_version: "cash-projection-run-v1",
+    decision_support: "abstain",
     scenarios: [
       item,
       scenario({ scenario_id: "outflows_only_v1", scenario_name: "outflows_only_v1" }),

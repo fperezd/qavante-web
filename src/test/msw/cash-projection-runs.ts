@@ -130,6 +130,7 @@ export function cashProjectionRunFixture(horizonDays: number): CashProjectionRun
     horizon_days: horizonDays,
     currency: "CLP",
     calculation_version: "cash-projection-run-v1",
+    decision_support: "abstain",
     scenarios: IDS.map((id) => scenario(id, horizonDays)),
   };
 }

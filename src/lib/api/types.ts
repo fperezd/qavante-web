@@ -1108,6 +1108,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/treasury/opening-cutoff/adopt-legacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adopta un corte de apertura histórico en un run (dry-run por defecto; owner/admin)
+         * @description Previsualiza (o aplica, si `dry_run=False`) la adopción de un corte de apertura
+         *     histórico. Devuelve el run, los conteos exactos por lado y los documentos —acotados en la
+         *     respuesta, completos en el audit— con sus valores actuales y los valores previos DECLARADOS
+         *     que restauraría el revert. Una corrida sin filas no escribe nada.
+         */
+        post: operations["admin_adopt_legacy_opening_cutoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/treasury/operating-cost-behavior-bindings": {
         parameters: {
             query?: never;
@@ -2137,7 +2160,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update parcial de settings de moneda (owner/admin) */
+        /** Declara o actualiza settings de moneda (owner/admin) */
         patch: operations["company_currency_settings_update"];
         trace?: never;
     };
@@ -2191,6 +2214,24 @@ export interface paths {
          */
         get: operations["financial_scope_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/core/legal-entity-financial-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Moneda funcional declarada por sociedad */
+        get: operations["legal_entity_functional_currency_settings_get"];
+        /** Declara moneda funcional por sociedad (owner/admin) */
+        put: operations["legal_entity_functional_currency_settings_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2394,6 +2435,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fintoc/connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Connection
+         * @description Elimina primero el link en Fintoc y luego su historial local exclusivo.
+         */
+        delete: operations["delete_connection_api_fintoc_connections__connection_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fintoc/connections/{connection_id}/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disconnect Connection
+         * @description Detiene sólo este link localmente; no borra cuentas, movimientos ni historia.
+         */
+        post: operations["disconnect_connection_api_fintoc_connections__connection_id__disconnect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/fintoc/institutions": {
         parameters: {
             query?: never;
@@ -2501,6 +2582,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/legal-entities/{legal_entity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edita el nombre de una Empresa del tenant actual */
+        patch: operations["legal_entities_rename"];
         trace?: never;
     };
     "/api/legal-entities/{legal_entity_id}/identifier": {
@@ -3913,12 +4011,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * SII: DTE emitidos por rango de fechas con el DTE completo (Obtener Envío)
+         * SII: DTE emitidos por rango de fechas con el DTE completo
          * @description DTE emitidos por rango de fechas. Prefiere el respaldo MiPyme (`ORIGEN=ENV`) con la
          *     clave de la persona autorizada y la empresa seleccionada; ese respaldo entrega el XML
          *     completo sin pasar por el Portal001 roto. Devuelve emisor, receptor, ítems, totales,
          *     referencias, forma de pago y vencimiento en `dte_emitidos[]`. El certificado queda como
          *     fallback legacy sólo cuando el tenant todavía no configuró la clave del representante.
+         *     Las respuestas exitosas exponen `access_path` no secreto para verificar en runtime cuál
+         *     vía se utilizó: `mipe_env` o `legacy_portal001`.
          */
         get: operations["sii_dte_emitidos"];
         put?: never;
@@ -5022,6 +5122,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/bank-movements/partner-contribution-counterparties/{learning_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Desactiva una contraparte aprendida
+         * @description Desactiva la propuesta futura; no modifica el movimiento histórico ni su conciliación.
+         */
+        delete: operations["treasury_partner_contribution_counterparty_deactivate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/bank-movements/{movement_id}/classification": {
         parameters: {
             query?: never;
@@ -5067,6 +5187,29 @@ export interface paths {
          *     `audit.audit_events` con before/after.
          */
         patch: operations["treasury_bank_movements_classify"];
+        trace?: never;
+    };
+    "/api/treasury/bank-movements/{movement_id}/learn-partner-contribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aprende una contraparte observada desde un aporte de socio confirmado
+         * @description Aprende una contraparte observada para sugerir aportes futuros.
+         *
+         *     No acepta un RUT del cliente: lo extrae del movimiento ya confirmado. Nunca concilia ni
+         *     clasifica automáticamente movimientos futuros.
+         */
+        post: operations["treasury_bank_movements_learn_partner_contribution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/treasury/bank-movements/{movement_id}/resolution": {
@@ -6574,11 +6717,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Conciliación: corre el motor sobre los movimientos sin conciliar
-         * @description Empareja `bank_movements` con el devengado (ADR-0036 Fase 1). Idempotente:
-         *     auto-aplica los matches ≥90, deja 60-90 en cola de revisión, no toca el resto.
-         */
+        /** Conciliación: corre el motor sobre los movimientos sin conciliar */
         post: operations["treasury_reconcile"];
         delete?: never;
         options?: never;
@@ -6600,15 +6739,7 @@ export interface paths {
          */
         get: operations["treasury_reconciliation_aliases_list"];
         put?: never;
-        /**
-         * Conciliación: crea un alias manual
-         * @description Crea un alias `pattern → counterparty_rut` manualmente. Arranca con
-         *     `confirmations=2` → utilizable de inmediato por el matcher. Idempotente
-         *     vía `(tenant, pattern, direction)`: si ya existe, incrementa `confirmations`.
-         *
-         *     El `pattern` se almacena tal cual viene (se espera ya normalizado por el FE;
-         *     el backend lo trunca a 200). El RUT debe ser el normalizado `12345678-9`.
-         */
+        /** Conciliación: crea un alias manual */
         post: operations["treasury_reconciliation_aliases_create"];
         delete?: never;
         options?: never;
@@ -6626,10 +6757,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /**
-         * Conciliación: elimina un alias
-         * @description Borrado físico. Idempotente: 404 si no existe.
-         */
+        /** Conciliación: elimina un alias */
         delete: operations["treasury_reconciliation_aliases_delete"];
         options?: never;
         head?: never;
@@ -6760,13 +6888,7 @@ export interface paths {
          */
         get: operations["treasury_reconciliation_factoring_list"];
         put?: never;
-        /**
-         * Conciliación: crea o actualiza un mapeo factoring
-         * @description Alta/actualización de un mapeo factoring_rut → debtor_rut.
-         *
-         *     Idempotente: si ya existe un mapeo para `factoring_rut`, actualiza `debtor_rut`
-         *     y `notes`. Ambos RUTs deben ser el formato normalizado `12345678-9`.
-         */
+        /** Conciliación: crea o actualiza un mapeo factoring */
         post: operations["treasury_reconciliation_factoring_upsert"];
         delete?: never;
         options?: never;
@@ -6784,10 +6906,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /**
-         * Conciliación: elimina un mapeo factoring
-         * @description Borrado físico del mapeo. Idempotente: 404 si no existe.
-         */
+        /** Conciliación: elimina un mapeo factoring */
         delete: operations["treasury_reconciliation_factoring_delete"];
         options?: never;
         head?: never;
@@ -6807,10 +6926,7 @@ export interface paths {
          */
         get: operations["treasury_reconciliation_holding_list"];
         put?: never;
-        /**
-         * Conciliación: crea o actualiza un mapeo holding
-         * @description Alta/actualización de un mapeo holding_rut → subsidiary_rut. Idempotente.
-         */
+        /** Conciliación: crea o actualiza un mapeo holding */
         post: operations["treasury_reconciliation_holding_upsert"];
         delete?: never;
         options?: never;
@@ -6828,10 +6944,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /**
-         * Conciliación: elimina un mapeo holding
-         * @description Borrado físico del mapeo. 404 si no existe.
-         */
+        /** Conciliación: elimina un mapeo holding */
         delete: operations["treasury_reconciliation_holding_delete"];
         options?: never;
         head?: never;
@@ -6998,13 +7111,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Conciliación: re-analiza TODO (resetea la cola vieja y re-corre el motor)
-         * @description Resetea la cola de revisión a `unmatched` y re-corre el motor: re-evalúa todo con el scorer y
-         *     los aliases ACTUALES. Sirve para limpiar sugerencias viejas tras un fix del matcher o una purga
-         *     de aliases (la cola es "pegajosa" — `/reconcile` normal solo toca lo `unmatched`). Las
-         *     conciliaciones CONFIRMADas (matched) no se tocan; solo las sugerencias sin confirmar.
-         */
+        /** Conciliación: re-analiza TODO (resetea la cola vieja y re-corre el motor) */
         post: operations["treasury_reconciliation_reanalyze"];
         delete?: never;
         options?: never;
@@ -7119,17 +7226,9 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Conciliación: estaciona un movimiento como prepago
-         * @description Estaciona el movimiento como prepago/anticipo con el RUT de la contraparte.
-         *     El motor lo linkea automáticamente cuando llegue la factura del mismo RUT y monto.
-         */
+        /** Conciliación: estaciona un movimiento como prepago */
         post: operations["treasury_reconciliation_prepago_create"];
-        /**
-         * Conciliación: cancela un prepago estacionado
-         * @description Cancela el prepago: el movimiento vuelve a 'unmatched' y queda disponible
-         *     para el motor en el próximo ciclo de reconcile_tenant.
-         */
+        /** Conciliación: cancela un prepago estacionado */
         delete: operations["treasury_reconciliation_prepago_delete"];
         options?: never;
         head?: never;
@@ -7976,6 +8075,109 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** AdoptLegacyOpeningCutoffRequest */
+        AdoptLegacyOpeningCutoffRequest: {
+            /**
+             * Created After
+             * @description Tope inferior opcional de `created_at`, INCLUSIVO (`created_at >= valor`).
+             */
+            created_after?: string | null;
+            /**
+             * Created Before
+             * @description Tope superior de `created_at`, EXCLUSIVO (`created_at < valor`). Default: `historical_cutoff_at` — un documento creado en ese instante o después no se puede afirmar que esa corrida lo vio.
+             */
+            created_before?: string | null;
+            /**
+             * Cutoff Date
+             * Format: date
+             * @description Fecha del corte histórico: se adoptan documentos con issue_date <= esta fecha.
+             */
+            cutoff_date: string;
+            /**
+             * Dry Run
+             * @description True (default): sólo previsualiza, NO muta nada.
+             * @default true
+             */
+            dry_run: boolean;
+            /**
+             * Historical Cutoff At
+             * Format: date-time
+             * @description Marca temporal (con zona) del cierre histórico. Se estampa como `opening_cutoff_at` y acota `created_at` por arriba salvo que se indique `created_before`.
+             */
+            historical_cutoff_at: string;
+            /**
+             * Updated From
+             * @description Inicio opcional de la ventana de `updated_at`, INCLUSIVO (`updated_at >= valor`). Filtro angosto: sirve sólo si la marca de la corrida histórica sobrevivió en esa columna; un re-sync posterior la pisa.
+             */
+            updated_from?: string | null;
+            /**
+             * Updated To
+             * @description Fin opcional de la ventana de `updated_at`, EXCLUSIVO (`updated_at < valor`).
+             */
+            updated_to?: string | null;
+        };
+        /** AdoptLegacyOpeningCutoffResponse */
+        AdoptLegacyOpeningCutoffResponse: {
+            /**
+             * Cierre Historico At
+             * Format: date-time
+             */
+            cierre_historico_at: string;
+            /**
+             * Cutoff Date
+             * Format: date
+             */
+            cutoff_date: string;
+            /**
+             * Documentos
+             * @description Documentos adoptados, acotados a 500 en la respuesta. El evento de auditoría lleva la lista COMPLETA; los conteos de arriba también son completos.
+             */
+            documentos: components["schemas"]["AdoptedDocument"][];
+            /**
+             * Documentos Truncados
+             * @description True si hubo más documentos que el tope de la respuesta: la lista de arriba está recortada y la completa está en el audit.
+             */
+            documentos_truncados: boolean;
+            /** Dry Run */
+            dry_run: boolean;
+            /**
+             * Payables Adoptadas
+             * @description Conteo EXACTO, no afectado por el tope de `documentos`.
+             */
+            payables_adoptadas: number;
+            /**
+             * Receivables Adoptadas
+             * @description Conteo EXACTO, no afectado por el tope de `documentos`.
+             */
+            receivables_adoptadas: number;
+            /** Run Creado */
+            run_creado: boolean;
+            /**
+             * Run Id
+             * @description Run al que se adoptan las filas. Null en `dry_run` si hay que crearlo.
+             */
+            run_id?: string | null;
+            valores_previos: components["schemas"]["DeclaredPreviousValues"];
+        };
+        /** AdoptedDocument */
+        AdoptedDocument: {
+            /** Id */
+            id: string;
+            /** Issue Date */
+            issue_date?: string | null;
+            /** Kind */
+            kind: string;
+            /** Outstanding Actual */
+            outstanding_actual: string;
+            /** Outstanding Previo Declarado */
+            outstanding_previo_declarado: string;
+            /** Source External Id */
+            source_external_id?: string | null;
+            /** Status Actual */
+            status_actual: string;
+            /** Status Previo Declarado */
+            status_previo_declarado: string;
+        };
         /** AllocationDetail */
         AllocationDetail: {
             /** Currency Code */
@@ -8465,7 +8667,7 @@ export interface components {
             active: boolean;
             /**
              * Balance
-             * @description Saldo de la cuenta EN SU PROPIA MONEDA (currency_code); NULL si la cuenta no tiene apertura configurada. Server-side (banco reportado, o apertura + Σ movimientos): el FE NO debe bajar todos los movimientos para calcularlo.
+             * @description Saldo de la cuenta, cuantizado en la escala de SU PROPIA MONEDA (currency_code); NULL si la cuenta no tiene apertura configurada. Server-side (banco reportado, o apertura + Σ movimientos): el FE NO debe bajar todos los movimientos para calcularlo.
              */
             balance?: string | null;
             /**
@@ -10396,6 +10598,28 @@ export interface components {
             /** Source Ref */
             source_ref: string;
         };
+        /**
+         * CashProjectionConservationBucket
+         * @description Parte del universo monetario sellado para un scope y moneda exactos.
+         */
+        CashProjectionConservationBucket: {
+            /** Amount */
+            amount: string;
+            /** Count */
+            count: number;
+            /** Refs */
+            refs: string[];
+        };
+        /**
+         * CashProjectionConservationReceipt
+         * @description Identidad verificable: universo = incluido + fuera + excluido.
+         */
+        CashProjectionConservationReceipt: {
+            excluded: components["schemas"]["CashProjectionConservationBucket"];
+            included: components["schemas"]["CashProjectionConservationBucket"];
+            outside_horizon: components["schemas"]["CashProjectionConservationBucket"];
+            universe: components["schemas"]["CashProjectionConservationBucket"];
+        };
         /** CashProjectionDecisionCoverage */
         CashProjectionDecisionCoverage: {
             /** Coverage Valid Through */
@@ -10530,6 +10754,7 @@ export interface components {
             as_of: string;
             /** Calculation Version */
             calculation_version: string;
+            conservation_receipt?: components["schemas"]["CashProjectionConservationReceipt"] | null;
             /** Currency */
             currency: string;
             /**
@@ -10537,6 +10762,12 @@ export interface components {
              * Format: date-time
              */
             cutoff_at: string;
+            /**
+             * Decision Support
+             * @default abstain
+             * @enum {string}
+             */
+            decision_support: "eligible" | "abstain";
             /** Horizon Days */
             horizon_days: number;
             /** Input Digest */
@@ -11900,7 +12131,7 @@ export interface components {
             /** Default Reporting Currency Code */
             default_reporting_currency_code?: string | null;
             /** Functional Currency Code */
-            functional_currency_code: string;
+            functional_currency_code?: string | null;
             /** Indexed Unit Currency Code */
             indexed_unit_currency_code?: string | null;
             /**
@@ -12019,6 +12250,11 @@ export interface components {
         };
         /** ConfirmBatchRequest */
         ConfirmBatchRequest: {
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
             /** Movement Ids */
             movement_ids: string[];
         };
@@ -12616,7 +12852,7 @@ export interface components {
             external_ref?: string | null;
             /**
              * Legal Entity Id
-             * @description Entidad legal explícita del tenant. Si falta, la cuenta queda no atribuida; el servidor nunca infiere la entidad default.
+             * @description Entidad legal explícita del tenant. Si falta, se usa la sociedad activa del request; si tampoco existe, el alta se rechaza. Nunca se crea una cuenta monetaria sin sociedad ni se infiere una default.
              */
             legal_entity_id?: string | null;
             /**
@@ -13650,6 +13886,18 @@ export interface components {
              */
             value: string;
         };
+        /** DeclaredPreviousValues */
+        DeclaredPreviousValues: {
+            /**
+             * Origen
+             * @description `reconstructed`: los valores previos se declaran, no se observaron.
+             */
+            origen: string;
+            /** Outstanding Amount */
+            outstanding_amount: string;
+            /** Status */
+            status: string;
+        };
         /** DedupRcvRequest */
         DedupRcvRequest: {
             /**
@@ -14440,6 +14688,11 @@ export interface components {
         };
         /** DteEmitidosResponse */
         DteEmitidosResponse: {
+            /**
+             * Access Path
+             * @description Vía de acceso usada en una respuesta exitosa: `mipe_env` usa el respaldo MiPyme ORIGEN=ENV con clave de persona; `legacy_portal001` usa el certificado legacy. No contiene credenciales ni identificadores tributarios.
+             */
+            access_path?: ("mipe_env" | "legacy_portal001") | null;
             /**
              * Count
              * @default 0
@@ -16601,6 +16854,8 @@ export interface components {
         FintocCompleteRequest: {
             /** Exchange Token */
             exchange_token?: string | null;
+            /** Legal Entity Id */
+            legal_entity_id?: string | null;
             /** Link */
             link?: {
                 [key: string]: unknown;
@@ -16624,11 +16879,15 @@ export interface components {
         };
         /** FintocConnection */
         FintocConnection: {
+            /** Connected At */
+            connected_at?: string | null;
             /**
              * Data Source
              * @default fintoc
              */
             data_source: string;
+            /** Disconnected At */
+            disconnected_at?: string | null;
             /** Holder Id */
             holder_id?: string | null;
             /** Holder Name */
@@ -16637,10 +16896,16 @@ export interface components {
             holder_rut?: string | null;
             /** Holder Type */
             holder_type?: string | null;
+            /** Id */
+            id?: string | null;
             /** Institution Id */
             institution_id: string;
             /** Institution Name */
             institution_name: string;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /** Legal Entity Id */
+            legal_entity_id?: string | null;
             /** Link Id */
             link_id?: string | null;
             /** Mode */
@@ -16655,6 +16920,18 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** FintocDeleteResponse */
+        FintocDeleteResponse: {
+            /** Deleted Accounts */
+            deleted_accounts: number;
+            /** Deleted Movements */
+            deleted_movements: number;
+            /**
+             * Status
+             * @default deleted
+             */
+            status: string;
+        };
         /** FintocInstitution */
         FintocInstitution: {
             /**
@@ -16666,6 +16943,15 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** FintocLinkIntentRequest */
+        FintocLinkIntentRequest: {
+            /**
+             * Holder Type
+             * @default business
+             * @enum {string}
+             */
+            holder_type: "individual" | "business";
         };
         /** FintocLinkIntentResponse */
         FintocLinkIntentResponse: {
@@ -17452,6 +17738,11 @@ export interface components {
             /** Linked Bank Account Id */
             linked_bank_account_id: string | null;
             /**
+             * Quarantine Reason
+             * @description Motivo de cuarentena sin escritura. `unmapped_or_outside_scope` significa que la cuenta BICE no tiene un mapping demostrable dentro de la sociedad seleccionada.
+             */
+            quarantine_reason?: string | null;
+            /**
              * Quarantined
              * @default false
              */
@@ -17711,6 +18002,38 @@ export interface components {
             /** Entities */
             entities: components["schemas"]["LegalEntityView"][];
         };
+        /**
+         * LegalEntityFunctionalCurrencySettings
+         * @description Moneda funcional explícita de una sociedad, no un default de tenant.
+         */
+        LegalEntityFunctionalCurrencySettings: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Functional Currency Code */
+            functional_currency_code: string;
+            /** Legal Entity Id */
+            legal_entity_id: string;
+            /** Provenance */
+            provenance: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * LegalEntityNameRequest
+         * @description Nombre de una Empresa operativa dentro del tenant autenticado.
+         */
+        LegalEntityNameRequest: {
+            /** Legal Name */
+            legal_name: string;
+        };
         /** LegalEntityView */
         LegalEntityView: {
             /**
@@ -17955,6 +18278,21 @@ export interface components {
         /** LoginResponse */
         LoginResponse: {
             user: components["schemas"]["SessionUser"];
+        };
+        /**
+         * ManagedLegalEntity
+         * @description Respuesta mínima de alta/edición para refrescar selector y administración.
+         */
+        ManagedLegalEntity: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Legal Name */
+            legal_name: string;
         };
         /**
          * ManagementAccount
@@ -18407,7 +18745,7 @@ export interface components {
             tenant_id: string;
             /**
              * Tenant Name
-             * @description Razón social del tenant activo (CC-WEB #3).
+             * @description Alias de compatibilidad: razón social de la Empresa activa. El tenant no se expone como selector operativo.
              */
             tenant_name?: string | null;
         };
@@ -18636,11 +18974,17 @@ export interface components {
             interest_amount: string;
             /** Number */
             number: number;
+            /**
+             * Payment Evidence Origin
+             * @description unknown / bank_movement / manual_confirmation.
+             * @default unknown
+             */
+            payment_evidence_origin: string;
             /** Principal Amount */
             principal_amount: string;
             /**
              * Status
-             * @description pending / paid.
+             * @description pending / unverified / paid.
              */
             status: string;
             /** Total Amount */
@@ -18692,6 +19036,18 @@ export interface components {
             status: string;
             /** Type */
             type: string;
+            /**
+             * Unverified Count
+             * @description Cuotas sin evidencia suficiente de pago.
+             * @default 0
+             */
+            unverified_count: number;
+            /**
+             * Unverified Total
+             * @description Monto sin evidencia; no entra como caja confirmada.
+             * @default 0
+             */
+            unverified_total: string;
         };
         /**
          * ObligationReconcileResponse
@@ -20314,6 +20670,27 @@ export interface components {
             total_pages?: number | null;
         };
         /**
+         * PartnerContributionCounterparty
+         * @description Contraparte aprendida desde un aporte confirmado; se puede desactivar.
+         */
+        PartnerContributionCounterparty: {
+            /** Active */
+            active: boolean;
+            /** Counterparty Rut */
+            counterparty_rut: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Learned From Movement Id */
+            learned_from_movement_id: string;
+            /** Legal Entity Id */
+            legal_entity_id: string;
+        };
+        /**
          * PatchUserRequest
          * @description Body del PATCH — al menos uno de los campos debe estar presente.
          */
@@ -20816,8 +21193,11 @@ export interface components {
              * @description Saldo sólo con evidencia positiva completa; null es abstención, no impago.
              */
             confirmed_outstanding_amount: string | null;
-            /** Currency Code */
-            currency_code: string;
+            /**
+             * Currency Code
+             * @description Moneda evidenciada por el snapshot o por pagos concordantes; null cuando la proyeccion se abstiene de asignarla.
+             */
+            currency_code: string | null;
             /**
              * Legacy Outstanding Amount
              * @description Saldo legacy sólo comparativo; nunca confirma el saldo real.
@@ -22007,6 +22387,11 @@ export interface components {
              */
             cost_profile: string;
         };
+        /** PutLegalEntityFunctionalCurrencySettingsRequest */
+        PutLegalEntityFunctionalCurrencySettingsRequest: {
+            /** Functional Currency Code */
+            functional_currency_code: string;
+        };
         /** PutPayrollPaydayRequest */
         PutPayrollPaydayRequest: {
             /**
@@ -22799,6 +23184,11 @@ export interface components {
              * @description Sugerencias encoladas para revisión (60-90 confianza).
              */
             review: number;
+            /**
+             * Skipped Missing Functional Currency Entities
+             * @description Sociedades omitidas explícitamente por no tener moneda funcional declarada.
+             */
+            skipped_missing_functional_currency_entities: number;
             /**
              * Tenants
              * @description Tenants con banco procesados.
@@ -26093,8 +26483,24 @@ export interface components {
          * @description Respuesta de `GET /api/treasury/bank-accounts`.
          */
         app__core__treasury_schemas__BankAccountsListResponse: {
+            /**
+             * Functional Currency Code
+             * @description Moneda funcional declarada del FinancialScope; nunca un default implícito.
+             */
+            functional_currency_code?: string | null;
             /** Items */
             items?: components["schemas"]["BankAccountItem"][];
+            /**
+             * Legal Entity Id
+             * @description Sociedad del FinancialScope que produjo el listado.
+             */
+            legal_entity_id?: string | null;
+            /**
+             * Unattributed Accounts
+             * @description Cuentas del tenant sin sociedad. No aparecen en items; un valor positivo declara cobertura bancaria incompleta.
+             * @default 0
+             */
+            unattributed_accounts: number;
         };
         /** SeriePunto */
         app__integrations__sii__schemas__SeriePunto: {
@@ -26110,29 +26516,6 @@ export interface components {
             periodo: string;
         } & {
             [key: string]: unknown;
-        };
-        /**
-         * LegalEntityNameRequest
-         * @description Nombre de una Empresa operativa dentro del tenant autenticado.
-         */
-        LegalEntityNameRequest: {
-            /** Legal Name */
-            legal_name: string;
-        };
-        /**
-         * ManagedLegalEntity
-         * @description Respuesta mínima de alta/edición para refrescar selector y administración.
-         */
-        ManagedLegalEntity: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Is Default */
-            is_default: boolean;
-            /** Legal Name */
-            legal_name: string;
         };
     };
     responses: never;
@@ -27942,6 +28325,53 @@ export interface operations {
             };
         };
     };
+    admin_adopt_legacy_opening_cutoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdoptLegacyOpeningCutoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdoptLegacyOpeningCutoffResponse"];
+                };
+            };
+            /** @description Rol sin permiso (requiere owner/admin/technical_admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La empresa tiene un corte de apertura registrado con otra fecha. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Marca temporal sin zona horaria. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     admin_operating_cost_behavior_binding_history: {
         parameters: {
             query?: {
@@ -28967,6 +29397,13 @@ export interface operations {
                     "application/json": components["schemas"]["BankMovementsListResponse"];
                 };
             };
+            /** @description No existe un FinancialScope verificable para la lectura. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description `period` mal formado (usar YYYY-MM). */
             422: {
                 headers: {
@@ -29873,7 +30310,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description La moneda funcional declarada no existe/no está activa o es inválida. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -29980,6 +30417,92 @@ export interface operations {
             };
             /** @description No existe un scope financiero único y demostrable para el tenant. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    legal_entity_functional_currency_settings_get: {
+        parameters: {
+            query: {
+                /** @description Sociedad del tenant autenticado. */
+                legal_entity_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalEntityFunctionalCurrencySettings"];
+                };
+            };
+            /** @description La sociedad no ha declarado moneda funcional. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    legal_entity_functional_currency_settings_put: {
+        parameters: {
+            query: {
+                /** @description Sociedad del tenant autenticado. */
+                legal_entity_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutLegalEntityFunctionalCurrencySettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalEntityFunctionalCurrencySettings"];
+                };
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -30476,6 +30999,72 @@ export interface operations {
             };
         };
     };
+    delete_connection_api_fintoc_connections__connection_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disconnect_connection_api_fintoc_connections__connection_id__disconnect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocConnection"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_institutions_api_fintoc_institutions_get: {
         parameters: {
             query?: never;
@@ -30516,7 +31105,11 @@ export interface operations {
                 qavante_session?: string | null;
             };
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FintocLinkIntentRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -30685,6 +31278,45 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedLegalEntity"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    legal_entities_rename: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path: {
+                legal_entity_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LegalEntityNameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -31651,6 +32283,13 @@ export interface operations {
                     "application/json": components["schemas"]["OperationalResultResponse"];
                 };
             };
+            /** @description Scope financiero incompleto o P&L compuesto no atribuible por sociedad. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description period mal formado. */
             422: {
                 headers: {
@@ -31684,6 +32323,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OperationalResultAlDiaResponse"];
                 };
+            };
+            /** @description Scope financiero canónico no demostrable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description period mal formado o hasta_dia fuera de [1,31]. */
             422: {
@@ -31722,6 +32368,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OperationalResultBreakdownResponse"];
                 };
+            };
+            /** @description Scope financiero canónico no demostrable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description period_from/period_to mal formados, invertidos o > 36 meses. */
             422: {
@@ -31983,6 +32636,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OperationalResultDocumentsResponse"];
                 };
+            };
+            /** @description Scope financiero canónico no demostrable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description period mal formado. */
             422: {
@@ -32973,6 +33633,13 @@ export interface operations {
                     "application/json": components["schemas"]["BudgetProposeResponse"];
                 };
             };
+            /** @description Writer de presupuesto sin FinancialScope atribuido se abstiene. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Cuerpo inválido (año fuera de rango, meta mal formada). */
             422: {
                 headers: {
@@ -33088,6 +33755,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Writer de presupuesto sin FinancialScope atribuido se abstiene. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -33124,6 +33798,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FinancialImpactsResponse"];
                 };
+            };
+            /** @description No existe un FinancialScope verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -33165,7 +33846,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description El movimiento de origen ya está partido en componentes de cuota: agregarle un impacto 1:1 lo contaría dos veces. */
+            /** @description El movimiento de origen no existe o pertenece a otra sociedad. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El movimiento de origen ya está partido en componentes de cuota: agregarle un impacto 1:1 lo contaría dos veces; o no existe un FinancialScope verificable. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -33210,6 +33898,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description No existe un FinancialScope verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -33248,6 +33943,13 @@ export interface operations {
             };
             /** @description No existe (o cross-tenant). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe un FinancialScope verificable. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -33297,6 +33999,13 @@ export interface operations {
             };
             /** @description No existe (o cross-tenant). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe un FinancialScope verificable. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -35340,6 +36049,13 @@ export interface operations {
                     "application/json": components["schemas"]["RcvSyncResponse"];
                 };
             };
+            /** @description El RUT observado por SII no prueba una sociedad financiera única. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -35580,6 +36296,13 @@ export interface operations {
                     "application/json": components["schemas"]["AccountsPayableResponse"];
                 };
             };
+            /** @description FinancialScope unavailable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Filtros inválidos o cursor ajeno, alterado o vencido. */
             422: {
                 headers: {
@@ -35608,6 +36331,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PayableDuplicateAnomaliesResponse"];
                 };
+            };
+            /** @description FinancialScope unavailable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -35690,7 +36420,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Agregado de cuentas por cobrar vivas (open/partially_paid). */
+            /** @description Receivables summary. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -35698,6 +36428,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AccountsReceivableResponse"];
                 };
+            };
+            /** @description FinancialScope unavailable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -35779,6 +36516,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ReceivableDocumentsResponse"];
                 };
+            };
+            /** @description FinancialScope unavailable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -35957,6 +36701,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description No existe un FinancialScope verificable para la escritura. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -36004,6 +36755,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BankMovementsListResponse"];
                 };
+            };
+            /** @description No existe un FinancialScope verificable para la lectura. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description `period` mal formado (usar YYYY-MM). */
             422: {
@@ -36223,6 +36981,52 @@ export interface operations {
             };
         };
     };
+    treasury_partner_contribution_counterparty_deactivate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID del aprendizaje a desactivar. */
+                learning_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso de escritura. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Aprendizaje no encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_bank_movement_classification_replace: {
         parameters: {
             query?: never;
@@ -36339,6 +37143,45 @@ export interface operations {
                 content?: never;
             };
             /** @description Body inválido (management_account_id requerido). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_bank_movements_learn_partner_contribution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID del abono confirmado. */
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerContributionCounterparty"];
+                };
+            };
+            /** @description Rol sin permiso de escritura. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El movimiento no aporta evidencia suficiente. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -36533,6 +37376,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description No existe una sociedad financiera verificable para la cartola. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description El archivo excede el máximo. */
             413: {
                 headers: {
@@ -36547,7 +37397,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description No se reconoció la cartola (ni nacional ni internacional). */
+            /** @description Cartola no reconocida o evidencia de pago ambigua/inválida. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -36832,7 +37682,9 @@ export interface operations {
     };
     get_cash_projection_run: {
         parameters: {
-            query?: never;
+            query: {
+                legal_entity_id: string;
+            };
             header?: never;
             path: {
                 run_id: string;
@@ -37661,6 +38513,8 @@ export interface operations {
                 projection_run_id?: string | null;
                 /** @description Scenario persisted inside projection_run_id. */
                 scenario_id?: ("scheduled_expected_v1" | "outflows_only_v1" | "scheduled_with_arrears_recovery_v1" | "scheduled_with_recurring_income_v1") | null;
+                /** @description Required when selecting an immutable projection run. */
+                legal_entity_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -38930,6 +39784,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description No existe una sociedad financiera verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -39608,6 +40469,13 @@ export interface operations {
             };
             /** @description Rol sin permiso (owner/admin). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La moneda funcional de la sociedad no está configurada. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -40759,7 +41627,10 @@ export interface operations {
     };
     treasury_reconciliation_confirm: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description Sociedad del movimiento a confirmar. */
+                legal_entity_id: string;
+            };
             header?: never;
             path: {
                 movement_id: string;
@@ -41147,6 +42018,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OperationalResultReportResponse"];
                 };
+            };
+            /** @description Scope financiero incompleto o P&L compuesto no atribuible por sociedad. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description period mal formado, rango invertido, o rango > 36 meses. */
             422: {

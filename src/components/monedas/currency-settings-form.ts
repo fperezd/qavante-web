@@ -59,7 +59,7 @@ export function settingsToForm(s: CompanyCurrencySettings | null): SettingsFormV
     };
   }
   return {
-    functional_currency_code: s.functional_currency_code,
+    functional_currency_code: s.functional_currency_code ?? "",
     default_reporting_currency_code: s.default_reporting_currency_code ?? "",
     reporting_currency_codes: s.reporting_currency_codes ?? [],
     indexed_unit_enabled: s.indexed_unit_enabled,

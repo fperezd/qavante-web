@@ -2,7 +2,7 @@ export const ACTIVE_COMPANY_STORAGE_KEY = "qavante.active-company-id";
 
 export const UNATTRIBUTED_COMPANY_ID = "unattributed";
 
-const COMPANY_HEADER = "X-Qavante-Company-Id";
+export const COMPANY_HEADER = "X-Qavante-Company-Id";
 
 function isLegalEntityList(path: string): boolean {
   return path === "/api/legal-entities" || path.startsWith("/api/legal-entities?");
@@ -12,6 +12,17 @@ function isLegalEntityList(path: string): boolean {
 export function companyRequestHeaders(path: string): Record<string, string> {
   if (isLegalEntityList(path) || typeof window === "undefined") return {};
   const companyId = window.localStorage.getItem(ACTIVE_COMPANY_STORAGE_KEY);
+  return companyId ? { [COMPANY_HEADER]: companyId } : {};
+}
+
+/**
+ * Header para una sociedad que ya fue resuelta por la UI. No lee storage: las
+ * pantallas que cargan inmediatamente despuÃ©s de resolver el provider deben
+ * conservar el scope aunque el efecto que lo persiste todavÃ­a no haya corrido.
+ */
+export function explicitCompanyRequestHeaders(
+  companyId: string | null | undefined,
+): Record<string, string> {
   return companyId ? { [COMPANY_HEADER]: companyId } : {};
 }
 

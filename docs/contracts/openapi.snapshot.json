@@ -857,6 +857,224 @@
         "title": "AdminLogListResponse",
         "type": "object"
       },
+      "AdoptLegacyOpeningCutoffRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "created_after": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tope inferior opcional de `created_at`, INCLUSIVO (`created_at >= valor`).",
+            "title": "Created After"
+          },
+          "created_before": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tope superior de `created_at`, EXCLUSIVO (`created_at < valor`). Default: `historical_cutoff_at` — un documento creado en ese instante o después no se puede afirmar que esa corrida lo vio.",
+            "title": "Created Before"
+          },
+          "cutoff_date": {
+            "description": "Fecha del corte histórico: se adoptan documentos con issue_date <= esta fecha.",
+            "format": "date",
+            "title": "Cutoff Date",
+            "type": "string"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "True (default): sólo previsualiza, NO muta nada.",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "historical_cutoff_at": {
+            "description": "Marca temporal (con zona) del cierre histórico. Se estampa como `opening_cutoff_at` y acota `created_at` por arriba salvo que se indique `created_before`.",
+            "format": "date-time",
+            "title": "Historical Cutoff At",
+            "type": "string"
+          },
+          "updated_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inicio opcional de la ventana de `updated_at`, INCLUSIVO (`updated_at >= valor`). Filtro angosto: sirve sólo si la marca de la corrida histórica sobrevivió en esa columna; un re-sync posterior la pisa.",
+            "title": "Updated From"
+          },
+          "updated_to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fin opcional de la ventana de `updated_at`, EXCLUSIVO (`updated_at < valor`).",
+            "title": "Updated To"
+          }
+        },
+        "required": [
+          "cutoff_date",
+          "historical_cutoff_at"
+        ],
+        "title": "AdoptLegacyOpeningCutoffRequest",
+        "type": "object"
+      },
+      "AdoptLegacyOpeningCutoffResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cierre_historico_at": {
+            "format": "date-time",
+            "title": "Cierre Historico At",
+            "type": "string"
+          },
+          "cutoff_date": {
+            "format": "date",
+            "title": "Cutoff Date",
+            "type": "string"
+          },
+          "documentos": {
+            "description": "Documentos adoptados, acotados a 500 en la respuesta. El evento de auditoría lleva la lista COMPLETA; los conteos de arriba también son completos.",
+            "items": {
+              "$ref": "#/components/schemas/AdoptedDocument"
+            },
+            "maxItems": 500,
+            "title": "Documentos",
+            "type": "array"
+          },
+          "documentos_truncados": {
+            "description": "True si hubo más documentos que el tope de la respuesta: la lista de arriba está recortada y la completa está en el audit.",
+            "title": "Documentos Truncados",
+            "type": "boolean"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "payables_adoptadas": {
+            "description": "Conteo EXACTO, no afectado por el tope de `documentos`.",
+            "title": "Payables Adoptadas",
+            "type": "integer"
+          },
+          "receivables_adoptadas": {
+            "description": "Conteo EXACTO, no afectado por el tope de `documentos`.",
+            "title": "Receivables Adoptadas",
+            "type": "integer"
+          },
+          "run_creado": {
+            "title": "Run Creado",
+            "type": "boolean"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Run al que se adoptan las filas. Null en `dry_run` si hay que crearlo.",
+            "title": "Run Id"
+          },
+          "valores_previos": {
+            "$ref": "#/components/schemas/DeclaredPreviousValues"
+          }
+        },
+        "required": [
+          "dry_run",
+          "cutoff_date",
+          "cierre_historico_at",
+          "run_creado",
+          "valores_previos",
+          "receivables_adoptadas",
+          "payables_adoptadas",
+          "documentos",
+          "documentos_truncados"
+        ],
+        "title": "AdoptLegacyOpeningCutoffResponse",
+        "type": "object"
+      },
+      "AdoptedDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "issue_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issue Date"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "outstanding_actual": {
+            "title": "Outstanding Actual",
+            "type": "string"
+          },
+          "outstanding_previo_declarado": {
+            "title": "Outstanding Previo Declarado",
+            "type": "string"
+          },
+          "source_external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source External Id"
+          },
+          "status_actual": {
+            "title": "Status Actual",
+            "type": "string"
+          },
+          "status_previo_declarado": {
+            "title": "Status Previo Declarado",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "status_actual",
+          "outstanding_actual",
+          "status_previo_declarado",
+          "outstanding_previo_declarado"
+        ],
+        "title": "AdoptedDocument",
+        "type": "object"
+      },
       "AllocationDetail": {
         "additionalProperties": false,
         "properties": {
@@ -929,8 +1147,8 @@
           "pct": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -1154,26 +1372,26 @@
         "properties": {
           "clasificados": {
             "description": "Movimientos que matchearon una regla y quedaron clasificados.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Clasificados",
             "type": "integer"
           },
           "evaluados": {
             "description": "Movimientos sin clasificar evaluados contra las reglas.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Evaluados",
             "type": "integer"
           },
           "omitidos_transferencia": {
             "default": 0,
             "description": "Movimientos saltados por las reglas por ser probables patas de transferencia interna (RUT propio del tenant en la glosa) — los clasifica la detección de traspasos, no las reglas por keyword/monto. Evita el gasto-fantasma que no netea.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Omitidos Transferencia",
             "type": "integer"
           },
           "sin_regla": {
             "description": "Movimientos que no matchearon ninguna regla (siguen sin clasificar).",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Sin Regla",
             "type": "integer"
           }
@@ -1258,22 +1476,22 @@
         "additionalProperties": false,
         "properties": {
           "accounts_existing": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Accounts Existing",
             "type": "integer"
           },
           "accounts_to_add": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Accounts To Add",
             "type": "integer"
           },
           "dimensions_existing": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Dimensions Existing",
             "type": "integer"
           },
           "dimensions_to_add": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Dimensions To Add",
             "type": "integer"
           }
@@ -1524,13 +1742,13 @@
           },
           "processed": {
             "default": 0,
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Processed",
             "type": "integer"
           },
           "reclaimed": {
             "default": 0,
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Reclaimed",
             "type": "integer"
           }
@@ -1657,8 +1875,8 @@
           "max_months": {
             "anyOf": [
               {
-                "maximum": 48,
-                "minimum": 1,
+                "maximum": 48.0,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -1969,7 +2187,7 @@
                 "type": "null"
               }
             ],
-            "description": "Saldo de la cuenta EN SU PROPIA MONEDA (currency_code); NULL si la cuenta no tiene apertura configurada. Server-side (banco reportado, o apertura + Σ movimientos): el FE NO debe bajar todos los movimientos para calcularlo.",
+            "description": "Saldo de la cuenta, cuantizado en la escala de SU PROPIA MONEDA (currency_code); NULL si la cuenta no tiene apertura configurada. Server-side (banco reportado, o apertura + Σ movimientos): el FE NO debe bajar todos los movimientos para calcularlo.",
             "title": "Balance"
           },
           "balance_as_of": {
@@ -2451,7 +2669,7 @@
           },
           "total": {
             "description": "Total de movimientos que matchean el filtro (sin paginar).",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Total",
             "type": "integer"
           }
@@ -3238,8 +3456,8 @@
             "title": "Impact Type"
           },
           "month": {
-            "maximum": 12,
-            "minimum": 1,
+            "maximum": 12.0,
+            "minimum": 1.0,
             "title": "Month",
             "type": "integer"
           }
@@ -3550,8 +3768,8 @@
         "properties": {
           "fiscal_year": {
             "description": "Año fiscal a presupuestar.",
-            "maximum": 2100,
-            "minimum": 2020,
+            "maximum": 2100.0,
+            "minimum": 2020.0,
             "title": "Fiscal Year",
             "type": "integer"
           },
@@ -4000,7 +4218,7 @@
           "eligible_count": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -4011,7 +4229,7 @@
             "title": "Eligible Count"
           },
           "evaluated_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Evaluated Count",
             "type": "integer"
           },
@@ -4020,7 +4238,7 @@
             "type": "boolean"
           },
           "scan_limit": {
-            "exclusiveMinimum": 0,
+            "exclusiveMinimum": 0.0,
             "title": "Scan Limit",
             "type": "integer"
           }
@@ -4044,7 +4262,7 @@
           },
           "count": {
             "description": "Candidatos encontrados dentro de la cobertura declarada.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Count",
             "type": "integer"
           },
@@ -4811,7 +5029,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -5470,7 +5688,7 @@
           },
           "row_count": {
             "default": 0,
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Row Count",
             "type": "integer"
           },
@@ -5522,7 +5740,7 @@
           },
           "row_count": {
             "default": 0,
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Row Count",
             "type": "integer"
           }
@@ -5571,7 +5789,7 @@
           },
           "row_count": {
             "default": 0,
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Row Count",
             "type": "integer"
           }
@@ -5641,7 +5859,7 @@
           "excluded_attention": {
             "default": 0,
             "description": "Filas omitidas por data_status='requires_attention' cuando include_attention=false.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Excluded Attention",
             "type": "integer"
           },
@@ -5978,7 +6196,7 @@
         "additionalProperties": false,
         "properties": {
           "component_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Component Count",
             "type": "integer"
           },
@@ -6050,6 +6268,62 @@
           "currency"
         ],
         "title": "CashProjectionBridgeComponent",
+        "type": "object"
+      },
+      "CashProjectionConservationBucket": {
+        "additionalProperties": false,
+        "description": "Parte del universo monetario sellado para un scope y moneda exactos.",
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,6}0*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "count": {
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "amount",
+          "refs"
+        ],
+        "title": "CashProjectionConservationBucket",
+        "type": "object"
+      },
+      "CashProjectionConservationReceipt": {
+        "additionalProperties": false,
+        "description": "Identidad verificable: universo = incluido + fuera + excluido.",
+        "properties": {
+          "excluded": {
+            "$ref": "#/components/schemas/CashProjectionConservationBucket"
+          },
+          "included": {
+            "$ref": "#/components/schemas/CashProjectionConservationBucket"
+          },
+          "outside_horizon": {
+            "$ref": "#/components/schemas/CashProjectionConservationBucket"
+          },
+          "universe": {
+            "$ref": "#/components/schemas/CashProjectionConservationBucket"
+          }
+        },
+        "required": [
+          "universe",
+          "included",
+          "outside_horizon",
+          "excluded"
+        ],
+        "title": "CashProjectionConservationReceipt",
         "type": "object"
       },
       "CashProjectionDecisionCoverage": {
@@ -6310,8 +6584,8 @@
           },
           "horizon_days": {
             "default": 90,
-            "maximum": 90,
-            "minimum": 7,
+            "maximum": 90.0,
+            "minimum": 7.0,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -6341,6 +6615,16 @@
             "title": "Calculation Version",
             "type": "string"
           },
+          "conservation_receipt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CashProjectionConservationReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "currency": {
             "pattern": "^[A-Z]{3}$",
             "title": "Currency",
@@ -6351,9 +6635,18 @@
             "title": "Cutoff At",
             "type": "string"
           },
+          "decision_support": {
+            "default": "abstain",
+            "enum": [
+              "eligible",
+              "abstain"
+            ],
+            "title": "Decision Support",
+            "type": "string"
+          },
           "horizon_days": {
-            "maximum": 90,
-            "minimum": 7,
+            "maximum": 90.0,
+            "minimum": 7.0,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -6569,7 +6862,7 @@
             "type": "string"
           },
           "observed_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Observed Count",
             "type": "integer"
           },
@@ -7537,7 +7830,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -7577,8 +7870,8 @@
           "percentage": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
-                "maximum": 100,
+                "exclusiveMinimum": 0.0,
+                "maximum": 100.0,
                 "type": "number"
               },
               {
@@ -8036,7 +8329,7 @@
           "application_count": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -8059,7 +8352,7 @@
           "correction_count": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -9036,8 +9329,8 @@
             "type": "array"
           },
           "days_offset": {
-            "maximum": 365,
-            "minimum": 0,
+            "maximum": 365.0,
+            "minimum": 0.0,
             "title": "Days Offset",
             "type": "integer"
           },
@@ -9105,8 +9398,8 @@
             "type": "array"
           },
           "days_offset": {
-            "maximum": 365,
-            "minimum": 0,
+            "maximum": 365.0,
+            "minimum": 0.0,
             "title": "Days Offset",
             "type": "integer"
           },
@@ -9431,7 +9724,7 @@
           "max_combinations": {
             "anyOf": [
               {
-                "minimum": 1,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -9443,7 +9736,7 @@
           "max_components": {
             "anyOf": [
               {
-                "minimum": 2,
+                "minimum": 2.0,
                 "type": "integer"
               },
               {
@@ -9507,8 +9800,15 @@
             "title": "Default Reporting Currency Code"
           },
           "functional_currency_code": {
-            "title": "Functional Currency Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Functional Currency Code"
           },
           "indexed_unit_currency_code": {
             "anyOf": [
@@ -9545,7 +9845,6 @@
         },
         "required": [
           "tenant_id",
-          "functional_currency_code",
           "updated_at"
         ],
         "title": "CompanyCurrencySettings",
@@ -9767,8 +10066,8 @@
           },
           "score": {
             "description": "Índice de Confianza 0-100.",
-            "maximum": 100,
-            "minimum": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
             "title": "Score",
             "type": "integer"
           }
@@ -9803,6 +10102,11 @@
       "ConfirmBatchRequest": {
         "additionalProperties": false,
         "properties": {
+          "legal_entity_id": {
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
           "movement_ids": {
             "items": {
               "type": "string"
@@ -9814,7 +10118,8 @@
           }
         },
         "required": [
-          "movement_ids"
+          "movement_ids",
+          "legal_entity_id"
         ],
         "title": "ConfirmBatchRequest",
         "type": "object"
@@ -11182,14 +11487,14 @@
                 "type": "null"
               }
             ],
-            "description": "Entidad legal explícita del tenant. Si falta, la cuenta queda no atribuida; el servidor nunca infiere la entidad default.",
+            "description": "Entidad legal explícita del tenant. Si falta, se usa la sociedad activa del request; si tampoco existe, el alta se rechaza. Nunca se crea una cuenta monetaria sin sociedad ni se infiere una default.",
             "title": "Legal Entity Id"
           },
           "statement_close_day": {
             "anyOf": [
               {
-                "maximum": 31,
-                "minimum": 1,
+                "maximum": 31.0,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -11234,8 +11539,8 @@
           },
           "confidence": {
             "default": 0.8,
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Confidence",
             "type": "number"
           },
@@ -11349,7 +11654,7 @@
           },
           "sort_order": {
             "default": 0,
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Sort Order",
             "type": "integer"
           }
@@ -11413,7 +11718,7 @@
           },
           "sort_order": {
             "default": 0,
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Sort Order",
             "type": "integer"
           }
@@ -11450,15 +11755,15 @@
           },
           "installments": {
             "description": "Número de cuotas mensuales.",
-            "exclusiveMinimum": 0,
-            "maximum": 600,
+            "exclusiveMinimum": 0.0,
+            "maximum": 600.0,
             "title": "Installments",
             "type": "integer"
           },
           "monthly_rate": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -11485,7 +11790,7 @@
           "principal": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -12885,7 +13190,7 @@
           "assumed_receivables_excluded_count": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -12907,7 +13212,7 @@
           "conditional_due_date_items_14d": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -12929,7 +13234,7 @@
           "dated_items": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -12941,7 +13246,7 @@
           "excluded_other_currency_items": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -12966,7 +13271,7 @@
           "undated_items": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -13143,7 +13448,7 @@
             "type": "string"
           },
           "item_count": {
-            "minimum": 1,
+            "minimum": 1.0,
             "title": "Item Count",
             "type": "integer"
           },
@@ -13220,7 +13525,7 @@
           "item_count": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -13268,7 +13573,7 @@
           "abstained": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -13292,7 +13597,7 @@
           "no_action": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -13304,7 +13609,7 @@
           "observed": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -13316,7 +13621,7 @@
           "ready": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -13642,6 +13947,31 @@
           "value"
         ],
         "title": "DeclareIdentifierRequest",
+        "type": "object"
+      },
+      "DeclaredPreviousValues": {
+        "additionalProperties": false,
+        "properties": {
+          "origen": {
+            "description": "`reconstructed`: los valores previos se declaran, no se observaron.",
+            "title": "Origen",
+            "type": "string"
+          },
+          "outstanding_amount": {
+            "title": "Outstanding Amount",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "origen",
+          "status",
+          "outstanding_amount"
+        ],
+        "title": "DeclaredPreviousValues",
         "type": "object"
       },
       "DedupRcvRequest": {
@@ -14394,7 +14724,7 @@
           "expected_outstanding": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -14670,7 +15000,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -14693,7 +15023,7 @@
           "expected_outstanding": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -15484,7 +15814,7 @@
             "title": "Target Document Id"
           },
           "target_match_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Target Match Count",
             "type": "integer"
           },
@@ -15538,6 +15868,22 @@
       "DteEmitidosResponse": {
         "additionalProperties": true,
         "properties": {
+          "access_path": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mipe_env",
+                  "legacy_portal001"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vía de acceso usada en una respuesta exitosa: `mipe_env` usa el respaldo MiPyme ORIGEN=ENV con clave de persona; `legacy_portal001` usa el certificado legacy. No contiene credenciales ni identificadores tributarios.",
+            "title": "Access Path"
+          },
           "count": {
             "default": 0,
             "title": "Count",
@@ -15988,7 +16334,7 @@
           "reference_index": {
             "anyOf": [
               {
-                "minimum": 1,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -17350,8 +17696,8 @@
             "title": "Iva Debito Fiscal"
           },
           "period_month": {
-            "maximum": 12,
-            "minimum": 1,
+            "maximum": 12.0,
+            "minimum": 1.0,
             "title": "Period Month",
             "type": "integer"
           },
@@ -17417,15 +17763,15 @@
         "properties": {
           "month": {
             "description": "Mes (1-12).",
-            "maximum": 12,
-            "minimum": 1,
+            "maximum": 12.0,
+            "minimum": 1.0,
             "title": "Month",
             "type": "integer"
           },
           "year": {
             "description": "Año calendario.",
-            "maximum": 2100,
-            "minimum": 2000,
+            "maximum": 2100.0,
+            "minimum": 2000.0,
             "title": "Year",
             "type": "integer"
           }
@@ -18153,7 +18499,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -18169,7 +18515,7 @@
             "type": "string"
           },
           "sequence": {
-            "minimum": 1,
+            "minimum": 1.0,
             "title": "Sequence",
             "type": "integer"
           }
@@ -18214,7 +18560,7 @@
           "covered_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -18328,7 +18674,7 @@
           "agreed_total_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -19303,8 +19649,8 @@
           "confidence": {
             "anyOf": [
               {
-                "maximum": 1,
-                "minimum": 0,
+                "maximum": 1.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -19589,8 +19935,8 @@
           "confidence": {
             "anyOf": [
               {
-                "maximum": 1,
-                "minimum": 0,
+                "maximum": 1.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -19916,7 +20262,7 @@
             "type": "string"
           },
           "duration_days": {
-            "minimum": 1,
+            "minimum": 1.0,
             "title": "Duration Days",
             "type": "integer"
           },
@@ -20041,8 +20387,8 @@
             "type": "boolean"
           },
           "horizon_days": {
-            "maximum": 365,
-            "minimum": 1,
+            "maximum": 365.0,
+            "minimum": 1.0,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -20242,8 +20588,8 @@
           "month": {
             "anyOf": [
               {
-                "maximum": 12,
-                "minimum": 1,
+                "maximum": 12.0,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -20293,8 +20639,8 @@
           "year": {
             "anyOf": [
               {
-                "maximum": 2100,
-                "minimum": 2020,
+                "maximum": 2100.0,
+                "minimum": 2020.0,
                 "type": "integer"
               },
               {
@@ -20333,8 +20679,8 @@
           "month": {
             "anyOf": [
               {
-                "maximum": 12,
-                "minimum": 1,
+                "maximum": 12.0,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -20375,8 +20721,8 @@
           "year": {
             "anyOf": [
               {
-                "maximum": 2100,
-                "minimum": 2020,
+                "maximum": 2100.0,
+                "minimum": 2020.0,
                 "type": "integer"
               },
               {
@@ -20434,8 +20780,8 @@
           "month": {
             "anyOf": [
               {
-                "maximum": 12,
-                "minimum": 1,
+                "maximum": 12.0,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -20496,8 +20842,8 @@
           "year": {
             "anyOf": [
               {
-                "maximum": 2100,
-                "minimum": 2020,
+                "maximum": 2100.0,
+                "minimum": 2020.0,
                 "type": "integer"
               },
               {
@@ -20922,6 +21268,18 @@
             ],
             "title": "Exchange Token"
           },
+          "legal_entity_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Entity Id"
+          },
           "link": {
             "anyOf": [
               {
@@ -20979,10 +21337,34 @@
       },
       "FintocConnection": {
         "properties": {
+          "connected_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connected At"
+          },
           "data_source": {
             "default": "fintoc",
             "title": "Data Source",
             "type": "string"
+          },
+          "disconnected_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disconnected At"
           },
           "holder_id": {
             "anyOf": [
@@ -21028,6 +21410,17 @@
             ],
             "title": "Holder Type"
           },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
           "institution_id": {
             "title": "Institution Id",
             "type": "string"
@@ -21035,6 +21428,29 @@
           "institution_name": {
             "title": "Institution Name",
             "type": "string"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "legal_entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Entity Id"
           },
           "link_id": {
             "anyOf": [
@@ -21083,6 +21499,29 @@
         "title": "FintocConnection",
         "type": "object"
       },
+      "FintocDeleteResponse": {
+        "properties": {
+          "deleted_accounts": {
+            "title": "Deleted Accounts",
+            "type": "integer"
+          },
+          "deleted_movements": {
+            "title": "Deleted Movements",
+            "type": "integer"
+          },
+          "status": {
+            "default": "deleted",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deleted_accounts",
+          "deleted_movements"
+        ],
+        "title": "FintocDeleteResponse",
+        "type": "object"
+      },
       "FintocInstitution": {
         "properties": {
           "country": {
@@ -21104,6 +21543,21 @@
           "name"
         ],
         "title": "FintocInstitution",
+        "type": "object"
+      },
+      "FintocLinkIntentRequest": {
+        "properties": {
+          "holder_type": {
+            "default": "business",
+            "enum": [
+              "individual",
+              "business"
+            ],
+            "title": "Holder Type",
+            "type": "string"
+          }
+        },
+        "title": "FintocLinkIntentRequest",
         "type": "object"
       },
       "FintocLinkIntentResponse": {
@@ -21672,7 +22126,7 @@
           "fresh_sources": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -21691,7 +22145,7 @@
           "required_sources": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -22378,7 +22832,7 @@
             "type": "array"
           },
           "count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Count",
             "type": "integer"
           },
@@ -22797,6 +23251,18 @@
             ],
             "title": "Linked Bank Account Id"
           },
+          "quarantine_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Motivo de cuarentena sin escritura. `unmapped_or_outside_scope` significa que la cuenta BICE no tiene un mapping demostrable dentro de la sociedad seleccionada.",
+            "title": "Quarantine Reason"
+          },
           "quarantined": {
             "default": false,
             "title": "Quarantined",
@@ -22937,19 +23403,19 @@
         "properties": {
           "clasificados": {
             "description": "Patas clasificadas como internal_bank_transfer (2 por par).",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Clasificados",
             "type": "integer"
           },
           "evaluados": {
             "description": "Movimientos sin clasificar evaluados.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Evaluados",
             "type": "integer"
           },
           "pares": {
             "description": "Pares de traspaso interno (cargo↔abono) detectados.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Pares",
             "type": "integer"
           }
@@ -23419,6 +23885,65 @@
           "entities"
         ],
         "title": "LegalEntitiesResponse",
+        "type": "object"
+      },
+      "LegalEntityFunctionalCurrencySettings": {
+        "additionalProperties": false,
+        "description": "Moneda funcional explícita de una sociedad, no un default de tenant.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "functional_currency_code": {
+            "title": "Functional Currency Code",
+            "type": "string"
+          },
+          "legal_entity_id": {
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
+          "provenance": {
+            "title": "Provenance",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "legal_entity_id",
+          "functional_currency_code",
+          "provenance",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "LegalEntityFunctionalCurrencySettings",
+        "type": "object"
+      },
+      "LegalEntityNameRequest": {
+        "additionalProperties": false,
+        "description": "Nombre de una Empresa operativa dentro del tenant autenticado.",
+        "properties": {
+          "legal_name": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Legal Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "legal_name"
+        ],
+        "title": "LegalEntityNameRequest",
         "type": "object"
       },
       "LegalEntityView": {
@@ -23967,6 +24492,32 @@
           "user"
         ],
         "title": "LoginResponse",
+        "type": "object"
+      },
+      "ManagedLegalEntity": {
+        "additionalProperties": false,
+        "description": "Respuesta mínima de alta/edición para refrescar selector y administración.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "legal_name": {
+            "title": "Legal Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "legal_name",
+          "is_default"
+        ],
+        "title": "ManagedLegalEntity",
         "type": "object"
       },
       "ManagementAccount": {
@@ -24844,7 +25395,7 @@
                 "type": "null"
               }
             ],
-            "description": "Razón social del tenant activo (CC-WEB #3).",
+            "description": "Alias de compatibilidad: razón social de la Empresa activa. El tenant no se expone como selector operativo.",
             "title": "Tenant Name"
           }
         },
@@ -25316,13 +25867,19 @@
             "title": "Number",
             "type": "integer"
           },
+          "payment_evidence_origin": {
+            "default": "unknown",
+            "description": "unknown / bank_movement / manual_confirmation.",
+            "title": "Payment Evidence Origin",
+            "type": "string"
+          },
           "principal_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Principal Amount",
             "type": "string"
           },
           "status": {
-            "description": "pending / paid.",
+            "description": "pending / unverified / paid.",
             "title": "Status",
             "type": "string"
           },
@@ -25427,6 +25984,19 @@
           },
           "type": {
             "title": "Type",
+            "type": "string"
+          },
+          "unverified_count": {
+            "default": 0,
+            "description": "Cuotas sin evidencia suficiente de pago.",
+            "title": "Unverified Count",
+            "type": "integer"
+          },
+          "unverified_total": {
+            "default": "0",
+            "description": "Monto sin evidencia; no entra como caja confirmada.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unverified Total",
             "type": "string"
           }
         },
@@ -25794,7 +26364,7 @@
           "eta_seconds": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -25819,7 +26389,7 @@
           "records_read": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -28171,7 +28741,7 @@
           "duration_days": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -28595,27 +29165,27 @@
         "description": "Counts derived from immutable task events, never from a financial result.",
         "properties": {
           "cancelled": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Cancelled",
             "type": "integer"
           },
           "completed": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Completed",
             "type": "integer"
           },
           "in_progress": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "In Progress",
             "type": "integer"
           },
           "pending": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Pending",
             "type": "integer"
           },
           "total": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Total",
             "type": "integer"
           }
@@ -28679,7 +29249,7 @@
           "duration_days": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -29210,6 +29780,47 @@
           }
         },
         "title": "Pagination",
+        "type": "object"
+      },
+      "PartnerContributionCounterparty": {
+        "additionalProperties": false,
+        "description": "Contraparte aprendida desde un aporte confirmado; se puede desactivar.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "counterparty_rut": {
+            "title": "Counterparty Rut",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "learned_from_movement_id": {
+            "title": "Learned From Movement Id",
+            "type": "string"
+          },
+          "legal_entity_id": {
+            "title": "Legal Entity Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "legal_entity_id",
+          "counterparty_rut",
+          "learned_from_movement_id",
+          "active",
+          "created_at"
+        ],
+        "title": "PartnerContributionCounterparty",
         "type": "object"
       },
       "PatchUserRequest": {
@@ -30048,7 +30659,7 @@
             "title": "Employee Id"
           },
           "liquido": {
-            "default": 0,
+            "default": 0.0,
             "description": "Líquido a recibir del empleado (CLP).",
             "title": "Liquido",
             "type": "number"
@@ -30182,10 +30793,18 @@
             "title": "Confirmed Outstanding Amount"
           },
           "currency_code": {
-            "maxLength": 3,
-            "minLength": 3,
-            "title": "Currency Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 3,
+                "minLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda evidenciada por el snapshot o por pagos concordantes; null cuando la proyeccion se abstiene de asignarla.",
+            "title": "Currency Code"
           },
           "legacy_outstanding_amount": {
             "anyOf": [
@@ -30282,7 +30901,7 @@
         "properties": {
           "amount": {
             "description": "Monto del pago (de un movimiento bancario).",
-            "exclusiveMinimum": 0,
+            "exclusiveMinimum": 0.0,
             "title": "Amount",
             "type": "number"
           },
@@ -30470,27 +31089,27 @@
             "type": "integer"
           },
           "total_cotizaciones": {
-            "default": 0,
+            "default": 0.0,
             "title": "Total Cotizaciones",
             "type": "number"
           },
           "total_descuentos": {
-            "default": 0,
+            "default": 0.0,
             "title": "Total Descuentos",
             "type": "number"
           },
           "total_haberes": {
-            "default": 0,
+            "default": 0.0,
             "title": "Total Haberes",
             "type": "number"
           },
           "total_imponible": {
-            "default": 0,
+            "default": 0.0,
             "title": "Total Imponible",
             "type": "number"
           },
           "total_liquido": {
-            "default": 0,
+            "default": 0.0,
             "title": "Total Liquido",
             "type": "number"
           }
@@ -30578,8 +31197,8 @@
           "percent_change": {
             "anyOf": [
               {
-                "maximum": 1000,
-                "minimum": -100,
+                "maximum": 1000.0,
+                "minimum": -100.0,
                 "type": "number"
               },
               {
@@ -31722,8 +32341,8 @@
             "type": "boolean"
           },
           "score": {
-            "maximum": 100,
-            "minimum": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
             "title": "Score",
             "type": "integer"
           },
@@ -32030,20 +32649,20 @@
         "description": "Weight coverage; denominator includes configured but unavailable factors.",
         "properties": {
           "available_weight": {
-            "maximum": 100,
-            "minimum": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
             "title": "Available Weight",
             "type": "number"
           },
           "configured_weight": {
-            "maximum": 100,
-            "minimum": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
             "title": "Configured Weight",
             "type": "number"
           },
           "ratio": {
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Ratio",
             "type": "number"
           }
@@ -32102,8 +32721,8 @@
           "base_score": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -32198,8 +32817,8 @@
           "knockout_cap": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -32282,8 +32901,8 @@
           "score": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -32371,16 +32990,16 @@
         "description": "One configured factor and its auditable weight in the selected reading.",
         "properties": {
           "configured_weight": {
-            "maximum": 100,
-            "minimum": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
             "title": "Configured Weight",
             "type": "number"
           },
           "contribution": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -32390,16 +33009,16 @@
             "title": "Contribution"
           },
           "effective_weight": {
-            "maximum": 100,
-            "minimum": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
             "title": "Effective Weight",
             "type": "number"
           },
           "exact_score": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -32413,21 +33032,21 @@
             "type": "string"
           },
           "multiplier": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Multiplier",
             "type": "number"
           },
           "raw_weight": {
-            "maximum": 100,
-            "minimum": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
             "title": "Raw Weight",
             "type": "number"
           },
           "score": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -32511,8 +33130,8 @@
         "description": "Inclusive lower bound published with the methodology that produced the score.",
         "properties": {
           "minimum_score": {
-            "maximum": 100,
-            "minimum": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
             "title": "Minimum Score",
             "type": "integer"
           },
@@ -32613,7 +33232,7 @@
           "amount": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -32677,13 +33296,30 @@
         "title": "PutCostProfileRequest",
         "type": "object"
       },
+      "PutLegalEntityFunctionalCurrencySettingsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "functional_currency_code": {
+            "maxLength": 3,
+            "minLength": 3,
+            "pattern": "^[A-Z]{3}$",
+            "title": "Functional Currency Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "functional_currency_code"
+        ],
+        "title": "PutLegalEntityFunctionalCurrencySettingsRequest",
+        "type": "object"
+      },
       "PutPayrollPaydayRequest": {
         "properties": {
           "payday_day": {
             "anyOf": [
               {
-                "maximum": 31,
-                "minimum": 1,
+                "maximum": 31.0,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -33517,7 +34153,7 @@
             "type": "string"
           },
           "document_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Document Count",
             "type": "integer"
           },
@@ -33561,7 +34197,7 @@
             "title": "Undated Amount"
           },
           "undated_document_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Undated Document Count",
             "type": "integer"
           }
@@ -33603,7 +34239,7 @@
             "type": "string"
           },
           "graph_version": {
-            "exclusiveMinimum": 0,
+            "exclusiveMinimum": 0.0,
             "title": "Graph Version",
             "type": "integer"
           },
@@ -33625,7 +34261,7 @@
           },
           "items_total": {
             "description": "Deudores que cumplen los filtros, sin paginar.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Items Total",
             "type": "integer"
           },
@@ -33723,13 +34359,13 @@
         "properties": {
           "debtor_count": {
             "description": "Deudores filtrados, sin paginar.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Debtor Count",
             "type": "integer"
           },
           "document_count": {
             "description": "Documentos filtrados, sin paginar.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Document Count",
             "type": "integer"
           },
@@ -34073,32 +34709,32 @@
         "description": "Partición disjunta del universo vivo antes de filtros de la pantalla.",
         "properties": {
           "ceded_document_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Ceded Document Count",
             "type": "integer"
           },
           "collectable_document_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Collectable Document Count",
             "type": "integer"
           },
           "credit_note_document_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Credit Note Document Count",
             "type": "integer"
           },
           "non_positive_document_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Non Positive Document Count",
             "type": "integer"
           },
           "source_document_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Source Document Count",
             "type": "integer"
           },
           "unresolved_identity_document_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Unresolved Identity Document Count",
             "type": "integer"
           }
@@ -34118,7 +34754,7 @@
         "additionalProperties": false,
         "properties": {
           "document_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Document Count",
             "type": "integer"
           },
@@ -34171,7 +34807,7 @@
             "type": "string"
           },
           "debtor_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Debtor Count",
             "type": "integer"
           },
@@ -34334,6 +34970,11 @@
             "title": "Review",
             "type": "integer"
           },
+          "skipped_missing_functional_currency_entities": {
+            "description": "Sociedades omitidas explícitamente por no tener moneda funcional declarada.",
+            "title": "Skipped Missing Functional Currency Entities",
+            "type": "integer"
+          },
           "tenants": {
             "description": "Tenants con banco procesados.",
             "title": "Tenants",
@@ -34344,7 +34985,8 @@
           "tenants",
           "matched",
           "review",
-          "errors"
+          "errors",
+          "skipped_missing_functional_currency_entities"
         ],
         "title": "ReconcileRunAllResponse",
         "type": "object"
@@ -34355,19 +34997,19 @@
         "properties": {
           "clasificados": {
             "description": "Clasificados desde su documento (receivable→cobro, payable→pago).",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Clasificados",
             "type": "integer"
           },
           "evaluados": {
             "description": "Movimientos conciliados sin clasificar evaluados.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Evaluados",
             "type": "integer"
           },
           "sin_categoria": {
             "description": "Conciliados que no se pudieron derivar a categoría/cuenta.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Sin Categoria",
             "type": "integer"
           }
@@ -34766,7 +35408,7 @@
         "additionalProperties": false,
         "properties": {
           "debt_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Debt Count",
             "type": "integer"
           },
@@ -34786,7 +35428,7 @@
             "type": "string"
           },
           "verified_offer_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Verified Offer Count",
             "type": "integer"
           }
@@ -34834,7 +35476,7 @@
             "type": "array"
           },
           "verified_offer_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Verified Offer Count",
             "type": "integer"
           }
@@ -35148,21 +35790,21 @@
           },
           "period_month": {
             "description": "Mes del período HACIA el cual arrastra.",
-            "maximum": 12,
-            "minimum": 1,
+            "maximum": 12.0,
+            "minimum": 1.0,
             "title": "Period Month",
             "type": "integer"
           },
           "period_year": {
             "description": "Año del período HACIA el cual arrastra.",
-            "maximum": 2100,
-            "minimum": 2000,
+            "maximum": 2100.0,
+            "minimum": 2000.0,
             "title": "Period Year",
             "type": "integer"
           },
           "remanente": {
             "description": "Remanente de crédito fiscal acumulado (CLP, >= 0) arrastrado HACIA ese período.",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Remanente",
             "type": "integer"
           },
@@ -36376,8 +37018,8 @@
           "data_confidence": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -36433,8 +37075,8 @@
             "type": "array"
           },
           "score": {
-            "maximum": 100,
-            "minimum": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
             "title": "Score",
             "type": "integer"
           },
@@ -37816,8 +38458,8 @@
             "type": "string"
           },
           "horizon_days": {
-            "maximum": 180,
-            "minimum": 7,
+            "maximum": 180.0,
+            "minimum": 7.0,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -37993,8 +38635,8 @@
           "horizon_days": {
             "anyOf": [
               {
-                "maximum": 180,
-                "minimum": 7,
+                "maximum": 180.0,
+                "minimum": 7.0,
                 "type": "integer"
               },
               {
@@ -38780,7 +39422,7 @@
           "eta_seconds": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -38869,7 +39511,7 @@
             "type": "string"
           },
           "omitted_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Omitted Count",
             "type": "integer"
           },
@@ -38980,7 +39622,7 @@
             "title": "Canonical Category"
           },
           "confidence": {
-            "default": 0,
+            "default": 0.0,
             "description": "Confianza de la regla que matcheó [0..1].",
             "title": "Confidence",
             "type": "number"
@@ -40532,8 +41174,8 @@
           "confidence": {
             "anyOf": [
               {
-                "maximum": 1,
-                "minimum": 0,
+                "maximum": 1.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -40609,7 +41251,9 @@
           "functional_currency_code": {
             "anyOf": [
               {
-                "minLength": 1,
+                "maxLength": 3,
+                "minLength": 3,
+                "pattern": "^[A-Z]{3}$",
                 "type": "string"
               },
               {
@@ -40776,7 +41420,7 @@
           "sort_order": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -40855,7 +41499,7 @@
           "sort_order": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -41444,8 +42088,8 @@
             "type": "string"
           },
           "horizon_days": {
-            "maximum": 180,
-            "minimum": 7,
+            "maximum": 180.0,
+            "minimum": 7.0,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -41648,7 +42292,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -41699,7 +42343,7 @@
           "mixed_fixed_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -41727,7 +42371,7 @@
           "mixed_variable_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -42229,7 +42873,7 @@
             "title": "Ends On"
           },
           "horizon_days": {
-            "exclusiveMinimum": 0,
+            "exclusiveMinimum": 0.0,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -42438,7 +43082,7 @@
             "type": "string"
           },
           "verified_working_capital_offer_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Verified Working Capital Offer Count",
             "type": "integer"
           },
@@ -42508,7 +43152,7 @@
             "type": "string"
           },
           "verified_working_capital_offer_count": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Verified Working Capital Offer Count",
             "type": "integer"
           }
@@ -42667,12 +43311,43 @@
         "additionalProperties": false,
         "description": "Respuesta de `GET /api/treasury/bank-accounts`.",
         "properties": {
+          "functional_currency_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda funcional declarada del FinancialScope; nunca un default implícito.",
+            "title": "Functional Currency Code"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/BankAccountItem"
             },
             "title": "Items",
             "type": "array"
+          },
+          "legal_entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sociedad del FinancialScope que produjo el listado.",
+            "title": "Legal Entity Id"
+          },
+          "unattributed_accounts": {
+            "default": 0,
+            "description": "Cuentas del tenant sin sociedad. No aparecen en items; un valor positivo declara cobertura bancaria incompleta.",
+            "minimum": 0.0,
+            "title": "Unattributed Accounts",
+            "type": "integer"
           }
         },
         "title": "BankAccountsListResponse",
@@ -42697,49 +43372,6 @@
           "neto"
         ],
         "title": "SeriePunto",
-        "type": "object"
-      },
-      "LegalEntityNameRequest": {
-        "additionalProperties": false,
-        "description": "Nombre de una Empresa operativa dentro del tenant autenticado.",
-        "properties": {
-          "legal_name": {
-            "maxLength": 200,
-            "minLength": 2,
-            "title": "Legal Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "legal_name"
-        ],
-        "title": "LegalEntityNameRequest",
-        "type": "object"
-      },
-      "ManagedLegalEntity": {
-        "additionalProperties": false,
-        "description": "Respuesta mínima de alta/edición para refrescar selector y administración.",
-        "properties": {
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "is_default": {
-            "title": "Is Default",
-            "type": "boolean"
-          },
-          "legal_name": {
-            "title": "Legal Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "legal_name",
-          "is_default"
-        ],
-        "title": "ManagedLegalEntity",
         "type": "object"
       }
     },
@@ -46037,6 +46669,70 @@
         ]
       }
     },
+    "/api/admin/treasury/opening-cutoff/adopt-legacy": {
+      "post": {
+        "description": "Previsualiza (o aplica, si `dry_run=False`) la adopción de un corte de apertura\nhistórico. Devuelve el run, los conteos exactos por lado y los documentos —acotados en la\nrespuesta, completos en el audit— con sus valores actuales y los valores previos DECLARADOS\nque restauraría el revert. Una corrida sin filas no escribe nada.",
+        "operationId": "admin_adopt_legacy_opening_cutoff",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdoptLegacyOpeningCutoffRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdoptLegacyOpeningCutoffResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Rol sin permiso (requiere owner/admin/technical_admin)."
+          },
+          "409": {
+            "description": "La empresa tiene un corte de apertura registrado con otra fecha."
+          },
+          "422": {
+            "description": "Marca temporal sin zona horaria."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Adopta un corte de apertura histórico en un run (dry-run por defecto; owner/admin)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/treasury/operating-cost-behavior-bindings": {
       "get": {
         "operationId": "admin_operating_cost_behavior_binding_history",
@@ -47725,6 +48421,9 @@
               }
             },
             "description": "Página de movimientos + total sin paginar."
+          },
+          "409": {
+            "description": "No existe un FinancialScope verificable para la lectura."
           },
           "422": {
             "description": "`period` mal formado (usar YYYY-MM)."
@@ -49456,7 +50155,7 @@
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "La moneda funcional declarada no existe/no está activa o es inválida."
           }
         },
         "security": [
@@ -49464,7 +50163,7 @@
             "APIKeyHeader": []
           }
         ],
-        "summary": "Update parcial de settings de moneda (owner/admin)",
+        "summary": "Declara o actualiza settings de moneda (owner/admin)",
         "tags": [
           "core-currency"
         ]
@@ -49702,6 +50401,150 @@
           }
         ],
         "summary": "Scope financiero canónico del tenant",
+        "tags": [
+          "core-currency"
+        ]
+      }
+    },
+    "/api/core/legal-entity-financial-settings": {
+      "get": {
+        "operationId": "legal_entity_functional_currency_settings_get",
+        "parameters": [
+          {
+            "description": "Sociedad del tenant autenticado.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "description": "Sociedad del tenant autenticado.",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalEntityFunctionalCurrencySettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La sociedad no ha declarado moneda funcional."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Moneda funcional declarada por sociedad",
+        "tags": [
+          "core-currency"
+        ]
+      },
+      "put": {
+        "operationId": "legal_entity_functional_currency_settings_put",
+        "parameters": [
+          {
+            "description": "Sociedad del tenant autenticado.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "description": "Sociedad del tenant autenticado.",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutLegalEntityFunctionalCurrencySettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalEntityFunctionalCurrencySettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Rol sin permiso (§20)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Declara moneda funcional por sociedad (owner/admin)",
         "tags": [
           "core-currency"
         ]
@@ -50436,6 +51279,136 @@
         ]
       }
     },
+    "/api/fintoc/connections/{connection_id}": {
+      "delete": {
+        "description": "Elimina primero el link en Fintoc y luego su historial local exclusivo.",
+        "operationId": "delete_connection_api_fintoc_connections__connection_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FintocDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Delete Connection",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
+    "/api/fintoc/connections/{connection_id}/disconnect": {
+      "post": {
+        "description": "Detiene sólo este link localmente; no borra cuentas, movimientos ni historia.",
+        "operationId": "disconnect_connection_api_fintoc_connections__connection_id__disconnect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FintocConnection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Disconnect Connection",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
     "/api/fintoc/institutions": {
       "get": {
         "operationId": "list_institutions_api_fintoc_institutions_get",
@@ -50515,6 +51488,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/FintocLinkIntentRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -50852,6 +51842,96 @@
           }
         ],
         "summary": "Crea una Empresa dentro del tenant actual",
+        "tags": [
+          "legal-entities"
+        ]
+      }
+    },
+    "/api/legal-entities/{legal_entity_id}": {
+      "patch": {
+        "operationId": "legal_entities_rename",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegalEntityNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedLegalEntity"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Edita el nombre de una Empresa del tenant actual",
         "tags": [
           "legal-entities"
         ]
@@ -52413,6 +53493,9 @@
             },
             "description": "Resultado operacional del período (0 si no hay documentos)."
           },
+          "409": {
+            "description": "Scope financiero incompleto o P&L compuesto no atribuible por sociedad."
+          },
           "422": {
             "description": "period mal formado."
           }
@@ -52484,6 +53567,9 @@
               }
             },
             "description": "Margen RCV del mes al día N + mes anterior mismo tramo + variación."
+          },
+          "409": {
+            "description": "Scope financiero canónico no demostrable."
           },
           "422": {
             "description": "period mal formado o hasta_dia fuera de [1,31]."
@@ -52579,6 +53665,9 @@
               }
             },
             "description": "Árbol Ingresos/Costos/Margen/Gastos/Resultado por mes + %."
+          },
+          "409": {
+            "description": "Scope financiero canónico no demostrable."
           },
           "422": {
             "description": "period_from/period_to mal formados, invertidos o > 36 meses."
@@ -53042,6 +54131,9 @@
               }
             },
             "description": "Documentos clasificados a la cuenta en el período (0 si ninguno)."
+          },
+          "409": {
+            "description": "Scope financiero canónico no demostrable."
           },
           "422": {
             "description": "period mal formado."
@@ -54879,6 +55971,9 @@
             },
             "description": "Presupuesto generado; escribe financial_impacts layer=budget."
           },
+          "409": {
+            "description": "Writer de presupuesto sin FinancialScope atribuido se abstiene."
+          },
           "422": {
             "description": "Cuerpo inválido (año fuera de rango, meta mal formada)."
           }
@@ -55080,6 +56175,9 @@
           "404": {
             "description": "No hay presupuesto del año (propón uno primero)."
           },
+          "409": {
+            "description": "Writer de presupuesto sin FinancialScope atribuido se abstiene."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -55214,6 +56312,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "No existe un FinancialScope verificable."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -55261,8 +56362,11 @@
           "403": {
             "description": "Rol sin permiso de escritura (§20)."
           },
+          "404": {
+            "description": "El movimiento de origen no existe o pertenece a otra sociedad."
+          },
           "409": {
-            "description": "El movimiento de origen ya está partido en componentes de cuota: agregarle un impacto 1:1 lo contaría dos veces."
+            "description": "El movimiento de origen ya está partido en componentes de cuota: agregarle un impacto 1:1 lo contaría dos veces; o no existe un FinancialScope verificable."
           },
           "422": {
             "description": "Dominio inválido (CHECK / FK / NOT NULL)."
@@ -55303,6 +56407,9 @@
           },
           "404": {
             "description": "No existe (o cross-tenant)."
+          },
+          "409": {
+            "description": "No existe un FinancialScope verificable."
           },
           "422": {
             "content": {
@@ -55369,6 +56476,9 @@
           "404": {
             "description": "No existe (o cross-tenant)."
           },
+          "409": {
+            "description": "No existe un FinancialScope verificable."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -55430,6 +56540,9 @@
           },
           "404": {
             "description": "No existe (o cross-tenant)."
+          },
+          "409": {
+            "description": "No existe un FinancialScope verificable."
           },
           "422": {
             "description": "Dominio inválido (CHECK / FK)."
@@ -57054,7 +58167,7 @@
     },
     "/api/sii/dte-emitidos": {
       "get": {
-        "description": "DTE emitidos por rango de fechas. Prefiere el respaldo MiPyme (`ORIGEN=ENV`) con la\nclave de la persona autorizada y la empresa seleccionada; ese respaldo entrega el XML\ncompleto sin pasar por el Portal001 roto. Devuelve emisor, receptor, ítems, totales,\nreferencias, forma de pago y vencimiento en `dte_emitidos[]`. El certificado queda como\nfallback legacy sólo cuando el tenant todavía no configuró la clave del representante.",
+        "description": "DTE emitidos por rango de fechas. Prefiere el respaldo MiPyme (`ORIGEN=ENV`) con la\nclave de la persona autorizada y la empresa seleccionada; ese respaldo entrega el XML\ncompleto sin pasar por el Portal001 roto. Devuelve emisor, receptor, ítems, totales,\nreferencias, forma de pago y vencimiento en `dte_emitidos[]`. El certificado queda como\nfallback legacy sólo cuando el tenant todavía no configuró la clave del representante.\nLas respuestas exitosas exponen `access_path` no secreto para verificar en runtime cuál\nvía se utilizó: `mipe_env` o `legacy_portal001`.",
         "operationId": "sii_dte_emitidos",
         "parameters": [
           {
@@ -57137,7 +58250,7 @@
             "APIKeyHeader": []
           }
         ],
-        "summary": "SII: DTE emitidos por rango de fechas con el DTE completo (Obtener Envío)",
+        "summary": "SII: DTE emitidos por rango de fechas con el DTE completo",
         "tags": [
           "sii"
         ]
@@ -59053,6 +60166,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "El RUT observado por SII no prueba una sociedad financiera única."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -59579,6 +60695,9 @@
             },
             "description": "Agregado de cuentas por pagar vivas (open/partially_paid)."
           },
+          "409": {
+            "description": "FinancialScope unavailable."
+          },
           "422": {
             "description": "Filtros inválidos o cursor ajeno, alterado o vencido."
           }
@@ -59626,6 +60745,9 @@
               }
             },
             "description": "Pares de UUID de obligaciones que requieren revisión; no modifica datos."
+          },
+          "409": {
+            "description": "FinancialScope unavailable."
           },
           "422": {
             "content": {
@@ -59759,7 +60881,10 @@
                 }
               }
             },
-            "description": "Agregado de cuentas por cobrar vivas (open/partially_paid)."
+            "description": "Receivables summary."
+          },
+          "409": {
+            "description": "FinancialScope unavailable."
           },
           "422": {
             "content": {
@@ -60065,6 +61190,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "FinancialScope unavailable."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -60333,6 +61461,9 @@
           "404": {
             "description": "La cuenta no existe para el tenant."
           },
+          "409": {
+            "description": "No existe un FinancialScope verificable para la escritura."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -60537,6 +61668,9 @@
               }
             },
             "description": "Página de movimientos + total sin paginar."
+          },
+          "409": {
+            "description": "No existe un FinancialScope verificable para la lectura."
           },
           "422": {
             "description": "`period` mal formado (usar YYYY-MM)."
@@ -60864,6 +61998,71 @@
         ]
       }
     },
+    "/api/treasury/bank-movements/partner-contribution-counterparties/{learning_id}": {
+      "delete": {
+        "description": "Desactiva la propuesta futura; no modifica el movimiento histórico ni su conciliación.",
+        "operationId": "treasury_partner_contribution_counterparty_deactivate",
+        "parameters": [
+          {
+            "description": "UUID del aprendizaje a desactivar.",
+            "in": "path",
+            "name": "learning_id",
+            "required": true,
+            "schema": {
+              "description": "UUID del aprendizaje a desactivar.",
+              "title": "Learning Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Rol sin permiso de escritura."
+          },
+          "404": {
+            "description": "Aprendizaje no encontrado."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Desactiva una contraparte aprendida",
+        "tags": [
+          "bank-movements"
+        ]
+      }
+    },
     "/api/treasury/bank-movements/{movement_id}/classification": {
       "delete": {
         "description": "Desclasifica de forma idempotente sin modificar el movimiento bancario crudo ni su match.",
@@ -61094,6 +62293,68 @@
           }
         ],
         "summary": "Clasifica (o reclasifica) un movimiento — registra audit before/after",
+        "tags": [
+          "bank-movements"
+        ]
+      }
+    },
+    "/api/treasury/bank-movements/{movement_id}/learn-partner-contribution": {
+      "post": {
+        "description": "Aprende una contraparte observada para sugerir aportes futuros.\n\nNo acepta un RUT del cliente: lo extrae del movimiento ya confirmado. Nunca concilia ni\nclasifica automáticamente movimientos futuros.",
+        "operationId": "treasury_bank_movements_learn_partner_contribution",
+        "parameters": [
+          {
+            "description": "UUID del abono confirmado.",
+            "in": "path",
+            "name": "movement_id",
+            "required": true,
+            "schema": {
+              "description": "UUID del abono confirmado.",
+              "title": "Movement Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerContributionCounterparty"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Rol sin permiso de escritura."
+          },
+          "422": {
+            "description": "El movimiento no aporta evidencia suficiente."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Aprende una contraparte observada desde un aporte de socio confirmado",
         "tags": [
           "bank-movements"
         ]
@@ -61407,6 +62668,9 @@
           "403": {
             "description": "Rol sin permiso (owner/admin)."
           },
+          "409": {
+            "description": "No existe una sociedad financiera verificable para la cartola."
+          },
           "413": {
             "description": "El archivo excede el máximo."
           },
@@ -61414,7 +62678,7 @@
             "description": "El archivo no es un PDF."
           },
           "422": {
-            "description": "No se reconoció la cartola (ni nacional ni internacional)."
+            "description": "Cartola no reconocida o evidencia de pago ambigua/inválida."
           }
         },
         "security": [
@@ -61870,6 +63134,16 @@
             "schema": {
               "format": "uuid",
               "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Legal Entity Id",
               "type": "string"
             }
           },
@@ -63439,6 +64713,25 @@
               ],
               "description": "Scenario persisted inside projection_run_id.",
               "title": "Scenario Id"
+            }
+          },
+          {
+            "description": "Required when selecting an immutable projection run.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required when selecting an immutable projection run.",
+              "title": "Legal Entity Id"
             }
           },
           {
@@ -66046,6 +67339,9 @@
           "403": {
             "description": "Rol sin permiso (owner/admin)."
           },
+          "409": {
+            "description": "No existe una sociedad financiera verificable."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -67009,6 +68305,9 @@
           "403": {
             "description": "Rol sin permiso (owner/admin)."
           },
+          "409": {
+            "description": "La moneda funcional de la sociedad no está configurada."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -67331,7 +68630,6 @@
     },
     "/api/treasury/reconcile": {
       "post": {
-        "description": "Empareja `bank_movements` con el devengado (ADR-0036 Fase 1). Idempotente:\nauto-aplica los matches ≥90, deja 60-90 en cola de revisión, no toca el resto.",
         "operationId": "treasury_reconcile",
         "parameters": [
           {
@@ -67429,7 +68727,6 @@
         ]
       },
       "post": {
-        "description": "Crea un alias `pattern → counterparty_rut` manualmente. Arranca con\n`confirmations=2` → utilizable de inmediato por el matcher. Idempotente\nvía `(tenant, pattern, direction)`: si ya existe, incrementa `confirmations`.\n\nEl `pattern` se almacena tal cual viene (se espera ya normalizado por el FE;\nel backend lo trunca a 200). El RUT debe ser el normalizado `12345678-9`.",
         "operationId": "treasury_reconciliation_aliases_create",
         "parameters": [
           {
@@ -67482,7 +68779,6 @@
     },
     "/api/treasury/reconciliation/aliases/{alias_id}": {
       "delete": {
-        "description": "Borrado físico. Idempotente: 404 si no existe.",
         "operationId": "treasury_reconciliation_aliases_delete",
         "parameters": [
           {
@@ -67928,7 +69224,6 @@
         ]
       },
       "post": {
-        "description": "Alta/actualización de un mapeo factoring_rut → debtor_rut.\n\nIdempotente: si ya existe un mapeo para `factoring_rut`, actualiza `debtor_rut`\ny `notes`. Ambos RUTs deben ser el formato normalizado `12345678-9`.",
         "operationId": "treasury_reconciliation_factoring_upsert",
         "parameters": [
           {
@@ -67988,7 +69283,6 @@
     },
     "/api/treasury/reconciliation/factoring/{factoring_rut}": {
       "delete": {
-        "description": "Borrado físico del mapeo. Idempotente: 404 si no existe.",
         "operationId": "treasury_reconciliation_factoring_delete",
         "parameters": [
           {
@@ -68091,7 +69385,6 @@
         ]
       },
       "post": {
-        "description": "Alta/actualización de un mapeo holding_rut → subsidiary_rut. Idempotente.",
         "operationId": "treasury_reconciliation_holding_upsert",
         "parameters": [
           {
@@ -68151,7 +69444,6 @@
     },
     "/api/treasury/reconciliation/holding/{holding_rut}": {
       "delete": {
-        "description": "Borrado físico del mapeo. 404 si no existe.",
         "operationId": "treasury_reconciliation_holding_delete",
         "parameters": [
           {
@@ -68718,7 +70010,6 @@
     },
     "/api/treasury/reconciliation/reanalyze": {
       "post": {
-        "description": "Resetea la cola de revisión a `unmatched` y re-corre el motor: re-evalúa todo con el scorer y\nlos aliases ACTUALES. Sirve para limpiar sugerencias viejas tras un fix del matcher o una purga\nde aliases (la cola es \"pegajosa\" — `/reconcile` normal solo toca lo `unmatched`). Las\nconciliaciones CONFIRMADas (matched) no se tocan; solo las sugerencias sin confirmar.",
         "operationId": "treasury_reconciliation_reanalyze",
         "parameters": [
           {
@@ -68913,6 +70204,18 @@
             }
           },
           {
+            "description": "Sociedad del movimiento a confirmar.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "description": "Sociedad del movimiento a confirmar.",
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
             "in": "cookie",
             "name": "qavante_session",
             "required": false,
@@ -69101,7 +70404,6 @@
     },
     "/api/treasury/reconciliation/{movement_id}/prepago": {
       "delete": {
-        "description": "Cancela el prepago: el movimiento vuelve a 'unmatched' y queda disponible\npara el motor en el próximo ciclo de reconcile_tenant.",
         "operationId": "treasury_reconciliation_prepago_delete",
         "parameters": [
           {
@@ -69154,7 +70456,6 @@
         ]
       },
       "post": {
-        "description": "Estaciona el movimiento como prepago/anticipo con el RUT de la contraparte.\nEl motor lo linkea automáticamente cuando llegue la factura del mismo RUT y monto.",
         "operationId": "treasury_reconciliation_prepago_create",
         "parameters": [
           {
@@ -69652,6 +70953,9 @@
               }
             },
             "description": "Buckets mensuales del income statement canónico + gran total."
+          },
+          "409": {
+            "description": "Scope financiero incompleto o P&L compuesto no atribuible por sociedad."
           },
           "422": {
             "description": "period mal formado, rango invertido, o rango > 36 meses."

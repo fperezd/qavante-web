@@ -17,6 +17,20 @@ describe("openapi-snapshot: sidecar de origen", () => {
     expect(verifySource(source, snapshot)).toEqual([]);
   });
 
+  it("conserva el digest de bytes, incluyendo CRLF del productor", () => {
+    const withCrlf = Buffer.from('{"openapi":"3.1.0"}\r\n');
+    const crlfSource = buildSource({
+      repo: "tooxs-digital/qavante-api",
+      ref: "main",
+      sha: "c3c3a9f4b6a7afc4db98b28939984fb181fd055f",
+      path: "docs/contracts/openapi.snapshot.json",
+      snapshot: withCrlf,
+      fetchedAt: "2026-09-16T03:02:00.000Z",
+    });
+    expect(verifySource(crlfSource, withCrlf)).toEqual([]);
+    expect(verifySource(crlfSource, Buffer.from('{"openapi":"3.1.0"}\n'))).toHaveLength(1);
+  });
+
   it("un snapshot editado sin pasar por sync falla por sha256", () => {
     const problems = verifySource(source, Buffer.from('{"openapi":"3.1.0","paths":{"/x":{}}}\n'));
     expect(problems).toHaveLength(1);

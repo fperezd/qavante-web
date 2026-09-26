@@ -99,6 +99,26 @@ function run(cmd, args, options = {}) {
   return result.status ?? 1;
 }
 
+/**
+ * The producer publishes this snapshot with CRLF and its digest certifies the
+ * exact bytes. Keep that one artifact out of whitespace checking; every other
+ * changed path remains checked normally.
+ */
+function checkTrackedWhitespace(cwd) {
+  const base = process.env.QAVANTE_CONTRACT_BASE_REF ?? "origin/main";
+  const status = run(
+    "git",
+    ["diff", "--check", `${base}...HEAD`, "--", ".", `:(exclude)${SNAPSHOT_PATH}`],
+    { cwd },
+  );
+  if (status !== 0) {
+    console.error(`whitespace invalid outside ${SNAPSHOT_PATH} against ${base}`);
+    return false;
+  }
+  console.log(`whitespace outside ${SNAPSHOT_PATH} passes against ${base}`);
+  return true;
+}
+
 function capture(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, {
     encoding: "utf8",
@@ -141,6 +161,8 @@ export function check(cwd = process.cwd()) {
   console.log(
     `✔ ${SNAPSHOT_PATH} es la copia de ${source.repo}@${source.sha.slice(0, 12)} (${source.ref})`,
   );
+
+  if (!checkTrackedWhitespace(cwd)) return 1;
 
   // Se compara el archivo tal como estaba en disco con lo regenerado (no sólo `git diff`): así el
   // gate también caza una edición manual todavía sin commitear al correrlo en local.

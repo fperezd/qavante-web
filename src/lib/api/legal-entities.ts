@@ -10,6 +10,7 @@ export type LegalEntity = components["schemas"]["LegalEntityView"];
 type LegalEntitiesResponse = components["schemas"]["LegalEntitiesResponse"];
 type LegalEntityNameBody = components["schemas"]["LegalEntityNameRequest"];
 type ManagedLegalEntity = components["schemas"]["ManagedLegalEntity"];
+type DeclareIdentifierBody = components["schemas"]["DeclareIdentifierRequest"];
 
 export const legalEntityKeys = {
   all: ["legal-entities"] as const,
@@ -38,6 +39,18 @@ export function useRenameLegalEntity() {
   return useMutation({
     mutationFn: ({ id, ...body }: LegalEntityNameBody & { id: string }) =>
       api.patch<ManagedLegalEntity>(`/api/legal-entities/${id}`, { body }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: legalEntityKeys.all }),
+  });
+}
+
+/** Declara una identidad tributaria confirmada por una persona. */
+export function useDeclareLegalEntityIdentifier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: DeclareIdentifierBody & { id: string }) =>
+      api.post<components["schemas"]["IdentifierView"]>(`/api/legal-entities/${id}/identifier`, {
+        body,
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: legalEntityKeys.all }),
   });
 }

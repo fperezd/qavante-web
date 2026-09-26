@@ -1,5 +1,7 @@
 import { api } from "@/lib/api/client";
 
+export type FintocHolderType = "individual" | "business";
+
 declare global {
   interface Window {
     Fintoc?: {
@@ -18,6 +20,15 @@ export interface FintocLinkIntent {
   holder_type: string;
   country: string;
   product: string;
+}
+
+export interface FintocCompletionResult {
+  status: "ok" | "partial" | "error";
+  accounts: number;
+  imported: number;
+  per_account: Array<{
+    sync_error?: { code?: string; message?: string };
+  }>;
 }
 
 interface FintocWidgetConfig {
@@ -74,17 +85,32 @@ export async function waitForFintoc(timeoutMs = 8000): Promise<NonNullable<Windo
 }
 
 export async function openOfficialFintocWidget(options: {
+  holderType?: FintocHolderType;
+  /** Sociedad que inició el flujo. Se propaga explícitamente porque el
+   * CompanyScope se hidrata después del primer render y localStorage no es una
+   * fuente segura para atribuir una operación financiera. */
+  legalEntityId: string;
   onSuccess: (payload: unknown) => void;
   onExit?: () => void;
 }): Promise<void> {
+  if (!options.legalEntityId) {
+    throw new Error("No hay una sociedad activa para conectar el banco.");
+  }
   const Fintoc = await waitForFintoc();
+  // The API contract defaults link intents to business.  Keep the client fallback
+  // aligned so a caller that omits the optional UI choice never silently opens a
+  // personal-consent flow for the active company.
+  const holderType = options.holderType ?? "business";
   const callbacks = {
     onSuccess: options.onSuccess,
     onExit: options.onExit,
   };
 
   try {
-    const intent = await api.post<FintocLinkIntent>("/api/fintoc/link-intent");
+    const intent = await api.post<FintocLinkIntent>("/api/fintoc/link-intent", {
+      headers: { "X-Qavante-Company-Id": options.legalEntityId },
+      body: { holder_type: holderType },
+    });
     Fintoc.create({
       ...callbacks,
       publicKey: intent.public_key,
@@ -93,12 +119,14 @@ export async function openOfficialFintocWidget(options: {
     return;
   } catch (primary) {
     try {
-      const config = await api.get<FintocWidgetConfig>("/api/fintoc/widget-config");
+      const config = await api.get<FintocWidgetConfig>("/api/fintoc/widget-config", {
+        headers: { "X-Qavante-Company-Id": options.legalEntityId },
+      });
       Fintoc.create({
         ...callbacks,
         publicKey: config.public_key,
         product: config.product,
-        holderType: config.holder_type,
+        holderType,
         country: config.country,
         ...(config.webhook_url ? { webhookUrl: config.webhook_url } : {}),
       }).open();
@@ -109,13 +137,15 @@ export async function openOfficialFintocWidget(options: {
   }
 }
 
-export function completeFintocWidget(payload: unknown) {
+export function completeFintocWidget(payload: unknown, legalEntityId?: string) {
   const exchangeToken = extractExchangeToken(payload);
   const linkToken = extractLinkToken(payload);
-  return api.post<{ accounts: number; imported: number }>("/api/fintoc/complete", {
+  return api.post<FintocCompletionResult>("/api/fintoc/complete", {
+    headers: legalEntityId ? { "X-Qavante-Company-Id": legalEntityId } : undefined,
     body: {
       ...(exchangeToken ? { exchange_token: exchangeToken } : {}),
       ...(linkToken ? { link_token: linkToken } : {}),
+      ...(legalEntityId ? { legal_entity_id: legalEntityId } : {}),
       ...(payload && typeof payload === "object" ? { link: payload } : {}),
     },
   });

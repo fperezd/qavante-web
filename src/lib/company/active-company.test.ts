@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ACTIVE_COMPANY_STORAGE_KEY, companyRequestHeaders } from "./active-company";
+import {
+  ACTIVE_COMPANY_STORAGE_KEY,
+  companyRequestHeaders,
+  explicitCompanyRequestHeaders,
+} from "./active-company";
 
 const memoria = new Map<string, string>();
 
@@ -44,5 +48,13 @@ describe("companyRequestHeaders", () => {
       "X-Qavante-Company-Id": "unattributed",
     });
     expect(companyRequestHeaders("/api/legal-entities")).toEqual({});
+  });
+
+  it("conserva una sociedad ya resuelta aunque todavia no este en storage", () => {
+    conStorage();
+    expect(explicitCompanyRequestHeaders("sociedad-primer-render")).toEqual({
+      "X-Qavante-Company-Id": "sociedad-primer-render",
+    });
+    expect(explicitCompanyRequestHeaders(null)).toEqual({});
   });
 });

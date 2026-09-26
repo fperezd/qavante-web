@@ -133,6 +133,24 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     expect(apiErrorToUserMessage(err)).toContain("no se puede borrar");
   });
 
+  it("fintoc_attribution_unverified orienta a declarar el RUT sin exponer el detalle técnico", () => {
+    const raw = "unclaimed_fintoc_holder_identifier: 76.828.485-7";
+    const out = apiErrorToUserMessage(new ApiError(raw, 422, "fintoc_attribution_unverified"));
+
+    expect(out).toContain("Administración → Empresas");
+    expect(out).toContain("RUT");
+    expect(out).not.toContain("unclaimed_fintoc_holder_identifier");
+    expect(out).not.toContain("76.828.485-7");
+  });
+
+  it("fintoc_permissions_missing describe el rechazo de la API sin inventar pasos del widget", () => {
+    expect(
+      apiErrorToUserMessage(
+        new ApiError("Fintoc 403 en /accounts", 422, "fintoc_permissions_missing"),
+      ),
+    ).toContain("su API rechazó la lectura de cuentas");
+  });
+
   it("429 rate limit → 'muchas operaciones seguidas'", () => {
     expect(apiErrorToUserMessage(new ApiError("rate-limit", 429))).toBe(
       "Hiciste muchas operaciones seguidas. Espera un momento.",

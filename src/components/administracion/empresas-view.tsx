@@ -11,7 +11,12 @@ import {
   QavanteInput,
 } from "@/components/qavante";
 import { useCompanyScope } from "@/components/shell/company-scope";
-import { useCreateLegalEntity, useRenameLegalEntity } from "@/lib/api/legal-entities";
+import {
+  useCreateLegalEntity,
+  useDeclareLegalEntityIdentifier,
+  useRenameLegalEntity,
+} from "@/lib/api/legal-entities";
+import { isValidRut, normalizeRut } from "@/lib/validators/rut";
 
 /** Administración de Empresas: un tenant es interno y nunca se administra acá. */
 export function EmpresasView() {
@@ -19,11 +24,33 @@ export function EmpresasView() {
     useCompanyScope();
   const createCompany = useCreateLegalEntity();
   const renameCompany = useRenameLegalEntity();
+  const declareIdentifier = useDeclareLegalEntityIdentifier();
   const [creating, setCreating] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
+  const [rutByCompany, setRutByCompany] = React.useState<Record<string, string>>({});
   const pending = createCompany.isPending || renameCompany.isPending;
   const validName = name.trim().length >= 2;
+
+  function declareRut(companyId: string, rawValue: string) {
+    if (!isValidRut(rawValue) || declareIdentifier.isPending) return;
+    declareIdentifier.mutate(
+      {
+        id: companyId,
+        jurisdiction_code: "CL",
+        identifier_scheme: "rut",
+        value: normalizeRut(rawValue),
+      },
+      {
+        onSuccess: () => {
+          setRutByCompany((current) => ({ ...current, [companyId]: "" }));
+          toast.success("RUT de empresa confirmado", {
+            description: "Ya puedes conectar cuentas bancarias para esta empresa.",
+          });
+        },
+      },
+    );
+  }
 
   function beginCreate() {
     setName("");
@@ -106,6 +133,12 @@ export function EmpresasView() {
           <ul className="divide-y divide-border">
             {companies.map((company) => {
               const active = company.id === activeCompanyId;
+              const rut = company.identifiers.find(
+                (identifier) =>
+                  identifier.jurisdiction_code === "CL" && identifier.identifier_scheme === "rut",
+              );
+              const draftRut =
+                rutByCompany[company.id] ?? company.suggestion?.normalized_value ?? "";
               return (
                 <li
                   key={company.id}
@@ -118,6 +151,44 @@ export function EmpresasView() {
                     </p>
                     {company.is_default && (
                       <p className="text-xs text-neutral-mid">Empresa inicial</p>
+                    )}
+                    {rut ? (
+                      <p className="mt-1 text-xs text-neutral-mid">
+                        {rut.label}:{" "}
+                        <span className="font-medium text-neutral-dark">
+                          {rut.normalized_value}
+                        </span>
+                      </p>
+                    ) : (
+                      <div className="mt-2 max-w-md rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-xs font-medium text-amber-900">
+                          Declara el RUT de esta empresa antes de conectar su banco.
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <QavanteInput
+                            value={draftRut}
+                            onValueChange={(value) =>
+                              setRutByCompany((current) => ({ ...current, [company.id]: value }))
+                            }
+                            placeholder="76.123.456-0"
+                            aria-label={`RUT de ${company.legal_name}`}
+                            className="min-w-48 flex-1"
+                            invalid={Boolean(draftRut) && !isValidRut(draftRut)}
+                          />
+                          <QavanteButton
+                            size="sm"
+                            onClick={() => declareRut(company.id, draftRut)}
+                            loading={declareIdentifier.isPending}
+                            disabled={!isValidRut(draftRut) || declareIdentifier.isPending}
+                          >
+                            Confirmar RUT
+                          </QavanteButton>
+                        </div>
+                        <p className="mt-2 text-xs text-amber-800">
+                          Usa el RUT de la sociedad titular de la cuenta, no el RUT personal de
+                          quien inicia sesión.
+                        </p>
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
