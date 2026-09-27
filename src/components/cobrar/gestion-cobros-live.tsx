@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import {
   type CollectionReminderItemResult,
   type ReceivableDocumentItem,
+  type ReceivableDocumentsResponse,
   useReceivableDocuments,
   useSendCollectionReminders,
 } from "@/lib/api/cobranza";
@@ -44,11 +45,37 @@ function todayIso() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
 }
 
-export function formatCollectionMoney(values: { currency: string; amount: string }[]) {
+export function formatCollectionMoney(values: { currency: string; amount: string }[] | null) {
+  if (values == null) return "Sin información";
   if (values.length === 0) return "$0";
   return values
     .map(({ currency, amount }) => formatMoneyFromDecimalString(amount, currency) ?? "s/d")
     .join(" · ");
+}
+
+export function collectedMetric(
+  data: Pick<ReceivableDocumentsResponse, "collected" | "collected_coverage" | "collected_reason">,
+) {
+  if (data.collected != null) {
+    return { value: formatCollectionMoney(data.collected), detail: "Últimos 7 días" };
+  }
+
+  if (
+    data.collected_coverage === "unverified_legacy_collections" &&
+    data.collected_reason === "legacy_collection_lineage_unavailable"
+  ) {
+    return {
+      value: "Sin información",
+      detail: "Cobros sin verificar",
+      note: "No podemos verificar los cobros históricos hasta contar con su trazabilidad de conciliación.",
+    };
+  }
+
+  return {
+    value: "Sin información",
+    detail: "Cobros sin verificar",
+    note: "No tenemos evidencia suficiente para verificar los cobros de este período.",
+  };
 }
 
 function dateLabel(value: string | null | undefined) {
@@ -205,12 +232,7 @@ export function GestionCobrosLive({
           detail="Próximos 7 días"
           value={formatCollectionMoney(query.data.due_soon)}
         />
-        <MetricCard
-          icon={CircleDollarSign}
-          label="Cobrado"
-          detail="Últimos 7 días"
-          value={formatCollectionMoney(query.data.collected)}
-        />
+        <CollectedMetricCard data={query.data} />
       </section>
 
       <section className="space-y-3">
@@ -403,17 +425,38 @@ export function GestionCobrosLive({
   );
 }
 
+/** Límite de presentación del contrato #837: sólo esta tarjeta conoce la
+ * abstención de `collected`; el resto de Cobrar sigue mostrando sus datos propios. */
+export function CollectedMetricCard({
+  data,
+}: {
+  data: Pick<ReceivableDocumentsResponse, "collected" | "collected_coverage" | "collected_reason">;
+}) {
+  const collected = collectedMetric(data);
+  return (
+    <MetricCard
+      icon={CircleDollarSign}
+      label="Cobrado"
+      detail={collected.detail}
+      value={collected.value}
+      note={collected.note}
+    />
+  );
+}
+
 function MetricCard({
   icon: Icon,
   label,
   value,
   detail,
+  note,
   danger = false,
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
   detail?: string;
+  note?: string;
   danger?: boolean;
 }) {
   return (
@@ -436,6 +479,7 @@ function MetricCard({
       >
         {value}
       </p>
+      {note && <p className="mt-2 text-xs leading-relaxed text-neutral-mid">{note}</p>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ReceivableDocumentItem } from "@/lib/api/cobranza";
 import {
+  collectedMetric,
   formatCollectionMoney,
   hasAmbiguousReminderFailure,
   isReminderEligible,
@@ -61,6 +62,21 @@ describe("totales monetarios", () => {
     expect(label).toContain("US$ 12,50");
     expect(label).toContain(" · ");
   });
+
+  it("no convierte una abstención de cobros en $0 y explica la cobertura", () => {
+    const metric = collectedMetric({
+      collected: null,
+      collected_coverage: "unverified_legacy_collections",
+      collected_reason: "legacy_collection_lineage_unavailable",
+    });
+
+    expect(metric).toEqual({
+      value: "Sin información",
+      detail: "Cobros sin verificar",
+      note: "No podemos verificar los cobros históricos hasta contar con su trazabilidad de conciliación.",
+    });
+    expect(formatCollectionMoney(null)).toBe("Sin información");
+  });
 });
 
 describe("idempotencia manual", () => {
@@ -74,9 +90,7 @@ describe("idempotencia manual", () => {
 
   it("mantiene el intento abierto cuando el proveedor devuelve un error ambiguo", () => {
     expect(
-      hasAmbiguousReminderFailure([
-        { receivable_id: "a", status: "error", detail: "timeout" },
-      ]),
+      hasAmbiguousReminderFailure([{ receivable_id: "a", status: "error", detail: "timeout" }]),
     ).toBe(true);
     expect(
       hasAmbiguousReminderFailure([

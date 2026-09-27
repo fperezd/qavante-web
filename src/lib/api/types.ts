@@ -22984,7 +22984,14 @@ export interface components {
         /** ReceivableDocumentsResponse */
         ReceivableDocumentsResponse: {
             /** Collected */
-            collected: components["schemas"]["ReceivableMoneyTotal"][];
+            collected: components["schemas"]["ReceivableMoneyTotal"][] | null;
+            /**
+             * Collected Coverage
+             * @enum {string}
+             */
+            collected_coverage: "not_applicable" | "unverified_legacy_collections";
+            /** Collected Reason */
+            collected_reason?: "legacy_collection_lineage_unavailable" | null;
             /** Due Soon */
             due_soon: components["schemas"]["ReceivableMoneyTotal"][];
             /**
@@ -23490,6 +23497,12 @@ export interface components {
         /** RemanenteSeedRequest */
         RemanenteSeedRequest: {
             /**
+             * Legal Entity Id
+             * Format: uuid
+             * @description Sociedad a la que pertenece el seed; nunca se infiere.
+             */
+            legal_entity_id: string;
+            /**
              * Note
              * @description De dónde salió el dato (ej. 'propuesta F29 feb-2026', 'contador').
              */
@@ -23523,6 +23536,11 @@ export interface components {
              * @description `false` si el tenant no tiene seed cargado (GET).
              */
             exists: boolean;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
             /** Note */
             note?: string | null;
             /** Period Month */
@@ -27234,6 +27252,8 @@ export interface operations {
             query: {
                 /** @description Tenant cuyo seed se consulta. */
                 tenant_id: string;
+                /** @description Sociedad cuyo seed se consulta. */
+                legal_entity_id: string;
             };
             header?: never;
             path?: never;
@@ -27249,6 +27269,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RemanenteSeedResponse"];
                 };
+            };
+            /** @description FinancialScope no verificable para la sociedad solicitada. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -27282,6 +27309,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RemanenteSeedResponse"];
                 };
+            };
+            /** @description FinancialScope no verificable para la sociedad solicitada. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -28504,6 +28538,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description La fuente de nÃ³mina tenant-wide exige exactamente una sociedad legal. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -28555,6 +28596,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description La fuente tenant-wide exige una sola sociedad legal. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -28590,6 +28638,13 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description La fuente tenant-wide exige una sola sociedad legal. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -32416,6 +32471,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description BHE tenant-wide requiere una única sociedad. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description La cuenta no existe en el plan del tenant, o el side es inválido. */
             422: {
                 headers: {
@@ -32451,6 +32513,13 @@ export interface operations {
             };
             /** @description El documento no existe o no tiene clasificación aplicada. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BHE tenant-wide requiere una única sociedad. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -32527,6 +32596,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description BHE tenant-wide requiere una única sociedad. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -32562,6 +32638,13 @@ export interface operations {
             };
             /** @description La propuesta no existe o ya no está pendiente. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BHE tenant-wide requiere una única sociedad. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -35563,6 +35646,13 @@ export interface operations {
                     "application/json": components["schemas"]["F29AnualResponse"];
                 };
             };
+            /** @description FinancialScope no verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -35596,6 +35686,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["F29EstadoResponse"];
                 };
+            };
+            /** @description FinancialScope no verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -35632,6 +35729,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["F29GirosResponse"];
                 };
+            };
+            /** @description FinancialScope no verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Tenant sin credencial clave tributaria activa. */
             412: {
@@ -35685,6 +35789,13 @@ export interface operations {
                     "application/json": components["schemas"]["F29ImpuestoResponse"];
                 };
             };
+            /** @description FinancialScope no verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -35718,6 +35829,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["F29SyncResponse"];
                 };
+            };
+            /** @description FinancialScope no verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Tenant sin credencial clave tributaria activa. */
             412: {
@@ -35768,6 +35886,13 @@ export interface operations {
             };
             /** @description Folio no encontrado o período sin declaración. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FinancialScope no verificable. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -35825,6 +35950,13 @@ export interface operations {
             };
             /** @description Folio no encontrado o período sin declaración. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FinancialScope no verificable. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -37581,6 +37713,13 @@ export interface operations {
             };
             /** @description El tenant no tiene saldo de apertura configurado. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FinancialScope unavailable; no tenant-wide cash curve is published. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

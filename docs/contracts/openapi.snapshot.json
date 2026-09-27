@@ -34530,11 +34530,38 @@
         "additionalProperties": false,
         "properties": {
           "collected": {
-            "items": {
-              "$ref": "#/components/schemas/ReceivableMoneyTotal"
-            },
-            "title": "Collected",
-            "type": "array"
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReceivableMoneyTotal"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collected"
+          },
+          "collected_coverage": {
+            "enum": [
+              "not_applicable",
+              "unverified_legacy_collections"
+            ],
+            "title": "Collected Coverage",
+            "type": "string"
+          },
+          "collected_reason": {
+            "anyOf": [
+              {
+                "const": "legacy_collection_lineage_unavailable",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collected Reason"
           },
           "due_soon": {
             "items": {
@@ -34583,6 +34610,7 @@
           "overdue",
           "due_soon",
           "collected",
+          "collected_coverage",
           "generated_at"
         ],
         "title": "ReceivableDocumentsResponse",
@@ -35776,6 +35804,12 @@
       },
       "RemanenteSeedRequest": {
         "properties": {
+          "legal_entity_id": {
+            "description": "Sociedad a la que pertenece el seed; nunca se infiere.",
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
           "note": {
             "anyOf": [
               {
@@ -35817,6 +35851,7 @@
         },
         "required": [
           "tenant_id",
+          "legal_entity_id",
           "period_year",
           "period_month",
           "remanente"
@@ -35830,6 +35865,11 @@
             "description": "`false` si el tenant no tiene seed cargado (GET).",
             "title": "Exists",
             "type": "boolean"
+          },
+          "legal_entity_id": {
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
           },
           "note": {
             "anyOf": [
@@ -35862,6 +35902,7 @@
         },
         "required": [
           "tenant_id",
+          "legal_entity_id",
           "period_year",
           "period_month",
           "remanente",
@@ -44779,6 +44820,18 @@
               "title": "Tenant Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Sociedad cuyo seed se consulta.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "description": "Sociedad cuyo seed se consulta.",
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -44791,6 +44844,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "FinancialScope no verificable para la sociedad solicitada."
           },
           "422": {
             "content": {
@@ -44836,6 +44892,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "FinancialScope no verificable para la sociedad solicitada."
           },
           "422": {
             "content": {
@@ -46952,6 +47011,9 @@
           "403": {
             "description": "Rol sin permiso (owner/admin/technical_admin)."
           },
+          "409": {
+            "description": "La fuente de nÃ³mina tenant-wide exige exactamente una sociedad legal."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -47025,6 +47087,9 @@
           "404": {
             "description": "El link de pago no existe para el tenant."
           },
+          "409": {
+            "description": "La fuente tenant-wide exige una sola sociedad legal."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -47094,6 +47159,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "La fuente tenant-wide exige una sola sociedad legal."
           },
           "422": {
             "content": {
@@ -53730,6 +53798,9 @@
           "404": {
             "description": "El documento no existe en la fuente canónica del tenant."
           },
+          "409": {
+            "description": "BHE tenant-wide requiere una única sociedad."
+          },
           "422": {
             "description": "La cuenta no existe en el plan del tenant, o el side es inválido."
           }
@@ -53790,6 +53861,9 @@
           },
           "404": {
             "description": "El documento no existe o no tiene clasificación aplicada."
+          },
+          "409": {
+            "description": "BHE tenant-wide requiere una única sociedad."
           },
           "422": {
             "description": "El side es inválido."
@@ -53918,6 +53992,9 @@
           "404": {
             "description": "La propuesta no existe o ya no está pendiente."
           },
+          "409": {
+            "description": "BHE tenant-wide requiere una única sociedad."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -53984,6 +54061,9 @@
           },
           "404": {
             "description": "La propuesta no existe o ya no está pendiente."
+          },
+          "409": {
+            "description": "BHE tenant-wide requiere una única sociedad."
           },
           "422": {
             "content": {
@@ -59296,6 +59376,9 @@
             },
             "description": "Meses F29 sincronizados del año (semáforo/tendencia FE)."
           },
+          "409": {
+            "description": "FinancialScope no verificable."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -59363,6 +59446,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "FinancialScope no verificable."
           },
           "422": {
             "content": {
@@ -59444,6 +59530,9 @@
               }
             },
             "description": "Estado del período: sin_giro / postergado / no determinado."
+          },
+          "409": {
+            "description": "FinancialScope no verificable."
           },
           "412": {
             "description": "Tenant sin credencial clave tributaria activa."
@@ -59551,6 +59640,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "FinancialScope no verificable."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -59618,6 +59710,9 @@
               }
             },
             "description": "Resumen: folios encontrados / persistidos nuevos / errores."
+          },
+          "409": {
+            "description": "FinancialScope no verificable."
           },
           "412": {
             "description": "Tenant sin credencial clave tributaria activa."
@@ -59691,6 +59786,9 @@
           },
           "404": {
             "description": "Folio no encontrado o período sin declaración."
+          },
+          "409": {
+            "description": "FinancialScope no verificable."
           },
           "412": {
             "description": "Tenant sin credencial clave tributaria activa."
@@ -59767,6 +59865,9 @@
           },
           "404": {
             "description": "Folio no encontrado o período sin declaración."
+          },
+          "409": {
+            "description": "FinancialScope no verificable."
           },
           "412": {
             "description": "Tenant sin credencial clave tributaria activa."
@@ -62987,6 +63088,9 @@
           },
           "404": {
             "description": "El tenant no tiene saldo de apertura configurado."
+          },
+          "409": {
+            "description": "FinancialScope unavailable; no tenant-wide cash curve is published."
           },
           "422": {
             "description": "horizon_days fuera de rango [7, 180]."

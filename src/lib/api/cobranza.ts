@@ -28,22 +28,7 @@ type GenAccountsReceivable = components["schemas"]["AccountsReceivableResponse"]
 type GenARAging = components["schemas"]["ARAging"];
 type GenTopDebtor = components["schemas"]["TopDebtor"];
 type GenOverdueDocument = components["schemas"]["OverdueDocument"];
-
-/** Vuelve nullable un subconjunto de campos de un tipo GENERADO, conservando el
- *  resto tal cual viene del contrato.
- *
- *  El `K extends keyof T` es el guardarraíl: si el backend renombra o elimina uno
- *  de los campos overrideados, la clave deja de existir en `T` y esto NO COMPILA.
- *  Sin esa restricción, `Omit` acepta claves inexistentes en silencio y volvemos
- *  al problema original (el cambio de contrato pasa mudo). */
-type NullableOverride<T, K extends keyof T> = Omit<T, K> & { [P in K]: T[P] | null };
-
-/** Reemplaza el TIPO de un campo del contrato por otro. Hace falta `Omit` de verdad:
- *  intersectar `Gen & { aging: ReceivableAging }` NO reemplaza nada — deja
- *  `ARAging & ReceivableAging`, y `string & (string | null)` colapsa a `string`, o
- *  sea el override quedaba mudo (justo el problema que este archivo viene a
- *  resolver). Mismo guardarraíl `K extends keyof T` que `NullableOverride`. */
-type Replace<T, K extends keyof T, V> = Omit<T, K> & { [P in K]: V };
+type GenReceivableDocumentsResponse = components["schemas"]["ReceivableDocumentsResponse"];
 
 /* ── La deuda controlada de #123 queda SALDADA ───────────────────────────
  *
@@ -124,16 +109,9 @@ export interface ReceivableDocumentItem {
   claimed?: boolean;
   credit_note?: boolean;
 }
-export interface ReceivableDocumentsResponse {
-  items: ReceivableDocumentItem[];
-  total: number;
-  limit: number;
-  offset: number;
-  overdue: ReceivableMoneyTotal[];
-  due_soon: ReceivableMoneyTotal[];
-  collected: ReceivableMoneyTotal[];
-  generated_at: string;
-}
+/** La lista y su cobertura salen del snapshot OpenAPI. En particular, `collected: null`
+ * es una abstención del backend: la UI no puede convertirla en un cero. */
+export type ReceivableDocumentsResponse = GenReceivableDocumentsResponse;
 export interface CollectionReminderRule {
   kind: "before_due" | "due_today" | "overdue";
   enabled: boolean;
