@@ -34,7 +34,11 @@ sola imagen Docker con `/api/release` enlazado a ese SHA y al digest de fuente,
 y registra el ID inmutable local. Publica `local-release-candidate` sobre ese
 SHA con el digest y la identidad autenticada. El digest reportado como
 `bundle_sha256` en runtime corresponde al archivo fuente `source.tar`; el
-digest OCI se registra aparte al publicar en ACR.
+digest OCI se registra aparte al publicar en ACR. Al promover, la nueva
+revisión de Azure recibe además el árbol Git, versión de `package.json` y la
+referencia OCI por digest. `/api/release` responde 200 sólo si los cinco
+valores son válidos; así una respuesta 200 certifica procedencia completa y no
+expone secretos.
 
 `promote` repite el preflight y verifica el artefacto y status candidato.
 Captura la imagen anterior de Azure y resuelve su digest en ACR. Corre smoke
@@ -46,7 +50,9 @@ y observacion. Cada intento conserva `azure-before.json`, imagen publicada y
 observacion del runtime en `attempt-*`.
 
 Ante fallo despues de comenzar la promocion, actualiza el Container App a la
-imagen anterior por digest, verifica la imagen activa y repite smoke. Un recibo
+imagen anterior por digest, restaura exactamente las variables de procedencia
+que tenía esa revisión (o elimina las que no existían), verifica esa identidad
+en `/api/release` y repite smoke. Un recibo
 de rollback no convierte el release fallido en exitoso. Si falla la lectura o
 reversion de Azure, detener la operacion e inspeccionar produccion.
 

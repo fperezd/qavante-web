@@ -13,6 +13,8 @@ export const DEFAULT_RUNTIME_RELEASE_URL = "https://app.qavante.com/api/release"
 
 export const RELEASE_SHA_PATTERN = /^[0-9a-f]{40}$/;
 export const BUNDLE_SHA256_PATTERN = /^[0-9a-f]{64}$/;
+export const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+export const IMAGE_REF_PATTERN = /^[a-z0-9][a-z0-9._/-]*@sha256:[0-9a-f]{64}$/;
 
 export class RuntimeProvenanceError extends Error {
   constructor(message, lastBody) {
@@ -28,7 +30,11 @@ export class RuntimeProvenanceError extends Error {
 // presupuesto") sugiere lag de propagación cuando en realidad el valor de
 // entrada estaba mal desde el intento 0. Se valida antes de la primera
 // llamada a fetch.
-export function assertValidProvenanceInputs(releaseSha, bundleSha) {
+export function assertValidProvenanceInputs(
+  releaseSha,
+  bundleSha,
+  { treeSha, version, imageRef } = {},
+) {
   if (typeof releaseSha !== "string" || !RELEASE_SHA_PATTERN.test(releaseSha)) {
     throw new RuntimeProvenanceError(
       `RELEASE_SHA inválido: se esperaba un SHA-1 de 40 caracteres hexadecimales en minúsculas, recibido ${JSON.stringify(releaseSha)}`,
@@ -41,6 +47,30 @@ export function assertValidProvenanceInputs(releaseSha, bundleSha) {
       null,
     );
   }
+  if (
+    treeSha !== undefined &&
+    (typeof treeSha !== "string" || !RELEASE_SHA_PATTERN.test(treeSha))
+  ) {
+    throw new RuntimeProvenanceError(
+      `RELEASE_TREE_SHA invÃ¡lido: se esperaba un SHA-1 de 40 caracteres hexadecimales en minÃºsculas, recibido ${JSON.stringify(treeSha)}`,
+      null,
+    );
+  }
+  if (version !== undefined && (typeof version !== "string" || !VERSION_PATTERN.test(version))) {
+    throw new RuntimeProvenanceError(
+      `RELEASE_VERSION invÃ¡lida: se esperaba semver, recibido ${JSON.stringify(version)}`,
+      null,
+    );
+  }
+  if (
+    imageRef !== undefined &&
+    (typeof imageRef !== "string" || !IMAGE_REF_PATTERN.test(imageRef))
+  ) {
+    throw new RuntimeProvenanceError(
+      `RELEASE_IMAGE_REF invÃ¡lida: se esperaba una referencia OCI por digest, recibido ${JSON.stringify(imageRef)}`,
+      null,
+    );
+  }
 }
 
 // Función pura: compara la respuesta de /api/release contra la procedencia
@@ -48,7 +78,8 @@ export function assertValidProvenanceInputs(releaseSha, bundleSha) {
 // una respuesta con el bundle anterior "coincide" por accidente sólo si
 // alguien afloja la comparación; se mantiene explícita e independiente del
 // bucle para poder testearla sin red ni temporizadores.
-export function isProvenanceMatch(json, releaseSha, bundleSha) {
+export function isProvenanceMatch(json, releaseSha, bundleSha, expected = {}) {
+  const { treeSha, version, imageRef } = expected;
   return (
     !!json &&
     typeof json === "object" &&
@@ -58,7 +89,10 @@ export function isProvenanceMatch(json, releaseSha, bundleSha) {
     bundleSha.length === 64 &&
     json.status === "ok" &&
     json.source_sha === releaseSha &&
-    json.bundle_sha256 === bundleSha
+    json.bundle_sha256 === bundleSha &&
+    (treeSha === undefined || json.source_tree === treeSha) &&
+    (version === undefined || json.version === version) &&
+    (imageRef === undefined || json.image_ref === imageRef)
   );
 }
 
@@ -88,13 +122,17 @@ export async function pollRuntimeProvenance({
   url,
   releaseSha,
   bundleSha,
+  treeSha,
+  version,
+  imageRef,
   budgetMs = DEFAULT_BUDGET_MS,
   intervalMs = DEFAULT_INTERVAL_MS,
   fetchImpl = fetch,
   sleepImpl = defaultSleep,
   now = Date.now,
 }) {
-  assertValidProvenanceInputs(releaseSha, bundleSha);
+  const expected = { treeSha, version, imageRef };
+  assertValidProvenanceInputs(releaseSha, bundleSha, expected);
 
   const deadline = now() + budgetMs;
   let lastBody = null;
@@ -109,7 +147,7 @@ export async function pollRuntimeProvenance({
       lastBody = { error: String(error?.message ?? error) };
     }
 
-    if (isProvenanceMatch(lastBody, releaseSha, bundleSha)) {
+    if (isProvenanceMatch(lastBody, releaseSha, bundleSha, expected)) {
       return { body: lastBody, attempts };
     }
 

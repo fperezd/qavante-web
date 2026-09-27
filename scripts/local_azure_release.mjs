@@ -17,6 +17,16 @@ const apiUrl = "https://api.qavante.com";
 const candidateContext = "local-release-candidate";
 const browserImage =
   "mcr.microsoft.com/playwright@sha256:9bd26ad900bb5e0f4dee75839e957a89ae89c2b7ab1e76050e559790e946b948";
+const SHA_RE = /^[0-9a-f]{40}$/;
+const SHA256_RE = /^[0-9a-f]{64}$/;
+const VERSION_RE = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const provenanceEnvironmentNames = [
+  "QAVANTE_RELEASE_SHA",
+  "QAVANTE_RELEASE_TREE_SHA",
+  "QAVANTE_RELEASE_BUNDLE_SHA256",
+  "QAVANTE_RELEASE_VERSION",
+  "QAVANTE_RELEASE_IMAGE_REF",
+];
 
 function run(program, args, { cwd = root, capture = false, env = process.env } = {}) {
   const windowsAz = process.platform === "win32" && program === "az";
@@ -92,6 +102,137 @@ export function verifyCandidateStatus(statuses, actor, sourceDigest) {
   return latest.id;
 }
 
+export function releaseEnvironment({ releaseSha, releaseTree, sourceDigest, version, imageRef }) {
+  if (!SHA_RE.test(releaseSha) || !SHA_RE.test(releaseTree))
+    throw new Error("release provenance has an invalid source SHA or tree");
+  if (!SHA256_RE.test(sourceDigest))
+    throw new Error("release provenance has an invalid source digest");
+  if (!VERSION_RE.test(version))
+    throw new Error("release provenance has an invalid package version");
+  if (!/^acrqavanteprod\.azurecr\.io\/qavante-web@sha256:[0-9a-f]{64}$/.test(imageRef))
+    throw new Error("release provenance has an invalid immutable image reference");
+  return [
+    `QAVANTE_RELEASE_SHA=${releaseSha}`,
+    `QAVANTE_RELEASE_TREE_SHA=${releaseTree}`,
+    `QAVANTE_RELEASE_BUNDLE_SHA256=${sourceDigest}`,
+    `QAVANTE_RELEASE_VERSION=${version}`,
+    `QAVANTE_RELEASE_IMAGE_REF=${imageRef}`,
+  ];
+}
+
+function templateEnvironment(state) {
+  const entries = state?.properties?.template?.containers?.[0]?.env;
+  if (!Array.isArray(entries)) throw new Error("Azure state has no container environment");
+  const values = new Map();
+  for (const entry of entries) {
+    if (!entry || typeof entry.name !== "string") continue;
+    if (values.has(entry.name))
+      throw new Error(`Azure state repeats environment variable ${entry.name}`);
+    values.set(entry.name, entry.value);
+  }
+  return values;
+}
+
+// Azure no elimina vars que no se mencionan en --set-env-vars. Por eso el
+// rollback debe reconstruir este subconjunto desde el estado anterior y pedir
+// explícitamente la eliminación de las que antes no existían.
+export function rollbackReleaseEnvironment(before) {
+  const prior = templateEnvironment(before);
+  const set = [];
+  const remove = [];
+  for (const name of provenanceEnvironmentNames) {
+    if (!prior.has(name)) {
+      remove.push(name);
+      continue;
+    }
+    const value = prior.get(name);
+    if (typeof value !== "string")
+      throw new Error(`previous release provenance ${name} is not a literal value`);
+    set.push(`${name}=${value}`);
+  }
+  return { set, remove };
+}
+
+export function rollbackUpdateArguments(before, rollbackImage) {
+  const environment = rollbackReleaseEnvironment(before);
+  const args = ["containerapp", "update", "-n", app, "-g", group, "--image", rollbackImage];
+  if (environment.set.length) args.push("--set-env-vars", ...environment.set);
+  if (environment.remove.length) args.push("--remove-env-vars", ...environment.remove);
+  return args;
+}
+
+export function isRollbackRuntimeMatch(body, before, rollbackImage) {
+  const prior = templateEnvironment(before);
+  const values = Object.fromEntries(
+    provenanceEnvironmentNames.map((name) => [name, prior.get(name)]),
+  );
+  const present = provenanceEnvironmentNames.filter((name) => prior.has(name));
+  if (present.length === 0) {
+    // Las revisiones anteriores a este contrato sólo devolvían los dos campos
+    // originales. Aceptamos exactamente su señal de indisponibilidad: no
+    // confundimos campos nuevos ausentes con una procedencia válida, ni
+    // toleramos valores no nulos en ninguno de ellos.
+    const absentOrNull = (value) => value === undefined || value === null;
+    return (
+      body?.status === "unavailable" &&
+      body.source_sha === null &&
+      body.bundle_sha256 === null &&
+      absentOrNull(body.source_tree) &&
+      absentOrNull(body.version) &&
+      absentOrNull(body.image_ref)
+    );
+  }
+  // Cualquier subset es corrupción de identidad, no un release legacy. Si
+  // aceptáramos su 503 nulo, una revisión que dejó una sola clave nueva podría
+  // ocultar precisamente el estado que el rollback debe recuperar.
+  if (present.length !== provenanceEnvironmentNames.length) return false;
+  try {
+    releaseEnvironment({
+      releaseSha: values.QAVANTE_RELEASE_SHA,
+      releaseTree: values.QAVANTE_RELEASE_TREE_SHA,
+      sourceDigest: values.QAVANTE_RELEASE_BUNDLE_SHA256,
+      version: values.QAVANTE_RELEASE_VERSION,
+      imageRef: values.QAVANTE_RELEASE_IMAGE_REF,
+    });
+  } catch {
+    return false;
+  }
+  return (
+    values.QAVANTE_RELEASE_IMAGE_REF === rollbackImage &&
+    body?.status === "ok" &&
+    body.source_sha === values.QAVANTE_RELEASE_SHA &&
+    body.source_tree === values.QAVANTE_RELEASE_TREE_SHA &&
+    body.bundle_sha256 === values.QAVANTE_RELEASE_BUNDLE_SHA256 &&
+    body.version === values.QAVANTE_RELEASE_VERSION &&
+    body.image_ref === values.QAVANTE_RELEASE_IMAGE_REF
+  );
+}
+
+async function verifyRollbackRuntime(before, rollbackImage, { budgetMs = 300_000 } = {}) {
+  const deadline = Date.now() + budgetMs;
+  let lastBody = null;
+  do {
+    try {
+      const response = await fetch(`${appUrl}/api/release`);
+      lastBody = await response.json();
+    } catch (error) {
+      lastBody = { error: String(error?.message ?? error) };
+    }
+    if (isRollbackRuntimeMatch(lastBody, before, rollbackImage)) return lastBody;
+    if (Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5_000));
+  } while (Date.now() < deadline);
+  throw new Error(
+    `rollback runtime provenance did not match previous revision: ${JSON.stringify(lastBody)}`,
+  );
+}
+
+function packageVersion() {
+  const version = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
+  if (typeof version !== "string" || !VERSION_RE.test(version))
+    throw new Error("package.json has no valid immutable release version");
+  return version;
+}
+
 function azureState() {
   return JSON.parse(az(["containerapp", "show", "-n", app, "-g", group]));
 }
@@ -150,6 +291,7 @@ async function prepare(directory) {
   run("tar", ["-xf", archive, "-C", source]);
   const tag = `prod-${gate.release_sha}`;
   const taggedImage = `${image}:${tag}`;
+  const version = packageVersion();
   run("docker", [
     "build",
     "--pull",
@@ -160,7 +302,11 @@ async function prepare(directory) {
     "--build-arg",
     `QAVANTE_RELEASE_SHA=${gate.release_sha}`,
     "--build-arg",
+    `QAVANTE_RELEASE_TREE_SHA=${gate.release_tree}`,
+    "--build-arg",
     `QAVANTE_RELEASE_BUNDLE_SHA256=${sourceDigest}`,
+    "--build-arg",
+    `QAVANTE_RELEASE_VERSION=${version}`,
     "--label",
     `org.opencontainers.image.revision=${gate.release_sha}`,
     "--label",
@@ -203,6 +349,7 @@ async function prepare(directory) {
     source_sha256: sourceDigest,
     image_id: imageId,
     image_tag: taggedImage,
+    release_version: version,
     candidate_status_id: status.id,
     smoke_image: browserImage,
     prepared_at: new Date().toISOString(),
@@ -274,6 +421,13 @@ async function promote(directory) {
   run("docker", ["push", manifest.image_tag]);
   const digest = remoteDigest(manifest.image_tag.split(":").at(-1));
   const releaseImage = `${image}@${digest}`;
+  const environment = releaseEnvironment({
+    releaseSha: manifest.release_sha,
+    releaseTree: manifest.release_tree,
+    sourceDigest: manifest.source_sha256,
+    version: manifest.release_version,
+    imageRef: releaseImage,
+  });
   save(path.join(attempt, "pushed-image.json"), {
     image: releaseImage,
     local_image_id: manifest.image_id,
@@ -281,7 +435,18 @@ async function promote(directory) {
   let promotionStarted = false;
   try {
     promotionStarted = true;
-    az(["containerapp", "update", "-n", app, "-g", group, "--image", releaseImage]);
+    az([
+      "containerapp",
+      "update",
+      "-n",
+      app,
+      "-g",
+      group,
+      "--image",
+      releaseImage,
+      "--set-env-vars",
+      ...environment,
+    ]);
     const after = azureState();
     if (activeImage(after) !== releaseImage)
       throw new Error("Azure did not activate the exact image digest");
@@ -290,6 +455,9 @@ async function promote(directory) {
       url: `${appUrl}/api/release`,
       releaseSha: manifest.release_sha,
       bundleSha: manifest.source_sha256,
+      treeSha: manifest.release_tree,
+      version: manifest.release_version,
+      imageRef: releaseImage,
       budgetMs: 300_000,
     });
     save(path.join(attempt, "runtime-release.json"), runtime.body);
@@ -304,6 +472,7 @@ async function promote(directory) {
   } catch (error) {
     if (promotionStarted) {
       let restored = false;
+      let runtimeProvenanceVerified = false;
       let smokePassed = false;
       let rollbackError = null;
       try {
@@ -311,11 +480,15 @@ async function promote(directory) {
         if (![oldImage, rollbackImage, releaseImage].includes(observedImage)) {
           throw new Error("Azure changed to an unrelated image; automatic rollback is unsafe");
         }
-        if (observedImage !== oldImage && observedImage !== rollbackImage) {
-          az(["containerapp", "update", "-n", app, "-g", group, "--image", rollbackImage]);
-        }
-        restored = [oldImage, rollbackImage].includes(activeImage(azureState()));
+        // Incluso si ya volvió a la imagen anterior, un update parcial puede
+        // haber dejado env vars de la revisión nueva. Restauramos siempre
+        // imagen + subset de provenance desde `before`.
+        az(rollbackUpdateArguments(before, rollbackImage));
+        restored = activeImage(azureState()) === rollbackImage;
         if (restored) {
+          const runtime = await verifyRollbackRuntime(before, rollbackImage);
+          save(path.join(attempt, "rollback-runtime-release.json"), runtime);
+          runtimeProvenanceVerified = true;
           smoke(source);
           smokePassed = true;
         }
@@ -324,13 +497,14 @@ async function promote(directory) {
       }
       save(path.join(attempt, "rollback-receipt.json"), {
         restored,
+        runtime_provenance_verified: runtimeProvenanceVerified,
         smoke_passed: smokePassed,
         rollback_image: rollbackImage,
         reason: String(error),
         rollback_error: rollbackError,
         observed_at: new Date().toISOString(),
       });
-      if (!restored || !smokePassed)
+      if (!restored || !runtimeProvenanceVerified || !smokePassed)
         throw new Error(`release failed and rollback is unverified: ${error}; ${rollbackError}`);
     }
     throw error;

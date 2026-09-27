@@ -11,8 +11,17 @@ import {
 
 const RELEASE_SHA = "a".repeat(40);
 const BUNDLE_SHA = "b".repeat(64);
+const TREE_SHA = "c".repeat(40);
+const IMAGE_REF = `acrqavanteprod.azurecr.io/qavante-web@sha256:${"d".repeat(64)}`;
+const VERSION = "0.1.0";
 const OLD_BODY = { status: "ok", source_sha: "c".repeat(40), bundle_sha256: "d".repeat(64) };
 const MATCH_BODY = { status: "ok", source_sha: RELEASE_SHA, bundle_sha256: BUNDLE_SHA };
+const COMPLETE_MATCH_BODY = {
+  ...MATCH_BODY,
+  source_tree: TREE_SHA,
+  version: VERSION,
+  image_ref: IMAGE_REF,
+};
 
 const jsonResponse = (body, status = 200) => ({
   status,
@@ -51,6 +60,23 @@ test("isProvenanceMatch: exige status ok + ambos SHA", () => {
   );
   assert.equal(isProvenanceMatch(null, RELEASE_SHA, BUNDLE_SHA), false);
   assert.equal(isProvenanceMatch(undefined, RELEASE_SHA, BUNDLE_SHA), false);
+});
+
+test("isProvenanceMatch: cuando el release local espera metadata ampliada exige coincidencia exacta", () => {
+  const expected = { treeSha: TREE_SHA, version: VERSION, imageRef: IMAGE_REF };
+  assert.equal(isProvenanceMatch(COMPLETE_MATCH_BODY, RELEASE_SHA, BUNDLE_SHA, expected), true);
+  assert.equal(
+    isProvenanceMatch(
+      {
+        ...COMPLETE_MATCH_BODY,
+        image_ref: `acrqavanteprod.azurecr.io/qavante-web@sha256:${"e".repeat(64)}`,
+      },
+      RELEASE_SHA,
+      BUNDLE_SHA,
+      expected,
+    ),
+    false,
+  );
 });
 
 test("isProvenanceMatch: un prefijo compartido no cuenta como coincidencia (mata la mutación de comparar por prefijo)", () => {
@@ -187,6 +213,22 @@ test("pollRuntimeProvenance: coincide a la primera respuesta", async () => {
   assert.equal(calls, 1);
   assert.equal(result.attempts, 1);
   assert.deepEqual(result.body, MATCH_BODY);
+});
+
+test("pollRuntimeProvenance: el corte Azure exige árbol, versión e imagen por digest", async () => {
+  const { now, sleepImpl } = fakeClock();
+  const result = await pollRuntimeProvenance({
+    url: "https://app.qavante.com/api/release",
+    releaseSha: RELEASE_SHA,
+    bundleSha: BUNDLE_SHA,
+    treeSha: TREE_SHA,
+    version: VERSION,
+    imageRef: IMAGE_REF,
+    fetchImpl: async () => jsonResponse(COMPLETE_MATCH_BODY),
+    now,
+    sleepImpl,
+  });
+  assert.deepEqual(result.body, COMPLETE_MATCH_BODY);
 });
 
 test("pollRuntimeProvenance: coincide en el tercer intento tras dos respuestas viejas", async () => {

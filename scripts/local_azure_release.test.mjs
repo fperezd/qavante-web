@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { activeImage, verifyCandidateStatus } from "./local_azure_release.mjs";
+import {
+  activeImage,
+  isRollbackRuntimeMatch,
+  releaseEnvironment,
+  rollbackReleaseEnvironment,
+  rollbackUpdateArguments,
+  verifyCandidateStatus,
+} from "./local_azure_release.mjs";
 
 const image = "acrqavanteprod.azurecr.io/qavante-web:prod-abc";
 const state = (traffic = [{ latestRevision: true, weight: 100 }], mode = "Single") => ({
@@ -41,5 +48,143 @@ describe("local Azure release", () => {
       ),
     ).toThrow(/matching/);
     expect(() => verifyCandidateStatus([first], "other", digest)).toThrow(/matching/);
+  });
+
+  it("injects only complete immutable provenance into the Container App revision", () => {
+    const environment = releaseEnvironment({
+      releaseSha: "a".repeat(40),
+      releaseTree: "b".repeat(40),
+      sourceDigest: "c".repeat(64),
+      version: "0.1.0",
+      imageRef: `acrqavanteprod.azurecr.io/qavante-web@sha256:${"d".repeat(64)}`,
+    });
+    expect(environment).toEqual([
+      `QAVANTE_RELEASE_SHA=${"a".repeat(40)}`,
+      `QAVANTE_RELEASE_TREE_SHA=${"b".repeat(40)}`,
+      `QAVANTE_RELEASE_BUNDLE_SHA256=${"c".repeat(64)}`,
+      "QAVANTE_RELEASE_VERSION=0.1.0",
+      `QAVANTE_RELEASE_IMAGE_REF=acrqavanteprod.azurecr.io/qavante-web@sha256:${"d".repeat(64)}`,
+    ]);
+    expect(() =>
+      releaseEnvironment({
+        releaseSha: "a".repeat(40),
+        releaseTree: "b".repeat(40),
+        sourceDigest: "c".repeat(64),
+        version: "0.1.0",
+        imageRef: "acrqavanteprod.azurecr.io/qavante-web:mutable-tag",
+      }),
+    ).toThrow(/immutable image/);
+  });
+
+  it("restores prior provenance or explicitly removes values that were absent", () => {
+    const before = state();
+    before.properties.template.containers[0].env = [
+      { name: "QAVANTE_RELEASE_SHA", value: "a".repeat(40) },
+      { name: "QAVANTE_RELEASE_TREE_SHA", value: "b".repeat(40) },
+      { name: "QAVANTE_RELEASE_BUNDLE_SHA256", value: "c".repeat(64) },
+      { name: "QAVANTE_RELEASE_VERSION", value: "0.1.0" },
+      { name: "SOME_OTHER_FLAG", value: "true" },
+    ];
+    expect(rollbackReleaseEnvironment(before)).toEqual({
+      set: [
+        `QAVANTE_RELEASE_SHA=${"a".repeat(40)}`,
+        `QAVANTE_RELEASE_TREE_SHA=${"b".repeat(40)}`,
+        `QAVANTE_RELEASE_BUNDLE_SHA256=${"c".repeat(64)}`,
+        "QAVANTE_RELEASE_VERSION=0.1.0",
+      ],
+      remove: ["QAVANTE_RELEASE_IMAGE_REF"],
+    });
+    expect(
+      rollbackUpdateArguments(
+        before,
+        `acrqavanteprod.azurecr.io/qavante-web@sha256:${"d".repeat(64)}`,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        "--set-env-vars",
+        `QAVANTE_RELEASE_SHA=${"a".repeat(40)}`,
+        "--remove-env-vars",
+        "QAVANTE_RELEASE_IMAGE_REF",
+      ]),
+    );
+  });
+
+  it("verifies rollback against the previous runtime identity, never the failed release", () => {
+    const rollbackImage = `acrqavanteprod.azurecr.io/qavante-web@sha256:${"d".repeat(64)}`;
+    const before = state();
+    before.properties.template.containers[0].env = [
+      { name: "QAVANTE_RELEASE_SHA", value: "a".repeat(40) },
+      { name: "QAVANTE_RELEASE_TREE_SHA", value: "b".repeat(40) },
+      { name: "QAVANTE_RELEASE_BUNDLE_SHA256", value: "c".repeat(64) },
+      { name: "QAVANTE_RELEASE_VERSION", value: "0.1.0" },
+      { name: "QAVANTE_RELEASE_IMAGE_REF", value: rollbackImage },
+    ];
+    const oldRuntime = {
+      status: "ok",
+      source_sha: "a".repeat(40),
+      source_tree: "b".repeat(40),
+      bundle_sha256: "c".repeat(64),
+      version: "0.1.0",
+      image_ref: rollbackImage,
+    };
+    expect(isRollbackRuntimeMatch(oldRuntime, before, rollbackImage)).toBe(true);
+    expect(
+      isRollbackRuntimeMatch(
+        {
+          ...oldRuntime,
+          image_ref: `acrqavanteprod.azurecr.io/qavante-web@sha256:${"e".repeat(64)}`,
+        },
+        before,
+        rollbackImage,
+      ),
+    ).toBe(false);
+    const partialPriorProvenance = state();
+    partialPriorProvenance.properties.template.containers[0].env = [
+      { name: "QAVANTE_RELEASE_SHA", value: "a".repeat(40) },
+    ];
+    expect(
+      isRollbackRuntimeMatch(
+        { status: "unavailable", source_sha: null, bundle_sha256: null },
+        partialPriorProvenance,
+        rollbackImage,
+      ),
+    ).toBe(false);
+    const noPriorProvenance = state();
+    noPriorProvenance.properties.template.containers[0].env = [];
+    expect(
+      isRollbackRuntimeMatch(
+        {
+          status: "unavailable",
+          source_sha: null,
+          source_tree: null,
+          bundle_sha256: null,
+          version: null,
+          image_ref: null,
+        },
+        noPriorProvenance,
+        rollbackImage,
+      ),
+    ).toBe(true);
+    // Contrato realmente desplegado antes de la provenance v2: los tres
+    // campos nuevos no existían. No se acepta ningún valor no nulo.
+    expect(
+      isRollbackRuntimeMatch(
+        { status: "unavailable", source_sha: null, bundle_sha256: null },
+        noPriorProvenance,
+        rollbackImage,
+      ),
+    ).toBe(true);
+    expect(
+      isRollbackRuntimeMatch(
+        {
+          status: "unavailable",
+          source_sha: null,
+          bundle_sha256: null,
+          source_tree: "unexpected",
+        },
+        noPriorProvenance,
+        rollbackImage,
+      ),
+    ).toBe(false);
   });
 });
