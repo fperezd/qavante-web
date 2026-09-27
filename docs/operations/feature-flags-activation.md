@@ -1,32 +1,33 @@
 # Activación de feature flags en producción
 
-> Cómo activar/desactivar las features gateadas de `qavante-web` en producción.
-> Mismo patrón vale para `localhost` (dev) — la diferencia es dónde se setea la env var.
+La única ruta de promoción es el [release local verificable](./local-release.md).
+Los flags de producción se fijan en el `Dockerfile` de la imagen que esa ruta
+construye; no se cambian desde paneles de proveedor, workflows ni secretos de
+GitHub. Un merge por sí solo no cambia producción.
 
-## Modelo mental — ADR-0008 + ADR-0012
+## Invariante
 
-Hay 11 feature flags definidas en [`src/lib/feature-flags.ts`](../../src/lib/feature-flags.ts). Cada uno gobierna una sección del producto. **Todas tienen default `false` (la sección renderiza un estado "todavía no disponible" en lugar de UI mock).**
+Todas las flags de `src/lib/feature-flags.ts` son `false` por defecto. Activar
+una requiere una modificación revisada de la imagen y una promoción local
+verificada por digest. El frontend nunca inventa una respuesta: si falta el
+endpoint, la pantalla debe mantener su estado no disponible.
 
-Activar un flag requiere setear una env var **explícita** en el entorno donde corre el FE. La env var sigue la convención `NEXT_PUBLIC_FF_<FLAG_SCREAMING_SNAKE>`.
+## Procedimiento
 
-**IMPORTANTE — corregido 2026-05-30 (la versión anterior de esta guía estaba mal):**
-las pantallas gateadas (`/caja/*`, `/administracion/estructura-gestion`, etc.) son
-**Server Components**: resuelven `process.env.NEXT_PUBLIC_FF_*` **en runtime del
-Worker**, que se llena con las `[vars]` de [`wrangler.toml`](../../wrangler.toml).
-Por eso los flags **viven en `wrangler.toml [vars]` (versionado en el repo)**, no
-en el panel del dashboard.
+1. Verificar que el endpoint backend requerido existe en `api.qavante.com`.
+2. Cambiar únicamente el valor `NEXT_PUBLIC_FF_<FLAG>` correspondiente en las
+   secciones `ENV` de build y runner del `Dockerfile`.
+3. Abrir PR, completar los gates locales y mergear a `main`.
+4. Ejecutar el [release local](./local-release.md) sobre el tip limpio de
+   `origin/main`.
+5. Validar la ruta en una sesión nueva. Si el endpoint está ausente, dejar la
+   flag apagada y corregir primero el contrato backend.
 
-⚠️ **NO usar el panel de Cloudflare ("Variables and secrets") para los flags:**
-Cada release gated ejecuta `wrangler deploy` y **resetea** las vars del Worker
-a lo que diga `wrangler.toml`, así que **cualquier var agregada a mano en el panel
-se borra en el siguiente deploy**. (Si se prefiriera el panel, habría que agregar
-`keep_vars = true` al toml — pero hoy la fuente de verdad es el toml.)
+Para un kill-switch, revertir sólo ese valor a `false` en el `Dockerfile` y
+repetir el mismo release local verificable. No se modifica infraestructura ni
+se usa un bypass de configuración.
 
-Cambiar un flag en prod = editar `wrangler.toml` + PR + CI/review + merge a
-`main` + release manual con human gate según
-[`deploy-runbook.md`](./deploy-runbook.md). Un merge por sí solo no despliega.
-
-## Mapping flag → env var → endpoint que gobierna
+## Mapping flag → endpoint
 
 | Flag (camelCase)             | Env var                                       | Endpoint backend que gobierna                |
 | ---------------------------- | --------------------------------------------- | -------------------------------------------- |
@@ -43,96 +44,24 @@ Cambiar un flag en prod = editar `wrangler.toml` + PR + CI/review + merge a
 | `miCuenta`                   | `NEXT_PUBLIC_FF_MI_CUENTA`                    | POST `/api/auth/logout` (+ lee `/api/me`)    |
 | `financialDecisionHome`      | `NEXT_PUBLIC_FF_FINANCIAL_DECISION_HOME`      | `/api/treasury/financial-position`           |
 
-El mapping vive en `FLAG_GATING_ENDPOINT` en `src/lib/feature-flags.ts` — actualizar acá cuando se agregue un flag nuevo.
+El mapping vive en `FLAG_GATING_ENDPOINT` en `src/lib/feature-flags.ts`.
 
-## Activar un flag en producción (Cloudflare Workers)
+## Desarrollo y pruebas
 
-1. **Pre-requisito**: el endpoint backend que el flag gobierna debe estar deployado en `api.qavante.com`. Si no, activar el flag muestra UI rota (loading infinito, 404, etc.). Para verificar:
+En desarrollo, `.env.local` sigue siendo local y no se versiona:
 
-   ```
-   curl -I https://api.qavante.com/api/<endpoint-de-la-tabla>
-   ```
-
-   Si responde 401 (sin sesión) o 200, el endpoint existe. Si responde 404, falta backend.
-
-2. **Editar `wrangler.toml`** (en el repo, NO el dashboard):
-   - En el bloque `[vars]`, agregar/editar la línea `NEXT_PUBLIC_FF_<...> = "true"`
-     (o `"false"` para apagar; o borrar/comentar la línea → cae al default `false`).
-   - Commit + PR + merge a `main`.
-   - Tras CI/review, ejecutar el release manual del SHA completo de `main` y
-     aprobar el environment `production` según `deploy-runbook.md`. Ese workflow
-     promueve el artefacto y deja la var persistida.
-
-3. **Validar**:
-   - Refresh `https://app.qavante.com/<ruta-gateada>` en una ventana nueva (Ctrl+F5 para saltar caché CDN).
-   - Si el flag está bien activado, la pantalla muestra el contenido real; si no, sigue mostrando `FeatureUnavailableState`.
-
-## Desactivar (kill-switch)
-
-Mismo procedimiento, valor `false`. Útil si una feature en prod tiene problemas y quieres ocultarla rápido sin esperar al motor de `/api/management/config` (que aún no existe — ver ADR-0008).
-
-También puedes **borrar la variable** completamente: el código cae al default `false` igual.
-
-## Activar en local (dev)
-
-`.env.local` (gitignored):
-
-```
+```text
 NEXT_PUBLIC_FF_CASH_FLOW_REPORT=true
 NEXT_PUBLIC_API_MOCKING=enabled
 NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
-`npm run dev` lee `.env.local` directamente. Sin redeploy necesario (Next.js dev server reinicia el HMR).
-
-Si activas un flag en dev pero el endpoint backend no existe en MSW (ver `src/test/msw/handlers.ts`), agregar handler primero o usar `NEXT_PUBLIC_API_MOCKING=disabled` para apuntar al backend real `https://api.qavante.com`.
-
-## Activar en Playwright (E2E)
-
-Pasar la env var en `webServer.env` de `playwright.config.ts` o en el step del workflow. Ejemplo (no implementado hoy, indicativo):
-
-```ts
-webServer: {
-  command: "npm run dev",
-  env: {
-    NEXT_PUBLIC_FF_CASH_FLOW_REPORT: "true",
-    NEXT_PUBLIC_API_MOCKING: "enabled",
-  },
-},
-```
-
-## Verificar qué flags están activos en prod
-
-No hay endpoint dedicado para esto (todavía — eventualmente vendrá `/api/management/config`). Mientras tanto:
-
-- **Cloudflare Dashboard**: Workers & Pages → `qavante-web` → Settings → Variables and secrets. Las que aparezcan listadas son las que están seteadas.
-- **Manual desde el browser**: abre `view-source:https://app.qavante.com/<ruta-gateada>`. Si ves la pantalla real → flag ON. Si ves "todavía no disponible" → flag OFF.
-
-## Errores comunes
-
-| Síntoma                                        | Causa probable                                                             | Fix                                                         |
-| ---------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Variable seteada pero pantalla no cambia       | El commit aún no fue promovido por el release gated                        | Ejecutar el workflow por SHA exacto y aprobar `production`. |
-| Pantalla cargando infinito tras activar        | Endpoint backend no deployado todavía                                      | Verificar con `curl` y/o desactivar el flag.                |
-| Variable con valor `True` o `TRUE` no funciona | Parser case-insensitive solo acepta `true`/`false` exactos                 | Usar minúsculas. Ver `readOverride` en `feature-flags.ts`.  |
-| Variable con valor `yes` o `1` no funciona     | Mismo motivo                                                               | Usar `true`/`false`.                                        |
-| Pantalla muestra UI mock o datos raros         | Tienes `NEXT_PUBLIC_API_MOCKING=enabled` activo en prod (no debería pasar) | Borrar la variable de mocking en CF Dashboard.              |
-
-## Cuando agregar un flag nuevo
-
-Si construyes una pantalla nueva que depende de un endpoint backend que recién va a deployarse o que es opcional:
-
-1. Agrega la string al array `FEATURE_FLAGS` en `src/lib/feature-flags.ts`.
-2. Agrega una entry en `FLAG_GATING_ENDPOINT` con el path del endpoint.
-3. Actualiza el test count (`los N flags`) en `feature-flags.test.ts`.
-4. Gatea la pantalla con `resolveFeatureFlags().myNewFlag ? <RealView /> : <FeatureUnavailableState />`.
-5. Agrega una fila a la tabla de mapping arriba en este runbook.
-
-NO actives el flag por default. Default OFF es seguro (ADR-0008).
+En Playwright, pasar la variable por `webServer.env`. Agregar una flag exige
+actualizar `FEATURE_FLAGS`, `FLAG_GATING_ENDPOINT`, su prueba de invariantes y
+la tabla de este documento.
 
 ## Referencias
 
-- [ADR-0008 — feature flags gating pantallas sin backend](../adr/0008-feature-flags-gating-pantallas-sin-backend.md).
-- [ADR-0012 — override flags en prod via Cloudflare env vars](../adr/0012-flags-prod-override-env-vars.md).
-- `src/lib/feature-flags.ts` — implementación.
-- `src/lib/feature-flags.test.ts` — invariantes.
+- [Release local verificable](./local-release.md).
+- [ADR-0008 — feature flags](../adr/0008-feature-flags-gating-pantallas-sin-backend.md).
+- `src/lib/feature-flags.ts` y `src/lib/feature-flags.test.ts`.

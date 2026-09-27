@@ -118,16 +118,14 @@ assert.match(chromatic, /paths:/);
 assert.match(chromatic, /\.storybook\/\*\*/);
 assert.equal(REQUIRED_RELEASE_CHECKS.includes("chromatic"), false);
 
-const release = fs.readFileSync(
-  new URL("./workflows/deploy-cloudflare.yml", import.meta.url),
+const localRelease = fs.readFileSync(
+  new URL("../scripts/local_azure_release.mjs", import.meta.url),
   "utf8",
 );
-assert.doesNotMatch(release, /^  push:/m);
-assert.match(release, /^  workflow_dispatch:/m);
-assert.match(release, /environment:\s*\n\s*name: production/);
-assert.equal((release.match(/verifyReleaseGate/g) || []).length, 2);
-assert.match(release, /secrets\.PRODUCTION_CLOUDFLARE_API_TOKEN/);
-assert.match(release, /secrets\.PRODUCTION_SMOKE_RUT/);
-assert.doesNotMatch(release, /wrangler deploy[^\n]*--var/);
+assert.match(localRelease, /scripts\/local_release_preflight\.py/);
+assert.match(localRelease, /run\("docker", \["push"/);
+assert.match(localRelease, /\["containerapp", "update"/);
+assert.match(localRelease, /@sha256:\[0-9a-f\]\{64\}/);
+assert.match(localRelease, /SMOKE_RUT/);
 
 console.log("release-gate: escenarios positivos y negativos OK");

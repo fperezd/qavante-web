@@ -1,6 +1,6 @@
 # Arquitectura — Qavante (Fase 1)
 
-Vista de alto nivel del sistema. Para decisiones específicas con rationale, ver [docs/adr/](./adr/).
+Vista de alto nivel del sistema. Para decisiones específicas con rationale, ver [docs/adr/](./adr/). La única autoridad de promoción es el release local Docker hacia Azure Container Apps; este documento no certifica que un cutover físico haya terminado.
 
 > **Deliverable de C0-18** — diagrama simplificado de cliente → API → DB, sin entrar en detalle de cada módulo de producto (eso vive en el Documento Maestro).
 
@@ -12,9 +12,13 @@ flowchart LR
         UI[Next.js 15 App<br/>React 19 + Tailwind 4 + shadcn]
     end
 
-    subgraph Cloudflare[Cloudflare]
-        Worker[Worker qavante-web<br/>app.qavante.com<br/>nodejs_compat]
-        DNS[DNS qavante.com<br/>NS amanda+chad]
+    subgraph LocalRelease[Autoridad de release local]
+        Docker[Docker local<br/>artefacto OCI por digest]
+        AzureTarget[Azure Container Apps<br/>destino autorizado tras verify]
+    end
+
+    subgraph LegacyBuild[Compatibilidad heredada de fuente/build]
+        Worker[opennextjs/cloudflare + wrangler.toml<br/>sin autoridad de despliegue]
     end
 
     subgraph Fly[Fly.io]
@@ -29,30 +33,33 @@ flowchart LR
         Banco[Bancos<br/>Banco Estado, Itau, BCI, etc.]
     end
 
-    UI -->|HTTPS| Worker
-    Worker -.cookie qavante_session.- UI
-    Worker -->|fetch credentials:include<br/>cross-origin Lax via shared parent| API
+    UI -->|HTTPS tras verificación runtime| AzureTarget
+    Docker -->|imagen OCI inmutable| AzureTarget
+    Worker -.compatibilidad de build solamente.- Docker
+    AzureTarget -.cookie qavante_session.- UI
+    AzureTarget -->|fetch credentials:include<br/>cross-origin Lax via shared parent| API
     API -->|asyncpg + RLS| PG
     PG -.dump diario.- R2backup
     API -->|SMTP| Resend
     API -->|HTTP scrape| SII
     API -->|HTTP scrape| Banco
 
-    style Worker fill:#f48120,color:#fff
+    style AzureTarget fill:#0078d4,color:#fff
+    style Worker fill:#808080,color:#fff
     style API fill:#7e57c2,color:#fff
     style PG fill:#336791,color:#fff
 ```
 
 ## Componentes
 
-### Frontend: Worker `qavante-web`
+### Frontend: release local hacia Azure Container Apps
 
-- **Hostname:** [app.qavante.com](https://app.qavante.com) — custom domain bindeado vía [wrangler.toml `[[routes]]`](../wrangler.toml).
+- **Hostname:** [app.qavante.com](https://app.qavante.com). La verificación de su destino físico ocurre dentro del [runbook local](./operations/local-release.md); esta arquitectura no afirma que el cutover ya fue completado.
 - **Stack:** Next.js 15 (App Router) + React 19 + TypeScript strict + Tailwind 4 + shadcn/ui sobre design system Qavante (Anexo B del doc maestro).
-- **Runtime:** Cloudflare Workers vía adapter [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). Bundle empaquetado para `workerd` con `compatibility_flags = ["nodejs_compat"]`. Ver [ADR-0001](./adr/0001-cloudflare-workers-vs-pages.md).
+- **Compatibilidad heredada:** [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), `wrangler.toml` y `nodejs_compat` siguen versionados para compatibilidad de fuente/build. No son una ruta de despliegue ni autorizan comandos de Worker, dashboard o GitHub Actions. Ver [ADR-0001](./adr/0001-cloudflare-workers-vs-pages.md).
 - **Auth (cliente):** cookie httpOnly `qavante_session` (Domain=.qavante.com, SameSite=Lax, Secure, ver [ADR-0003](./adr/0003-api-qavante-com-shared-parent.md)). Middleware Next.js en `src/middleware.ts` valida cookie y redirige a `/login` si falta. El interceptor en [`src/lib/api/client.ts:64`](../src/lib/api/client.ts#L64) hace refresh automático en 401.
 - **State management:** TanStack Query (server state) + Zustand (UI state local). React-hook-form + zod para validación.
-- **Release:** el deploy automático por `push` está suspendido. [.github/workflows/deploy-cloudflare.yml](../.github/workflows/deploy-cloudflare.yml) se ejecuta manualmente desde `main`, valida CI/review/árbol/human gate del SHA exacto, construye una vez y promueve el mismo artefacto con procedencia y rollback registrables. Ver [runbook](./operations/deploy-runbook.md).
+- **Release:** GitHub Actions está deshabilitado y no contiene rutas de despliegue. Desde `main` protegido, [el release local verificable](./operations/local-release.md) construye con Docker y puede promover a Azure Container Apps sólo por digest OCI inmutable, conservando procedencia y rollback registrables. No hay deploy por `push`; la verificación runtime decide si el cutover puede declararse completo.
 
 ### Backend: FastAPI `tooxs-gestion-api`
 

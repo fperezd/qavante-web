@@ -2,7 +2,7 @@
 
 **Anticipa. Decide. Avanza.**
 
-Frontend de Qavante (Next.js 15 + React 19 + TypeScript strict + Tailwind 4 + shadcn/ui), desplegable en **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`.
+Frontend de Qavante (Next.js 15 + React 19 + TypeScript strict + Tailwind 4 + shadcn/ui). La única autoridad de promoción es el release local con Docker hacia Azure Container Apps; el adapter `@opennextjs/cloudflare` y `wrangler.toml` permanecen como compatibilidad de build histórica y no autorizan un despliegue.
 
 **Estado (al 2026-08-02): app LIVE en producción en [app.qavante.com](https://app.qavante.com).** Sprints C0–C9 shipeados:
 
@@ -25,7 +25,7 @@ Ver audits previos: [Sprint C1 + C2](./docs/audits/sprint-c1-end-to-end-cycle.md
 
 - **Node.js 24** (ver [.nvmrc](./.nvmrc))
 - npm 11+ (viene bundleado con Node 24)
-- Cuenta en Cloudflare + permisos para crear Workers (sólo para deploy real, no para dev)
+- Docker y Azure CLI autenticados sólo cuando se ejecuta el [release local verificable](./docs/operations/local-release.md)
 
 ## Setup local
 
@@ -58,19 +58,19 @@ Sin `.env.local`, el API client lanza `ApiError("NEXT_PUBLIC_API_URL no configur
 | `npm run generate:api`            | Regenera `src/lib/api/types.ts` desde `docs/contracts/openapi.snapshot.json` |
 | `npm run generate:api:sync`       | Trae el snapshot OpenAPI del productor (`qavante-api@main`) y regenera       |
 | `npm run contract:check`          | Gate de CI: `types.ts` sin drift respecto del snapshot versionado            |
-| `npm run build:cloudflare`        | Empaqueta el bundle del Worker (`opennextjs-cloudflare build`)               |
+| `npm run build:cloudflare`        | Verifica el bundle de compatibilidad histórico; no autoriza un despliegue     |
 | `npm run format` / `format:check` | Prettier                                                                     |
 
 ## Stack y deploy
 
-Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (`build:cloudflare`) produce `.open-next/worker.js` + `.open-next/assets/`. Wrangler hace el upload al Worker `qavante-web`.
+La autoridad de release es [el runbook local verificable](./docs/operations/local-release.md): desde `main` protegido, Docker construye una imagen OCI y Azure Container Apps sólo recibe su digest inmutable cuando se completa el preflight y smoke. GitHub Actions no contiene rutas de despliegue y no hay deploy por `push`.
 
-- Config: [wrangler.toml](./wrangler.toml) (entrypoint, compatibility flags `nodejs_compat`, assets binding).
-- Workflow release: [.github/workflows/deploy-cloudflare.yml](./.github/workflows/deploy-cloudflare.yml) — se ejecuta manualmente desde `main`, valida CI/review/árbol/human gate del SHA exacto y promueve un artefacto OpenNext inmutable. No hay deploy por `push`.
-- Setup operativo (primera vez): [docs/operations/cloudflare-workers-setup.md](./docs/operations/cloudflare-workers-setup.md).
+- Compatibilidad de build heredada: [wrangler.toml](./wrangler.toml), `@opennextjs/cloudflare` y `build:cloudflare` se conservan para compatibilidad de fuente/build; están prohibidos como ruta de despliegue o bypass.
+- La verificación de un cutover físico hacia Azure es un paso de runtime del runbook local; este documento no la declara completada.
+- Referencia de compatibilidad heredada: [docs/operations/cloudflare-workers-setup.md](./docs/operations/cloudflare-workers-setup.md).
 - Activar feature flags en prod: [docs/operations/feature-flags-activation.md](./docs/operations/feature-flags-activation.md).
 
-**Restricciones de runtime (por nodejs_compat):**
+**Restricciones de compatibilidad heredada (`nodejs_compat`, no una ruta de despliegue):**
 
 - NO declarar `export const runtime = "edge"` en pages/routes/middleware.
 - NO usar Node-only APIs no soportadas (`child_process`, etc.). Listado oficial: https://developers.cloudflare.com/workers/runtime-apis/nodejs/
@@ -90,7 +90,7 @@ Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — convenciones de branches, commits, PRs, DoD para contribuir.
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — diagrama y descripción de alto nivel del sistema.
 - `qavante_fase1_v2.6.4.docx` — Documento Maestro (read-only desde este repo). `qavante_fase1_v2.6.3.docx` queda como histórico.
-- [docs/operations/](./docs/operations/) — runbooks operativos (Cloudflare Workers setup, [DNS de qavante.com](./docs/operations/cloudflare-dns.md), [GitHub secrets](./docs/operations/github-secrets.md)).
+- [docs/operations/](./docs/operations/) — [release local Azure verificable](./docs/operations/local-release.md), DNS y referencias de compatibilidad; no hay runbook de despliegue por GitHub Actions o Cloudflare.
 - [docs/backend-contracts/](./docs/backend-contracts/) — contratos HTTP esperados del backend para coordinación cross-repo con `qavante-api`.
 - [docs/adr/](./docs/adr/) — Architecture Decision Records (decisiones arquitecturales con fecha y rationale).
 - [docs/audits/](./docs/audits/) — reportes de revisión integral.

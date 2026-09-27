@@ -1,10 +1,9 @@
-# Activar pantallas de tesorería C3 en prod (post-ADR-0027) — handoff para Fernando
+# Registro histórico: activación de pantallas de tesorería C3 (2026-05-30)
 
 > **Nota operacional 2026-09-07:** este documento conserva el resultado
-> histórico de la activación. Sus pasos directos por dashboard fueron
-> reemplazados por el flujo versionado y human-gated de
-> [`feature-flags-activation.md`](./feature-flags-activation.md). No ejecutar
-> `Save and deploy` desde Cloudflare para cambios nuevos.
+> histórico de la activación. No contiene pasos operativos vigentes. Toda
+> activación futura sigue el [release local verificable](./local-release.md)
+> y el procedimiento de [feature flags](./feature-flags-activation.md).
 
 > ### ✅ Resultado de la activación — 4/4 OK (al 2026-05-31)
 >
@@ -16,7 +15,7 @@
 > OFF unos días porque `GET /api/management/accounts/tree` tiraba **500** en el
 > path autenticado (los 500 además salían sin CORS → el FE lo veía como error de
 > red). **Bug de backend, FE siempre OK.** CC-API lo arregló y verificó end-to-end;
-> el flag se reactivó en `wrangler.toml` el 2026-05-31. Histórico del incidente:
+> el flag se reactivó en la configuración de build vigente entonces. Histórico del incidente:
 > [`../backend-contracts/management-accounts-tree-500-2026-05-30.md`](../backend-contracts/management-accounts-tree-500-2026-05-30.md).
 
 > **TL;DR.** El backend (CC-API-A, ADR-0027, 2026-05-30) hizo que **5 grupos de
@@ -26,7 +25,7 @@
 > que tenía a esas pantallas en `FeatureUnavailableState` en prod.
 >
 > Preparado autónomamente por CC-WEB el 2026-05-30 (Fernando ausente 3h). Las
-> acciones de abajo las ejecutas tú (acceso Cloudflare + redeploy).
+> acciones de abajo corresponden a esa fecha y no deben repetirse como runbook.
 
 ## Qué ya hizo CC-WEB (mergeado)
 
@@ -46,18 +45,11 @@
 | `/administracion/reglas-clasificacion`        | `NEXT_PUBLIC_FF_CLASSIFICATION_RULES`         | `GET\|POST\|PATCH /api/treasury/classification-rules` |
 | `/administracion/estructura-gestion`          | `NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS`          | `GET /api/management/accounts/tree` (+ CRUD)          |
 
-## Pasos vigentes
+## Estado del registro
 
-Mismo procedimiento que [`feature-flags-activation.md`](./feature-flags-activation.md):
-
-1. editar el flag versionado en `wrangler.toml` y abrir PR;
-2. completar CI, review y merge;
-3. ejecutar el release manual del SHA exacto de `main` y aprobar el environment
-   `production`;
-4. Validar cada ruta con Ctrl+F5 (saltar caché CDN):
-   - Si muestra datos reales → flag ON + endpoint respondiendo con tu cookie. ✅
-   - Si muestra `FeatureUnavailableState` → flag mal seteado.
-   - Si carga infinito / error → revisar (ver más abajo).
+El procedimiento original queda sólo como contexto. Para un cambio futuro,
+usar el documento actual de feature flags y el release local; no inferir una
+vía de promoción desde este registro.
 
 **Sugerencia de orden:** activá **`cashFlowReport`** primero (la más simple,
 read-only). Si esa anda, las otras 3 siguen el mismo patrón de auth.
@@ -86,7 +78,5 @@ C1 SII, multimoneda, vistas-gestión).
 
 ## Kill-switch
 
-Si una pantalla activada da problemas en prod: misma var versionada con valor
-`false` (o borrarla), PR y release gated → vuelve a `FeatureUnavailableState`.
-Si la urgencia exige rollback del artefacto completo, seguir el runbook de
-deploy y su gate humano; no usar el dashboard como bypass.
+El estado histórico no habilita rollback ni cambios actuales. Para un
+kill-switch o rollback, seguir el release local vigente.

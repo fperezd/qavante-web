@@ -8,7 +8,6 @@ on:
       - "docs/factory/**"
       - "scripts/tooxs_factory_check.py"
       - ".github/workflows/tooxs-factory-conformance.yml"
-      - ".github/workflows/deploy-cloudflare.yml"
       - ".github/release-gate.mjs"
       - ".github/release-gate.check.mjs"
       - ".github/change-evidence.mjs"
@@ -16,6 +15,10 @@ on:
       - ".github/workflows/change-evidence.yml"
       - ".github/release/verify-runtime.mjs"
       - ".github/release/verify-runtime.check.mjs"
+      - "scripts/local_azure_release.mjs"
+      - "scripts/local_release_preflight.py"
+      - "scripts/release-workflow-policy.test.mjs"
+      - "docs/operations/local-release.md"
   push:
     branches: [main]
     paths:
@@ -23,7 +26,6 @@ on:
       - "CLAUDE.md"
       - "docs/factory/**"
       - "scripts/tooxs_factory_check.py"
-      - ".github/workflows/deploy-cloudflare.yml"
       - ".github/release-gate.mjs"
       - ".github/release-gate.check.mjs"
       - ".github/change-evidence.mjs"
@@ -31,6 +33,10 @@ on:
       - ".github/workflows/change-evidence.yml"
       - ".github/release/verify-runtime.mjs"
       - ".github/release/verify-runtime.check.mjs"
+      - "scripts/local_azure_release.mjs"
+      - "scripts/local_release_preflight.py"
+      - "scripts/release-workflow-policy.test.mjs"
+      - "docs/operations/local-release.md"
 
 permissions:
   contents: read
