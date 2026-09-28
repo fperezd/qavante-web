@@ -136,3 +136,50 @@ export function isValidPeriod(period: string): boolean {
 export function isValidPeriodRange(from: string, to: string): boolean {
   return isValidPeriod(from) && isValidPeriod(to) && from <= to;
 }
+
+/* ── Moneda sin procedencia verificada (#370 v1, qavante-api#905) ─────────────
+   El reporte suma sólo impactos cuya moneda tiene procedencia verificada. Los
+   demás quedan FUERA de toda suma: `excluded_unverified_currency` los cuenta (es
+   una cantidad de registros, no un monto: el backend no publica cuánto suman,
+   porque sumar montos sin unidad sería inventar una cifra) y además agrega un
+   aviso técnico con el código `financial_impact_currency_unverified:` en
+   `warnings`. Con > 0, los totales del período están incompletos. */
+
+/** Prefijo del aviso técnico que el backend agrega a `warnings`. */
+export const CURRENCY_UNVERIFIED_WARNING_CODE = "financial_impact_currency_unverified";
+
+/** Registros excluidos por moneda no verificada. Un valor ausente o inválido (API
+    anterior a #905, que todavía no excluía nada) se lee como 0. */
+export function excludedUnverifiedCurrency(
+  data: { excluded_unverified_currency?: number | null } | null | undefined,
+): number {
+  const n = data?.excluded_unverified_currency;
+  return typeof n === "number" && Number.isSafeInteger(n) && n > 0 ? n : 0;
+}
+
+/** Frase para el usuario cuando hubo exclusiones; `null` si no hubo ninguna. */
+export function avisoMonedaNoVerificada(excluded: number): string | null {
+  if (!(excluded > 0)) return null;
+  return excluded === 1
+    ? "1 movimiento clasificado quedó fuera de estos totales porque su moneda no está verificada. Los totales están incompletos: no incluyen ese monto."
+    : `${excluded} movimientos clasificados quedaron fuera de estos totales porque su moneda no está verificada. Los totales están incompletos: no incluyen esos montos.`;
+}
+
+const AVISO_MONEDA_SIN_CONTEO =
+  "Hay movimientos clasificados fuera de estos totales porque su moneda no está verificada. Los totales están incompletos.";
+
+/** `warnings` del reporte, con el aviso técnico de moneda no verificada reemplazado
+    por la frase para el usuario. Si el aviso llega sin conteo que lo respalde, igual
+    se declara (sin cifra): nunca se descarta en silencio. */
+export function avisosDelReporte(data: {
+  warnings?: string[] | null;
+  excluded_unverified_currency?: number | null;
+}): string[] {
+  const warnings = data.warnings ?? [];
+  const esCodigo = (w: string) => w.trim().startsWith(`${CURRENCY_UNVERIFIED_WARNING_CODE}:`);
+  const otros = warnings.filter((w) => !esCodigo(w));
+  const aviso =
+    avisoMonedaNoVerificada(excludedUnverifiedCurrency(data)) ??
+    (warnings.some(esCodigo) ? AVISO_MONEDA_SIN_CONTEO : null);
+  return aviso ? [aviso, ...otros] : otros;
+}

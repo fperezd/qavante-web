@@ -11,6 +11,7 @@ export const HOY = new Date("2026-08-30T12:00:00Z");
 export const AS_OF = "2026-08-30";
 
 const COBERTURA_SIN_EXCLUSIONES = {
+  f29_legacy_unattributed: false,
   f29_omitido_por_moneda: false,
   moneda_distinta_excluidos: "0",
   payables_fecha_asumida_excluidos: "0",

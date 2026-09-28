@@ -53,6 +53,7 @@ function sampleQueue(
     action_label: `Abrir ${label.toLowerCase()}`,
     href: "/bandeja",
     count,
+    unattributed_count: 0,
     amounts,
     data_state: "available" as const,
     limitations: [],

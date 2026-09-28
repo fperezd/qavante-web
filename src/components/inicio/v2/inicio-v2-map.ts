@@ -15,6 +15,7 @@ import type { CollectionForecastResponse, CashCycleResponse } from "@/lib/api/tr
 import type { PagosTimelineProps, PagoCritico, Postergabilidad } from "./pagos-timeline";
 import type { ResultadoPreliminarProps, ResultadoExtra } from "./resultado-preliminar";
 import { parseAmount } from "../dashboard-format";
+import { importeDesconocido } from "@/lib/formatters/amount";
 import { describeCashGap14d } from "../cash-gap-14d";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -152,12 +153,15 @@ export function respuestaEstadoBrecha(e: EstadoBrecha): string {
 export function mapCobranza(s: DashboardSummaryV2): CobranzaRealizableProps | null {
   const c = s.overdue_collections;
   if (!c) return null;
-  const total = parseAmount(c.total_receivable);
+  // #907: `total_receivable: null` + motivo = DESCONOCIDO por cuarentena; nunca $0.
+  const enRevision = importeDesconocido(c) || c.total_receivable == null;
+  const total = c.total_receivable == null ? null : parseAmount(c.total_receivable);
   return {
     esperadoATiempo: total,
     subtitulo: "Por cobrar",
     segmentos: [],
     totalPorCobrar: total,
+    enRevision,
     // `overdue: null` = el SII no entrega vencimientos → "sin dato", NO $0 (que mentiría "al día").
     // Espeja el fix de la vista v1 (#718). parseAmount(null) daría 0 → hay que preservar el null.
     vencido: c.overdue == null ? null : parseAmount(c.overdue),
@@ -171,11 +175,13 @@ const COVERAGE_TAG: Record<string, Postergabilidad> = {
 };
 
 /** Suma el `expected` (ponderado por probabilidad de pago) de los buckets ≤14 días
- *  del forecast = la cobranza realizable a tiempo. */
-function esperadoATiempo(f: CollectionForecastResponse): number {
-  return (f.buckets ?? [])
-    .filter((b) => b.days_to <= 14)
-    .reduce((s, b) => s + parseAmount(b.expected), 0);
+ *  del forecast = la cobranza realizable a tiempo. `null` si algún bucket (o el forecast)
+ *  está en revisión de conciliación (qavante-api#907): una suma con un sumando desconocido es
+ *  desconocida. */
+function esperadoATiempo(f: CollectionForecastResponse): number | null {
+  const buckets = (f.buckets ?? []).filter((b) => b.days_to <= 14);
+  if (importeDesconocido(f) || buckets.some((b) => b.expected == null)) return null;
+  return buckets.reduce((s, b) => s + parseAmount(b.expected), 0);
 }
 
 /** Plan de cierre de brecha (Fase 2). Compone acciones REALES: (1) cobrar la cobranza
@@ -186,8 +192,11 @@ function esperadoATiempo(f: CollectionForecastResponse): number {
 export function mapPlanBrecha(
   brechaTotal: number,
   forecast: CollectionForecastResponse,
-): BrechaPlanProps {
-  const cobrar = Math.min(esperadoATiempo(forecast), brechaTotal);
+): BrechaPlanProps | null {
+  const esperado = esperadoATiempo(forecast);
+  // #907: con la cobranza en revisión no hay impacto que componer; no se asume 0.
+  if (esperado == null) return null;
+  const cobrar = Math.min(esperado, brechaTotal);
   const residual = Math.max(0, brechaTotal - cobrar);
   const acciones: BrechaAccion[] = [];
   // Solo si la cobranza a tiempo aporta algo: una acción de "+$0 · Probable" es ruido que
@@ -225,6 +234,24 @@ export function mapPlanBrecha(
  *  deja el total nominal + vencido como dato secundario. Reemplaza a `mapCobranza`
  *  (degradada) cuando el endpoint responde. */
 export function mapCobranzaForecast(f: CollectionForecastResponse): CobranzaRealizableProps | null {
+  // #907: forecast en revisión de conciliación → montos desconocidos, declarados (no omitidos).
+  const esperado = esperadoATiempo(f);
+  if (
+    importeDesconocido(f) ||
+    f.total_nominal == null ||
+    esperado == null ||
+    f.overdue.nominal == null ||
+    f.sin_vencimiento.nominal == null
+  ) {
+    return {
+      esperadoATiempo: null,
+      subtitulo: "Cobranza esperada a tiempo · próximos 14 días",
+      segmentos: [],
+      totalPorCobrar: null,
+      vencido: null,
+      enRevision: true,
+    };
+  }
   const totalPorCobrar = parseAmount(f.total_nominal);
   // Sin cuentas por cobrar → omitir (contrato "omite lo ausente"): la vista cae a
   // mapCobranza (que también degrada), no muestra una card de $0.
@@ -234,7 +261,11 @@ export function mapCobranzaForecast(f: CollectionForecastResponse): CobranzaReal
   // la suma de los segmentos = la cifra grande (0-7 + 8-14). Lo de >14d no entra.
   const segmentos = (f.buckets ?? [])
     .filter((b) => b.days_to <= 14)
-    .map((b) => ({ label: b.label, monto: parseAmount(b.expected), banda: banda(b.days_to) }));
+    .map((b) => ({
+      label: b.label,
+      monto: parseAmount(b.expected),
+      banda: banda(b.days_to),
+    }));
   // Vencido HONESTO (espeja #718/#731): un receivable sin `due_date` sincronizada
   // NO entra en `overdue`, entra en `sin_vencimiento` → si mostramos `overdue=0`
   // como "$0 vencido — al día" con cuentas de vencimiento desconocido, mentimos.
@@ -244,7 +275,7 @@ export function mapCobranzaForecast(f: CollectionForecastResponse): CobranzaReal
   const sinVencimiento = parseAmount(f.sin_vencimiento.nominal);
   const vencido = overdueNominal > 0 ? overdueNominal : sinVencimiento > 0 ? null : 0;
   return {
-    esperadoATiempo: esperadoATiempo(f),
+    esperadoATiempo: esperado,
     subtitulo: "Cobranza esperada a tiempo · próximos 14 días",
     segmentos,
     totalPorCobrar,

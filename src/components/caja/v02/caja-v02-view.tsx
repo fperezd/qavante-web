@@ -13,6 +13,7 @@ import type {
 import type { AccountsPayableResponse } from "@/lib/api/pagos";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import { formatClp, formatClpCompact } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION_MOTIVO } from "@/lib/formatters/amount";
 import { KpiCard } from "@/components/rediseno/kpi-card";
 import { Banner } from "@/components/rediseno/banner";
 import { Pill } from "@/components/rediseno/pill";
@@ -45,7 +46,7 @@ function noPostergableTexto(np: NoPostergable14V02 | null): string {
   if (np.completo && np.monto != null) {
     return `${formatClp(np.monto)} críticos · ${pagos}`;
   }
-  if (np.conocido > 0) {
+  if (np.conocido != null && np.conocido > 0) {
     return `al menos ${formatClp(np.conocido)} críticos · ${pagos}`;
   }
   return `${pagos} · monto sin dato`;
@@ -150,12 +151,18 @@ export function CajaV02View({
             detail={hoyKpi.detalle}
           />
         )}
-        {entra ? (
+        {entra && entra.esperado != null && entra.nominal != null ? (
           <KpiCard
             label={`Entra · ${VENTANA_DIAS} días`}
             value={`+${formatClp(entra.esperado)}`}
             tone="ok"
             detail={`${formatClp(entra.nominal)} por cobrar`}
+          />
+        ) : entra?.enRevision ? (
+          <KpiCard
+            label={`Entra · ${VENTANA_DIAS} días`}
+            sinDato={{ reason: MONTO_EN_REVISION_MOTIVO }}
+            detail="cobros con fecha"
           />
         ) : (
           <KpiCard
@@ -164,7 +171,13 @@ export function CajaV02View({
             detail="cobros con fecha"
           />
         )}
-        {sale ? (
+        {sale?.enRevision ? (
+          <KpiCard
+            label={`Sale · ${VENTANA_DIAS} días`}
+            sinDato={{ reason: MONTO_EN_REVISION_MOTIVO }}
+            detail="pagos comprometidos"
+          />
+        ) : sale && sale.total != null ? (
           <KpiCard
             label={`Sale · ${VENTANA_DIAS} días`}
             value={formatClp(-sale.total)}

@@ -6,6 +6,7 @@ import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/
 import { useCashCycle, type CashCycleResponse } from "@/lib/api/treasury";
 import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION, MONTO_EN_REVISION_MOTIVO } from "@/lib/formatters/amount";
 import { formatDateLike } from "@/lib/formatters/date";
 import { ComportamientoPagoCard } from "./comportamiento-pago-card";
 
@@ -49,8 +50,9 @@ export function CicloCajaView({
   const dso = c.dso_days;
   const dpo = c.dpo_days;
   const ccc = c.ccc_days;
-  const ar = parseAmount(c.ar_total);
-  const ap = parseAmount(c.ap_total);
+  // #907: `null` = en revisión de conciliación, nunca $0.
+  const ar = c.ar_total == null ? null : parseAmount(c.ar_total);
+  const ap = c.ap_total == null ? null : parseAmount(c.ap_total);
 
   return (
     <div className="space-y-5">
@@ -87,19 +89,19 @@ export function CicloCajaView({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <QavanteStatTile
           label="Pendiente de cobro"
-          value={formatClp(ar)}
+          value={ar == null ? MONTO_EN_REVISION : formatClp(ar)}
           tone="default"
-          hint="Facturas emitidas que aún no te pagan."
+          hint={ar == null ? MONTO_EN_REVISION_MOTIVO : "Facturas emitidas que aún no te pagan."}
         />
         <QavanteStatTile
           label="Pendiente de pago"
-          value={formatClp(ap)}
+          value={ap == null ? MONTO_EN_REVISION : formatClp(ap)}
           tone="default"
-          hint="Facturas recibidas que aún no pagas."
+          hint={ap == null ? MONTO_EN_REVISION_MOTIVO : "Facturas recibidas que aún no pagas."}
         />
       </div>
 
-      <PalancaCiclo dso={dso} venta={ventaDiaria(c)} ar={ar} />
+      {ar != null && <PalancaCiclo dso={dso} venta={ventaDiaria(c)} ar={ar} />}
 
       <VentanaPie c={c} />
     </div>

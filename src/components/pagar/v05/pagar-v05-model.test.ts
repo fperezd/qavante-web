@@ -250,7 +250,7 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
     expect(c.total).toBe(10_373_669);
     expect(c.cobertura).toBe(false);
     expect(c).not.toHaveProperty("brecha");
-    expect(Math.abs(c.cajaFinal!) + c.total).toBe(57_238_923);
+    expect(Math.abs(c.cajaFinal!) + c.total!).toBe(57_238_923);
   });
 
   it("no redefine covers_critical comparando el saldo final con los críticos", () => {
@@ -334,6 +334,24 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
     expect(c.motivoSinCaja).toBe("no se pudo proyectar el saldo final a 14 días");
     // Gemelo positivo: el MISMO monto, declarado publicable, sí se muestra.
     expect(kpiCritico(filas(), pagos()).cajaFinal).toBe(5_200_000);
+  });
+
+  it("#370: sin moneda verificada no hay cifra de caja ni se rotula CLP", () => {
+    /* qavante-api#905: `projected_cash_currency` puede venir `null`. Aunque llegue un monto
+       (payload que no pasó por el boundary), sin unidad no se publica. Mata los mutantes
+       `|| "CLP"` y "mostrar el monto sin moneda". */
+    const sinMoneda = pagos({ projected_cash_currency: null });
+    const c = kpiCritico(filas(), sinMoneda);
+    expect(c.monedaCaja).toBeNull();
+    expect(c.monedaCaja).not.toBe("CLP");
+    expect(c.cajaFinal).toBeNull();
+    expect(c.motivoSinCaja).toBe(
+      "la moneda del saldo proyectado no está verificada, así que no lo mostramos",
+    );
+    // Gemelo positivo: el mismo payload con moneda verificada sí publica la cifra.
+    const conMoneda = kpiCritico(filas(), pagos({ projected_cash_currency: "CLP" }));
+    expect(conMoneda.cajaFinal).toBe(5_200_000);
+    expect(conMoneda.monedaCaja).toBe("CLP");
   });
 });
 

@@ -133,6 +133,48 @@ describe("accounts payable D02 boundary", () => {
     expect(() => assertAccountsPayableResponse({ ...base, total: "1" })).toThrow();
   });
 
+  it("#370: acepta la curva sin moneda verificada sólo como abstención, nunca con cifras", () => {
+    const base = pagos();
+    // Lo que publica qavante-api#905 cuando ni la proyección ni la empresa acreditan la moneda.
+    const sinMoneda = {
+      ...base,
+      projected_cash_currency: null,
+      projected_cash_14d: null,
+      min_14d: null,
+      cash_gap_amount_14d: null,
+      has_gap: null,
+      cash_projection_publicable_14d: false,
+      covers_critical: null,
+      missing_sources: [
+        "projection_currency_unknown: la proyección de caja no declara una moneda verificable",
+      ],
+    };
+    expect(assertAccountsPayableResponse(sinMoneda).projected_cash_currency).toBeNull();
+    // La misma abstención con una moneda ISO también es válida: lo que se rechaza abajo es
+    // exclusivamente la combinación "sin moneda + cifra/juicio".
+    expect(
+      assertAccountsPayableResponse({ ...sinMoneda, projected_cash_currency: "CLP" })
+        .projected_cash_currency,
+    ).toBe("CLP");
+
+    expect(() =>
+      assertAccountsPayableResponse({ ...sinMoneda, projected_cash_14d: "5200000" }),
+    ).toThrow(/contrato completo/);
+    expect(() => assertAccountsPayableResponse({ ...sinMoneda, covers_critical: false })).toThrow(
+      /contrato completo/,
+    );
+    expect(() =>
+      assertAccountsPayableResponse({ ...sinMoneda, projected_cash_currency: undefined }),
+    ).toThrow(/contrato completo/);
+    expect(() =>
+      assertAccountsPayableResponse({ ...sinMoneda, projected_cash_currency: "" }),
+    ).toThrow(/contrato completo/);
+    // Curva publicable con cifras pero sin unidad: nunca se rotula CLP por defecto.
+    expect(() => assertAccountsPayableResponse({ ...base, projected_cash_currency: null })).toThrow(
+      /contrato completo/,
+    );
+  });
+
   it("rechaza montos negativos en los agregados positivos", () => {
     const base = pagos();
     for (const field of ["overdue_summary", "non_postponable_or_overdue_14d"] as const) {

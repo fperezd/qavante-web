@@ -105,6 +105,23 @@ export function movimientosDeMaestro(
   return out;
 }
 
+/** Obligaciones de la ventana cuyo monto está EN REVISIÓN de conciliación (qavante-api#907): no
+ *  entran a los movimientos (no tienen cifra) y el llamador debe declararlas. */
+export function obligacionesEnRevision(
+  items: PayableItem[],
+  hoy: Date,
+  horizonteDias: number,
+  graceDias = 0,
+): number {
+  let n = 0;
+  for (const it of items) {
+    if (it.amount != null || !it.due_date) continue;
+    const venc = parseSiiDate(it.due_date);
+    if (venc && fechaEnVentana(venc, hoy, graceDias, horizonteDias) != null) n += 1;
+  }
+  return n;
+}
+
 function tipoDeCategoria(cat: PayableItem["category"] | undefined): MovTipo {
   if (cat === "tax") return "impuesto";
   if (cat === "payroll") return "sueldos";
@@ -133,6 +150,9 @@ export function movimientosDeObligaciones(
     if (!venc) continue;
     const efectiva = fechaEnVentana(venc, hoy, graceDias, horizonteDias);
     if (efectiva == null) continue;
+    // #907: un pago en revisión de conciliación no tiene monto; no entra como $0 a la curva. El
+    // llamador lo declara con `obligacionesEnRevision`.
+    if (it.amount == null) continue;
     const monto = -Math.abs(parseAmount(it.amount)); // outflow
     if (monto === 0) continue;
     out.push({

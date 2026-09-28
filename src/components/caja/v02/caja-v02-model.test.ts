@@ -133,7 +133,7 @@ describe("entra14d — buckets 0-7 y 8-14 del forecast de cobranza", () => {
       }),
     )!;
     expect(ancho.esperado).toBe(14_498_964);
-    expect(ancho.esperado + 5_901_036).toBe(20_400_000);
+    expect(ancho.esperado! + 5_901_036).toBe(20_400_000);
   });
 
   it("sin forecast → null (no se sabe), no $0", () => {
@@ -354,6 +354,7 @@ describe("exclusiones — lo que la proyección deja afuera, con conteo", () => 
             saldo_synced_at: "2026-08-30T08:12:00Z",
             calidad_fechas: { con_fecha_real: 0, items_totales: 1 },
             cobertura: {
+              f29_legacy_unattributed: false,
               f29_omitido_por_moneda: false,
               moneda_distinta_excluidos: "0",
               payables_fecha_asumida_excluidos: "0",

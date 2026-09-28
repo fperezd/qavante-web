@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION, MONTO_EN_REVISION_MOTIVO } from "@/lib/formatters/amount";
 import { CardLink } from "./card-link";
 
 /* CobranzaRealizable (Inicio Ejecutivo v2). Lidera con lo que ENTRA a tiempo
@@ -27,12 +28,15 @@ export interface CobranzaSegmento {
 }
 
 export interface CobranzaRealizableProps {
-  /** Lo que se espera cobrar a tiempo dentro del horizonte. */
-  esperadoATiempo: number;
+  /** Lo que se espera cobrar a tiempo dentro del horizonte. `null` = en revisión (#907). */
+  esperadoATiempo: number | null;
   /** "Cobranza esperada a tiempo · próximos 14 días". */
   subtitulo: string;
   segmentos: CobranzaSegmento[];
-  totalPorCobrar: number;
+  /** `null` = en revisión de conciliación (qavante-api#907): se dice, nunca $0. */
+  totalPorCobrar: number | null;
+  /** Cuarentena de conciliación viva: los montos son desconocidos. */
+  enRevision?: boolean;
   /** Monto vencido (0 = al día → verde). `null` = SIN DATO (el SII no da vencimientos): NO se
    *  pinta "$0" (mentiría "al día"), se muestra "sin dato de vencido". */
   vencido: number | null;
@@ -50,6 +54,7 @@ export function CobranzaRealizable({
   segmentos,
   totalPorCobrar,
   vencido,
+  enRevision = false,
   nota,
   href,
   cta,
@@ -62,7 +67,7 @@ export function CobranzaRealizable({
     >
       <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-mid">Cobranza</p>
       <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-neutral-dark">
-        {formatClp(esperadoATiempo)}
+        {esperadoATiempo == null ? MONTO_EN_REVISION : formatClp(esperadoATiempo)}
       </p>
       <p className="mt-0.5 text-xs text-neutral-mid">{subtitulo}</p>
 
@@ -82,8 +87,11 @@ export function CobranzaRealizable({
       </ul>
 
       <p className="mt-2.5 text-[11px] leading-relaxed text-neutral-mid">
-        Total por cobrar {formatClp(totalPorCobrar)} ·{" "}
-        {vencido == null ? (
+        Total por cobrar{" "}
+        {totalPorCobrar == null ? MONTO_EN_REVISION.toLowerCase() : formatClp(totalPorCobrar)} ·{" "}
+        {enRevision ? (
+          <span>{MONTO_EN_REVISION_MOTIVO}</span>
+        ) : vencido == null ? (
           <span>sin dato de vencido: el SII aún no entrega los vencimientos</span>
         ) : (
           <span className={cn(Math.round(vencido) === 0 && "font-semibold text-success-700")}>

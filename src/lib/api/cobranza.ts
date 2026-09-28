@@ -88,7 +88,10 @@ export interface CollectionReminderBatchResponse {
  * el PR backend. Mismo puente acotado que `TopDebtor.receivable_ids` arriba. */
 export interface ReceivableMoneyTotal {
   currency: string;
-  amount: string;
+  /** `null` = desconocido por cuarentena de conciliación en esa moneda (qavante-api#907);
+   *  nunca una suma parcial ni cero. */
+  amount: string | null;
+  amount_unknown_reason?: "reconciliation_quarantine" | null;
 }
 export interface ReceivableDocumentItem {
   id: string;
@@ -101,8 +104,11 @@ export interface ReceivableDocumentItem {
   due_date?: string | null;
   due_date_certainty: "confirmed" | "estimated" | "unconfirmed";
   status: "open" | "partially_paid" | "paid" | "cancelled";
-  total_amount: string;
-  outstanding_amount: string;
+  /** `null` si el documento está en cuarentena de conciliación (qavante-api#907). */
+  total_amount: string | null;
+  /** `null` si el documento está en cuarentena de conciliación (qavante-api#907). */
+  outstanding_amount: string | null;
+  amount_unknown_reason?: "reconciliation_quarantine" | null;
   currency_code: string;
   days_overdue?: number | null;
   ceded?: boolean;

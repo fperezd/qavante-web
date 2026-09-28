@@ -53,13 +53,18 @@ import type {
   PayableDuplicatePair,
   PayableItem,
 } from "@/lib/api/pagos";
-import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
+import {
+  MONTO_EN_REVISION,
+  importeDesconocido,
+  parseAmount,
+  parseAmountOrNull,
+} from "@/lib/formatters/amount";
 import { csv, csvCell } from "@/lib/export/csv";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { formatDateLong, formatDateShort, formatRelative } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
 import { normalizeRut } from "@/lib/validators/rut";
-import { montoCLP, montoCLPFaltante, payableItemLabel } from "../pagos-format";
+import { montoCLP, montoCLPFaltante, montoEnRevision, payableItemLabel } from "../pagos-format";
 import { payrollPeriodFromExternalId } from "../pagos-group";
 import { postergabilidadDe } from "../v2/pagar-v2-map";
 import {
@@ -221,6 +226,9 @@ export interface PagoV05 {
   montoLabel: string;
   moneda: string;
   sinConvertir: boolean;
+  /** Saldo DESCONOCIDO por cuarentena de conciliación (qavante-api#907): sin cifra, no suma y
+   *  no es "sin convertir". */
+  enRevision: boolean;
   reclamado: boolean;
   anomalia: AnomaliaV05 | null;
   href: string | null;
@@ -249,7 +257,9 @@ function baseDe(
   /* Una fila sin moneda declarada NO se asume CLP: se rotula como sin moneda y queda fuera del
      total en pesos (INV-FX-001). */
   const moneda = item.currency?.trim().toUpperCase() || "SIN MONEDA";
-  const sinConvertir = moneda === "SIN MONEDA" || montoCLPFaltante(item);
+  // #907: un saldo en cuarentena no tiene cifra. No se rotula "sin convertir" ni vale 0.
+  const enRevision = montoEnRevision(item);
+  const sinConvertir = !enRevision && (moneda === "SIN MONEDA" || montoCLPFaltante(item));
   // El Brief canónico es el único dueño de "qué postergar". En modo evidencia no ejecutamos esta
   // heurística por tipo de pago ni construimos su taxonomía para la fila.
   const postergable = includeDecisionSignals ? esPostergable(item) : false;
@@ -279,10 +289,12 @@ function baseDe(
       includeDecisionSignals && confirmada && !postergable && dias != null && dias <= VENTANA_DIAS,
     postergable,
     tipo: includeDecisionSignals ? tipoDe(item) : null,
-    montoClp: sinConvertir ? null : montoCLP(item),
-    montoLabel: formatMoney(parseAmount(item.amount), moneda),
+    montoClp: sinConvertir || enRevision ? null : montoCLP(item),
+    montoLabel:
+      item.amount == null ? MONTO_EN_REVISION : formatMoney(parseAmount(item.amount), moneda),
     moneda,
     sinConvertir,
+    enRevision,
     reclamado: item.reclamado === true,
     href: hrefDe(item),
     item,
@@ -329,6 +341,7 @@ function subDe(p: Omit<PagoV05, "sub">): string {
   if (p.documento) partes.push(p.documento);
   partes.push(p.fuente);
   if (p.reclamado) partes.push("reclamada al SII");
+  if (p.enRevision) partes.push("monto en revisión de conciliación: no se suma");
   if (p.sinConvertir) partes.push(`en ${p.moneda} sin tipo de cambio: no se suma como pesos`);
   else if (p.moneda !== "CLP") partes.push(`${formatClp(p.montoClp ?? 0)} al tipo de cambio`);
   if (nota) partes.push(nota);
@@ -424,13 +437,15 @@ export function elUnicoRojo(pagos: ReadonlyArray<PagoV05>): RojoV05 {
 /* ── (1) Tríada ──────────────────────────────────────────────────────────────── */
 
 export interface VencidoV05 {
-  /** Σ CLP de lo vencido (las extranjeras sin conversión NO se suman). */
-  total: number;
+  /** Σ CLP de lo vencido (las extranjeras sin conversión NO se suman). `null` si alguna fila
+   *  vencida está en revisión de conciliación (#907): una suma con un sumando desconocido es
+   *  desconocida, no un piso. */
+  total: number | null;
   n: number;
   /** Días del vencido más antiguo. `null` sin vencidos. */
   masAntiguoDias: number | null;
-  /** Cuánto de eso no se posterga (impuestos, sueldos, deuda). */
-  noPostergable: number;
+  /** Cuánto de eso no se posterga (impuestos, sueldos, deuda). `null` = en revisión (#907). */
+  noPostergable: number | null;
   sinConvertir: number;
 }
 
@@ -439,17 +454,22 @@ export function kpiVencido(pagos: ReadonlyArray<PagoV05>): VencidoV05 {
   let masAntiguo: number | null = null;
   for (const p of v) if (masAntiguo == null || p.dias! < masAntiguo) masAntiguo = p.dias!;
   return {
-    total: v.reduce((s, p) => s + (p.montoClp ?? 0), 0),
+    total: v.some((p) => p.enRevision) ? null : v.reduce((s, p) => s + (p.montoClp ?? 0), 0),
     n: v.length,
     masAntiguoDias: masAntiguo == null ? null : -masAntiguo,
-    noPostergable: v.filter((p) => !p.postergable).reduce((s, p) => s + (p.montoClp ?? 0), 0),
+    noPostergable: v.some((p) => !p.postergable && p.enRevision)
+      ? null
+      : v.filter((p) => !p.postergable).reduce((s, p) => s + (p.montoClp ?? 0), 0),
     sinConvertir: v.filter((p) => p.sinConvertir).length,
   };
 }
 
 export interface AgregadoGlobalV05 {
   total: number | null;
-  conocido: number;
+  /** Parte conocida. `null` cuando el agregado está en revisión (#907): no hay parte conocida. */
+  conocido: number | null;
+  /** Cuarentena de conciliación viva: el monto es desconocido, no cero. */
+  enRevision: boolean;
   n: number;
   completo: boolean;
   sinFecha: number;
@@ -463,7 +483,8 @@ export function kpiVencidoGlobal(
   const summary = ap?.overdue_summary;
   return {
     total: summary?.complete ? parseAmountOrNull(summary.amount_clp) : null,
-    conocido: parseAmount(summary?.known_amount_clp),
+    conocido: parseAmountOrNull(summary?.known_amount_clp),
+    enRevision: importeDesconocido(summary),
     n: summary?.count ?? 0,
     completo: summary?.complete === true,
     sinFecha: summary?.unknown_due_date_count ?? 0,
@@ -473,8 +494,11 @@ export function kpiVencidoGlobal(
 
 export interface PorPagarV05 {
   periodo: PeriodoV05;
-  /** `due_Nd` del backend (CLP convertido, acumulativo, INCLUYE lo vencido). `null` = no vino. */
+  /** `due_Nd` del backend (CLP convertido, acumulativo, INCLUYE lo vencido). `null` = no vino
+   *  o está en revisión (ver `enRevision`). */
   total: number | null;
+  /** Cuarentena de conciliación viva (#907): el tramo es desconocido, no cero. */
+  enRevision: boolean;
   /** Lo que el backend NO pudo agendar: sin fecha de vencimiento. */
   sinFecha: { monto: number | null; n: number } | null;
   /** `estimated_due_date_count` del backend: pagos con fecha estimada, que NO entran en ningún
@@ -500,26 +524,30 @@ export function kpiPorPagar(
   return {
     periodo,
     total: ap ? parseAmountOrNull(campo) : null,
+    enRevision: importeDesconocido(ap),
     sinFecha: undatedN > 0 ? { monto: undated, n: undatedN } : null,
     estimadas: estimadasDe(ap),
   };
 }
 
 export interface CriticoV05 {
-  /** Σ CLP conocido del agregado crítico global del API. */
-  total: number;
+  /** Σ CLP conocido del agregado crítico global del API. `null` = en revisión (#907). */
+  total: number | null;
+  /** Cuarentena de conciliación viva: el agregado crítico es desconocido, no cero. */
+  enRevision: boolean;
   n: number;
   /** Obligaciones cuya fecha no permitió clasificarlas en el agregado. */
   fechasDesconocidas: number;
   /** Buckets de moneda excluidos; nunca se interpreta como cantidad de pagos. */
   monedasExcluidas: number;
   completo: boolean;
-  /** De eso, lo que YA venció. */
-  yaVencido: number;
+  /** De eso, lo que YA venció. `null` = en revisión (#907). */
+  yaVencido: number | null;
   /** Saldo FINAL proyectado al día 14. Ya incluye los pagos comprometidos. */
   cajaFinal: number | null;
-  /** Moneda funcional del saldo proyectado. */
-  monedaCaja: string;
+  /** Moneda funcional del saldo proyectado. `null` = no verificada (#370): sin moneda no hay
+   *  cifra, y nunca se asume CLP. */
+  monedaCaja: string | null;
   /** Juicio triestado canónico del API. `null` no se convierte en `false`. */
   cobertura: boolean | null;
   motivoSinCaja: string | null;
@@ -536,19 +564,31 @@ export function kpiCritico(
 ): CriticoV05 {
   const summary = ap?.non_postponable_or_overdue_14d;
   const overdue = ap?.overdue_summary;
-  const total = parseAmount(summary?.complete ? summary.amount_clp : summary?.known_amount_clp);
+  const enRevision = importeDesconocido(summary);
+  const total = enRevision
+    ? null
+    : parseAmount(summary?.complete ? summary.amount_clp : summary?.known_amount_clp);
   const fechasDesconocidas = summary?.unknown_due_date_count ?? 0;
   const monedasExcluidas = summary?.excluded_by_currency.length ?? 0;
-  const yaVencido = parseAmount(overdue?.complete ? overdue.amount_clp : overdue?.known_amount_clp);
+  const yaVencido = importeDesconocido(overdue)
+    ? null
+    : parseAmount(overdue?.complete ? overdue.amount_clp : overdue?.known_amount_clp);
   const cajaPublicable = ap?.cash_projection_publicable_14d === true;
-  const cajaFinal = cajaPublicable ? parseAmountOrNull(ap?.projected_cash_14d) : null;
-  const monedaCaja = ap?.projected_cash_currency?.trim().toUpperCase() || "SIN MONEDA";
+  // #370 (qavante-api#905): `projected_cash_currency` puede venir `null`. Una cifra sin unidad
+  // verificada no se publica: ni se rotula "CLP" ni se muestra el número a secas.
+  const monedaCaja = ap?.projected_cash_currency?.trim().toUpperCase() || null;
+  const cajaFinal =
+    cajaPublicable && monedaCaja != null ? parseAmountOrNull(ap?.projected_cash_14d) : null;
   const cobertura = ap?.covers_critical ?? null;
   const motivoSinCaja = !ap
     ? "sin cuentas por pagar no llegó el saldo proyectado"
-    : !cajaPublicable || cajaFinal == null
-      ? "no se pudo proyectar el saldo final a 14 días"
-      : null;
+    : importeDesconocido(ap)
+      ? "la caja proyectada descuenta pagos en revisión de conciliación, así que no la mostramos"
+      : monedaCaja == null
+        ? "la moneda del saldo proyectado no está verificada, así que no lo mostramos"
+        : !cajaPublicable || cajaFinal == null
+          ? "no se pudo proyectar el saldo final a 14 días"
+          : null;
   const motivoSinCobertura = !ap
     ? "sin cuentas por pagar no llegó el estado de cobertura"
     : cobertura == null
@@ -556,6 +596,7 @@ export function kpiCritico(
       : null;
   return {
     total,
+    enRevision,
     n: summary?.count ?? 0,
     fechasDesconocidas,
     monedasExcluidas,
@@ -736,8 +777,11 @@ export function contarPagos(
 export interface TotalesV05 {
   /** `total` del backend: todo, CONVERTIDO a CLP (las monedas sin TC quedan fuera y se avisan). */
   totalClp: number | null;
-  /** Desglose crudo por moneda, sin convertir, tal como lo publica el backend. */
-  porMoneda: Array<{ moneda: string; monto: number; label: string }>;
+  /** Desglose crudo por moneda, sin convertir, tal como lo publica el backend. `monto: null` =
+   *  moneda en revisión de conciliación (#907). */
+  porMoneda: Array<{ moneda: string; monto: number | null; label: string }>;
+  /** Cuarentena AP viva: el total es desconocido, no cero. */
+  enRevision: boolean;
   /** Filas listadas en otra moneda SIN conversión (no están en `totalClp`). */
   sinConvertir: number;
   /** El endpoint topea `items`: puede haber más pagos que filas. */
@@ -751,11 +795,13 @@ export function totales(
   const porMoneda = (ap?.total_by_currency ?? []).flatMap((t) => {
     if (t.currency_status !== "verified" || typeof t.currency !== "string") return [];
     const moneda = t.currency.toUpperCase();
+    if (t.amount == null) return { moneda, monto: null, label: MONTO_EN_REVISION.toLowerCase() };
     const monto = parseAmount(t.amount);
     return { moneda, monto, label: formatMoney(monto, moneda) };
   });
   return {
     totalClp: ap ? parseAmountOrNull(ap.total) : null,
+    enRevision: importeDesconocido(ap),
     porMoneda,
     sinConvertir: pagos.filter((p) => p.sinConvertir).length,
     posiblementeTopeado: ap?.has_more === true,
@@ -911,7 +957,9 @@ export function csvPagosTable(
         ? [p.tipo == null ? csvCell.missing() : csvCell.text(TIPO_LABEL[p.tipo])]
         : []),
       csvCell.text(p.moneda),
-      csvCell.decimal(parseAmount(p.item.amount)),
+      p.item.amount == null
+        ? csvCell.text("en revisión")
+        : csvCell.decimal(parseAmount(p.item.amount)),
       p.montoClp == null ? csvCell.text("sin dato") : csvCell.decimal(p.montoClp),
       csvCell.text(p.fuente),
       p.anomalia?.detalle == null ? csvCell.missing() : csvCell.text(p.anomalia.detalle),

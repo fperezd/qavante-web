@@ -7,6 +7,7 @@ import { QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { cn } from "@/lib/utils";
 import type { GrupoAgenda } from "./agenda-model";
+import { MONTO_EN_REVISION } from "@/lib/formatters/amount";
 
 /* Widget "Agenda de las próximas 2 semanas" del Inicio (gated `inicioAgenda`): los cobros y pagos con
    fecha y monto, agrupados por semana. Presentacional: recibe los grupos ya compuestos; el contenedor
@@ -18,6 +19,9 @@ export interface AgendaWidgetProps {
   /** Cuántos hay en total (para el header). */
   cobros: number;
   pagos: number;
+  /** Pagos con monto en revisión de conciliación (qavante-api#907): no son filas y dejan el
+   *  total que sale como desconocido. */
+  pagosEnRevision?: number;
   href?: string;
   cta?: string;
 }
@@ -26,6 +30,7 @@ export function AgendaWidget({
   grupos,
   cobros,
   pagos,
+  pagosEnRevision = 0,
   href = "/caja/proyeccion",
   cta = "Ver caja",
 }: AgendaWidgetProps) {
@@ -42,7 +47,7 @@ export function AgendaWidget({
         </span>
       }
     >
-      {total === 0 ? (
+      {total === 0 && pagosEnRevision === 0 ? (
         <p className="py-4 text-center text-sm text-neutral-mid">
           Nada por cobrar ni pagar en las próximas dos semanas.
         </p>
@@ -50,8 +55,17 @@ export function AgendaWidget({
         <>
           <p className="mb-3 text-xs text-neutral-mid">
             Entra <span className="font-semibold text-success-700">{formatClp(cobros)}</span> · sale{" "}
-            <span className="font-semibold text-danger-500">{formatClp(pagos)}</span>
+            <span className="font-semibold text-danger-500">
+              {pagosEnRevision > 0 ? MONTO_EN_REVISION.toLowerCase() : formatClp(pagos)}
+            </span>
           </p>
+          {pagosEnRevision > 0 && (
+            <p role="note" className="-mt-2 mb-3 text-[11px] leading-snug text-warning-700">
+              {pagosEnRevision === 1
+                ? "1 pago tiene su monto en revisión de conciliación y no aparece en la lista."
+                : `${pagosEnRevision} pagos tienen su monto en revisión de conciliación y no aparecen en la lista.`}
+            </p>
+          )}
           <div className="space-y-3">
             {grupos.map((g) => (
               <div key={g.titulo}>

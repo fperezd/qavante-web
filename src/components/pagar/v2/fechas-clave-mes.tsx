@@ -2,6 +2,7 @@ import * as React from "react";
 import { ShieldCheck, Receipt, Users, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION } from "@/lib/formatters/amount";
 
 /* FechasClaveMes — las 3 obligaciones canónicas del mes de una PYME chilena: imposiciones
    (Previred), impuestos (F29/IVA) y sueldos. Las que NO se postergan. Van destacadas en su
@@ -14,6 +15,8 @@ export interface FechaClave {
   id: string;
   label: string;
   monto: number | null;
+  /** `monto: null` por cuarentena de conciliación (qavante-api#907). */
+  enRevision?: boolean;
   /** Fecha de vencimiento legible (ej. "13-jul"). */
   vence: string;
   /** Días hasta el vencimiento (negativo = vencido). "en N días" / "hace N días"; ≤2 se resalta. */
@@ -86,7 +89,11 @@ export function FechasClaveMes({
                 )}
               </span>
               <span className="mt-1.5 block text-[21px] font-extrabold tabular-nums text-neutral-dark">
-                {it.monto == null ? "Sin monto verificable" : formatClp(it.monto)}
+                {it.monto != null
+                  ? formatClp(it.monto)
+                  : it.enRevision
+                    ? MONTO_EN_REVISION
+                    : "Sin monto verificable"}
               </span>
               <span className="mt-0.5 block text-[12px] text-neutral-mid">
                 {vencido ? (

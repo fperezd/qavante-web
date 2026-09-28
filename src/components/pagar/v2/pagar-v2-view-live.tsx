@@ -11,6 +11,7 @@ import { buildMaestro, readTerminos, readPagados } from "@/components/terminos/t
 import { parseAmount } from "../pagos-format";
 import { payrollPeriodFromExternalId } from "../pagos-group";
 import { formatMoney } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION } from "@/lib/formatters/amount";
 import { PagarV2View, type PagarMovible } from "./pagar-v2-view";
 import { PagarHero } from "./pagar-hero";
 import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
@@ -121,7 +122,8 @@ export function PagarV2ViewLive({
   const items = [...apItems, ...supplierItems, ...honorariosItems];
   /* D02 — el total es el agregado del servidor sobre TODO el registro, no la suma de la lista
      traída, que viene topeada por `limit`. */
-  const montoTotal = parseAmount(resp?.total ?? "0");
+  // #907: `total: null` es DESCONOCIDO (cuarentena), nunca "sin pagos".
+  const montoTotal = resp?.total == null ? null : parseAmount(resp.total);
   if (montoTotal === 0 && items.length === 0) {
     return (
       <EmptyState
@@ -136,8 +138,8 @@ export function PagarV2ViewLive({
     return href ? () => router.push(href) : undefined;
   };
   /* D02 — los tramos son los que publica el contrato, no una suma de la lista visible. */
-  const due7 = parseAmount(resp?.due_7d ?? "0");
-  const due30 = parseAmount(resp?.due_30d ?? "0");
+  const due7 = resp?.due_7d == null ? null : parseAmount(resp.due_7d);
+  const due30 = resp?.due_30d == null ? null : parseAmount(resp.due_30d);
 
   /* D01 — la brecha NO se resta acá: la publica el run canónico del backend, que ocupa el slot
      `estadoCaja`. Por eso esta pantalla ya no arma su mapa de brecha local ni el helper que
@@ -232,8 +234,9 @@ function Secundarios({
   due30,
   usd,
 }: {
-  due7: number;
-  due30: number;
+  /** `null` = en revisión de conciliación (qavante-api#907). */
+  due7: number | null;
+  due30: number | null;
   usd?: PayableCurrencyTotal[];
 }) {
   // Desglose por moneda extranjera (CC-API #560): la primera != CLP.
@@ -253,12 +256,23 @@ function Secundarios({
   return (
     <div className="p-5">
       <dl className="flex flex-col text-[13px]">
-        {row("Próximos 7 días", formatMoney(due7, "CLP"), "text-warning-700", false)}
-        {row("Próximos 30 días", formatMoney(due30, "CLP"), "text-neutral-dark")}
+        {row(
+          "Próximos 7 días",
+          due7 == null ? MONTO_EN_REVISION : formatMoney(due7, "CLP"),
+          "text-warning-700",
+          false,
+        )}
+        {row(
+          "Próximos 30 días",
+          due30 == null ? MONTO_EN_REVISION : formatMoney(due30, "CLP"),
+          "text-neutral-dark",
+        )}
         {usdItem &&
           row(
             "En dólares",
-            formatMoney(parseAmount(usdItem.amount), usdItem.currency),
+            usdItem.amount == null
+              ? MONTO_EN_REVISION
+              : formatMoney(parseAmount(usdItem.amount), usdItem.currency),
             "text-brand-primary",
           )}
       </dl>

@@ -96,8 +96,9 @@ const LABEL_TRAMO: Record<TramoV04, string> = {
   vencido: "Vencido · bruto",
 };
 
-function pctDelTotal(monto: number | null, total: number): number | null {
-  if (monto == null) return null;
+function pctDelTotal(monto: number | null, total: number | null): number | null {
+  // #907: sin total conocido (cuarentena de conciliación) no hay denominador.
+  if (monto == null || total == null) return null;
   if (total > 0) return (monto / total) * 100;
   /* Total en cero con monto conocido: reparto 0, no "sin dato" (cero verificado). */
   return 0;
@@ -120,7 +121,7 @@ function pctDelTotal(monto: number | null, total: number): number | null {
 export function tarjetasAging(
   ar: AccountsReceivableResponse | null | undefined,
 ): TarjetaAgingV04[] {
-  const total = ar ? parseAmount(ar.total) : 0;
+  const total = ar ? parseAmountOrNull(ar.total) : 0;
   const vigenteCrudo = ar ? parseAmountOrNull(ar.aging.current) : null;
   const d1_30 = ar ? parseAmountOrNull(ar.aging.d1_30) : null;
   const d31_60 = ar ? parseAmountOrNull(ar.aging.d31_60) : null;
@@ -177,8 +178,9 @@ export interface ClienteV04 {
   /** UUIDs trazables de documentos vivos/no cedidos que el backend atribuye a este deudor.
    * Nunca se derivan desde los campos visibles: se mandan tal cual al lote real (#311). */
   receivableIds: string[];
-  /** Saldo por cobrar de este cliente (CLP según el registro). */
-  saldo: number;
+  /** Saldo por cobrar de este cliente (CLP según el registro). `null` = en revisión de
+   *  conciliación (qavante-api#907): nunca 0. */
+  saldo: number | null;
   /** Vencido de este cliente. `null` = el contrato no pudo computarlo (#124): NO es 0. */
   vencido: number | null;
   /** Días de mora del documento MÁS vencido de este cliente (de `overdue_documents`). `null` si
@@ -324,7 +326,7 @@ export function clientesV04(
   options: ClientesV04Options = {},
 ): ClienteV04[] {
   if (!ar) return [];
-  const total = parseAmount(ar.total);
+  const total = parseAmountOrNull(ar.total);
   const includeDecisionSignals = options.includeDecisionSignals ?? true;
   const docs = docsVencidosPorRut(ar.overdue_documents);
   const debtors =
@@ -339,12 +341,15 @@ export function clientesV04(
       rut: d.rut ?? null,
       rutLabel: d.rut ? formatRut(d.rut) : "RUT no informado",
       receivableIds: d.receivable_ids ?? [],
-      saldo: parseAmount(d.total),
+      saldo: parseAmountOrNull(d.total),
       vencido,
       dias: suyos?.maxDias ?? null,
       docsVencidos: suyos?.n ?? 0,
       certezas: suyos?.certezas ?? [],
-      pctDelTotal: includeDecisionSignals ? concentracionPct(parseAmount(d.total), total) : null,
+      pctDelTotal:
+        includeDecisionSignals && d.total != null && total != null
+          ? concentracionPct(parseAmount(d.total), total)
+          : null,
       ultimaGestion: k && typeof gestionado[k] === "string" ? gestionado[k]! : null,
     };
   });
@@ -479,13 +484,16 @@ export function concentracion(
     const monto = top.reduce((s, c) => s + c.vencido!, 0);
     return { kind: "vencido", clientes: top, monto, pct: concentracionPct(monto, vencidoTotal) };
   }
-  const top = [...clientes].sort((a, b) => b.saldo - a.saldo).slice(0, n);
-  const monto = top.reduce((s, c) => s + c.saldo, 0);
+  // #907: con algún saldo (o el total) en revisión no hay concentración que afirmar.
+  const totalAr = parseAmountOrNull(ar.total);
+  if (totalAr == null || clientes.some((c) => c.saldo == null)) return null;
+  const top = [...clientes].sort((a, b) => b.saldo! - a.saldo!).slice(0, n);
+  const monto = top.reduce((s, c) => s + c.saldo!, 0);
   return {
     kind: "saldo",
     clientes: top,
     monto,
-    pct: concentracionPct(monto, parseAmount(ar.total)),
+    pct: concentracionPct(monto, totalAr),
     motivo: motivoSinVencido(ar).motivo,
   };
 }
@@ -522,8 +530,9 @@ export function crumbGestion(clientes: ReadonlyArray<ClienteV04>, hoy: Date): Cr
 
 /** El total del footer, tal cual lo publica el registro. Es `total` del contrato, NO la suma de los
  *  saldos de la tabla: `top_debtors` es un top, no la cartera entera. */
-export function totalBruto(ar: AccountsReceivableResponse | null | undefined): number {
-  return ar ? parseAmount(ar.total) : 0;
+export function totalBruto(ar: AccountsReceivableResponse | null | undefined): number | null {
+  // #907: `null` = en revisión de conciliación; nunca 0.
+  return ar ? parseAmountOrNull(ar.total) : 0;
 }
 
 export interface ExplicacionV04 {
@@ -663,7 +672,7 @@ export function csvClientesTable(clientes: ReadonlyArray<ClienteV04>): ExportTab
     clientes.map((c) => [
       csvCell.text(c.nombre),
       c.rut == null ? csvCell.missing() : csvCell.identifier(c.rut),
-      csvCell.decimal(c.saldo),
+      c.saldo == null ? csvCell.text("en revisión") : csvCell.decimal(c.saldo),
       c.vencido == null ? csvCell.text("sin dato") : csvCell.decimal(c.vencido),
       c.dias == null ? csvCell.missing() : csvCell.integer(c.dias),
       csvCell.text(c.antiguedad.texto),

@@ -51,6 +51,11 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
   if (err.code === "fintoc_not_configured") {
     return "La conexión bancaria no está disponible en este momento. Intenta nuevamente más tarde.";
   }
+  if (err.code === "bank_movement_currency_unverified") {
+    // #370 v1 (qavante-api#905): 422 sin escritura. El backend no completa la moneda con la de
+    // la cuenta ni con CLP; el mensaje no invita a reintentar lo mismo.
+    return "No se guardó la clasificación: la moneda de este movimiento bancario no está verificada. Revisa el movimiento en Banco o sincroniza la cuenta antes de clasificarlo.";
+  }
 
   if (context === "login" && err.status === 401) {
     return "RUT o clave incorrectos. Verifica tus datos.";

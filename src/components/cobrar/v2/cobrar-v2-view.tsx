@@ -7,6 +7,7 @@ import { QavanteCard } from "@/components/qavante";
 import { AmountCountUp } from "@/components/qavante/amount-count-up";
 import { InfoHint } from "@/components/ui/info-hint";
 import { formatClp } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION } from "@/lib/formatters/amount";
 import { formatRut } from "@/lib/formatters/rut";
 import { formatDate, formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
@@ -177,7 +178,8 @@ function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato?: Vencid
  * verificado), o "sin dato" con el porqué cuando la API no pudo computarlo. */
 const MOTIVO_GENERICO = "No podemos calcular cuánto está vencido con los datos que tenemos.";
 export interface ResumenCobranzaProps {
-  total: number;
+  /** `null` = en revisión de conciliación (qavante-api#907): se dice, nunca $0. */
+  total: number | null;
   /** Vencido. `null` = la API NO pudo computarlo (qavante-api#123) — se dice que no
    *  se sabe. `0` = cero VERIFICADO: "estás al día", que NO es lo mismo. */
   overdue: number | null;
@@ -199,7 +201,7 @@ export function ResumenCobranza({
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <Stat
         label="Total por cobrar"
-        value={<AmountCountUp value={total} />}
+        value={total == null ? MONTO_EN_REVISION : <AmountCountUp value={total} />}
         sub={conciliado > 0 ? `menos ${formatClp(conciliado)} conciliado` : undefined}
       />
       {/* Sólo dos caminos, y los decide el DATO, no un "modo" (H6):
@@ -278,7 +280,8 @@ export interface DeudorRowProps {
   name: string;
   /** El contrato admite `rut: null` ("null si falta") → se dice, no se pinta vacío. */
   rut: string | null;
-  total: number;
+  /** Saldo del cliente. `null` = en revisión de conciliación (qavante-api#907). */
+  total: number | null;
   /** `null` = el contrato no pudo computar la mora de ESTE deudor (#124). No es 0. */
   overdue: number | null;
   /** Qué parte del total por cobrar es este cliente (%). Sólo existe fuera del Brief. */
@@ -362,7 +365,9 @@ export function DeudorRow(props: DeudorRowProps) {
         </button>
 
         <div className="shrink-0 pl-6 text-left tabular-nums sm:pl-0 sm:text-right">
-          <p className="font-semibold text-neutral-dark">{formatClp(total)}</p>
+          <p className="font-semibold text-neutral-dark">
+            {total == null ? MONTO_EN_REVISION : formatClp(total)}
+          </p>
           {/* Del lado de #40 viene `formatPct`; del lado de #44, los tres estados del
               vencido. Se combinan: el formato NO puede pisar la semántica. */}
           {showDecisionSignals && pct != null && pct >= 10 && (

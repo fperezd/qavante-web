@@ -218,6 +218,7 @@ function mov(over: Partial<BankMovement> & Pick<BankMovement, "id">): BankMoveme
     direction: "debit",
     currency_code: "CLP",
     currency_source: "account_context",
+    reconciliation_quarantined: false,
     canonical_category: null,
     management_account_id: null,
     reconciliation_status: "unmatched",

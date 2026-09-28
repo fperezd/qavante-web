@@ -28,7 +28,7 @@ import type {
 } from "@/lib/api/treasury";
 import type { AccountsPayableResponse } from "@/lib/api/pagos";
 import type { CajaHoy } from "@/lib/finanzas/caja-hoy";
-import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
+import { importeDesconocido, parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 import { formatClp } from "@/lib/formatters/clp";
 import { concordar } from "@/lib/formatters/count";
 import { formatPct } from "@/lib/formatters/pct";
@@ -125,30 +125,38 @@ export function kpiHoy(caja: CajaHoy, bancos: readonly string[], hoy: Date): Kpi
 }
 
 export interface Entra14V02 {
-  /** Σ `expected` (ponderado por comportamiento de pago) de los buckets que caen en 14 días. */
-  esperado: number;
-  /** Σ `nominal` de esos mismos buckets. */
-  nominal: number;
+  /** Σ `expected` (ponderado por comportamiento de pago) de los buckets que caen en 14 días.
+   *  `null` = en revisión de conciliación (qavante-api#907). */
+  esperado: number | null;
+  /** Σ `nominal` de esos mismos buckets. `null` = en revisión. */
+  nominal: number | null;
+  /** Cuarentena de conciliación viva: lo que entra es DESCONOCIDO, no cero. */
+  enRevision: boolean;
 }
 
 /** "Entra · 14 días" desde el forecast de cobranza. `null` = no vino el forecast (no se sabe). */
 export function entra14d(f: CollectionForecastResponse | null | undefined): Entra14V02 | null {
   if (!f) return null;
+  const enVentana = (f.buckets ?? []).filter((b) => b.days_from >= 0 && b.days_to <= VENTANA_DIAS);
+  // #907: un bucket con monto `null` (o el forecast marcado) vuelve desconocida la suma entera.
+  if (importeDesconocido(f) || enVentana.some((b) => b.expected == null || b.nominal == null)) {
+    return { esperado: null, nominal: null, enRevision: true };
+  }
   let esperado = 0;
   let nominal = 0;
-  for (const b of f.buckets ?? []) {
-    if (b.days_from < 0 || b.days_to > VENTANA_DIAS) continue;
+  for (const b of enVentana) {
     esperado += parseAmount(b.expected);
     nominal += parseAmount(b.nominal);
   }
-  return { esperado, nominal };
+  return { esperado, nominal, enRevision: false };
 }
 
 export interface NoPostergable14V02 {
   /** `amount_clp` cuando el agregado está completo; `null` = subtotal no disponible. */
   monto: number | null;
-  /** Parte conocida en CLP: un piso ("al menos") cuando `completo` es false. */
-  conocido: number;
+  /** Parte conocida en CLP: un piso ("al menos") cuando `completo` es false. `null` = en
+   *  revisión de conciliación (#907): no hay parte conocida. */
+  conocido: number | null;
   /** Cantidad conocida de obligaciones del agregado. */
   n: number;
   completo: boolean;
@@ -159,8 +167,10 @@ export interface NoPostergable14V02 {
 }
 
 export interface Sale14V02 {
-  /** `due_14d` del backend (ya en CLP). */
-  total: number;
+  /** `due_14d` del backend (ya en CLP). `null` = en revisión de conciliación (#907). */
+  total: number | null;
+  /** Cuarentena AP viva: lo que sale es DESCONOCIDO, no cero ni "no vino". */
+  enRevision: boolean;
   /** `non_postponable_or_overdue_14d` del backend: lo que YA venció más lo que vence en 14 días y
    *  no se posterga (Ley 9 ejecutable: impuestos, sueldos, deuda). Es el MISMO agregado que V05
    *  publica como "Pagos críticos en todo el registro" (Ley 1). `null` cuando el contrato no lo
@@ -184,20 +194,21 @@ export function sale14d(
 ): Sale14V02 | null {
   void hoy;
   if (!ap) return null;
+  if (importeDesconocido(ap)) return { total: null, enRevision: true, noPostergable: null };
   const total = parseAmountOrNull(ap.due_14d);
   if (total == null) return null;
   const summary = ap.non_postponable_or_overdue_14d;
   const noPostergable: NoPostergable14V02 | null = summary
     ? {
         monto: summary.complete ? parseAmountOrNull(summary.amount_clp) : null,
-        conocido: parseAmount(summary.known_amount_clp),
+        conocido: parseAmountOrNull(summary.known_amount_clp),
         n: summary.count,
         completo: summary.complete === true,
         fechasDesconocidas: summary.unknown_due_date_count,
         monedasExcluidas: summary.excluded_by_currency.length,
       }
     : null;
-  return { total, noPostergable };
+  return { total, enRevision: false, noPostergable };
 }
 
 /* ── (3) Barras de 4 semanas + punto más bajo ─────────────────────────────────── */

@@ -1193,6 +1193,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/treasury/payroll-reconcile/revert-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * DESHACE el pago de nómina completo de un movimiento bancario (owner/admin)
+         * @description Deshace el pago de lote COMPLETO de un movimiento: todos los links de sus trabajadores,
+         *     sus saldos, el payable del período y el caso canónico, en una sola transacción auditada.
+         *     Es la forma de desasignar a un trabajador de un pago de lote (decisión del BO 2026-09-28,
+         *     #688 opción a): después se re-concilia a los trabajadores correctos con
+         *     `POST /api/admin/treasury/payroll-reconcile`. Idempotente: una segunda llamada devuelve
+         *     `reverted_links=0` sin escribir.
+         */
+        post: operations["admin_payroll_reconcile_revert_batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/treasury/payroll-settlements/{period}": {
         parameters: {
             query?: never;
@@ -2660,7 +2685,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Árbol de cuentas de gestión del tenant (anidado)
+         * Árbol de cuentas de gestión de la Empresa activa (anidado)
          * @description Roots con `children` recursivos, ordenados por `sort_order`.
          */
         get: operations["management_accounts_tree"];
@@ -3474,9 +3499,17 @@ export interface paths {
         put?: never;
         /**
          * Primer sync de datos del onboarding (per-source, no-bloqueante)
-         * @description Dispara el primer sync de las fuentes **conectadas** (banco BICE + SII RCV).
-         *     Per-source + partial-success: cada fuente reporta `ok`/`failed`/`skipped` y una
-         *     no bloquea a la otra (el wizard puede continuar). `skipped` = no conectada.
+         * @description Dispara el sync de las fuentes **conectadas** (banco BICE + SII RCV).
+         *     Per-source + partial-success: cada fuente reporta su estado y una no bloquea a la
+         *     otra (el wizard puede continuar). `skipped` = no conectada.
+         *
+         *     SII:
+         *     - Onboarding pendiente → la importación inicial cubre la ventana persistida
+         *       (`/import-window`) + el mes en curso. Son hasta ~7 meses por 2 llamadas SII con
+         *       reintentos: NO van dentro del request. Se crea un run consultable
+         *       (`/sync-runs/{run_id}`) que publica el estado de cada mes y se responde `queued`.
+         *     - Onboarding completo (botón "Actualizar") → sólo el mes de negocio en curso,
+         *       dentro del request, con su estado por mes en `periods`.
          */
         post: operations["onboarding_sync"];
         delete?: never;
@@ -3498,8 +3531,9 @@ export interface paths {
          * Inicia un run consultable del primer sync de onboarding
          * @description Crea una ejecución estable y responde antes de correr conectores lentos.
          *
-         *     ``POST /sync`` queda intacto para consumidores existentes; esta ruta es la
-         *     extensión explícita que permite al cliente leer hechos durante el proceso.
+         *     ``POST /sync`` delega aquí la importación inicial del SII mientras el onboarding
+         *     sigue pendiente; esta ruta es la extensión explícita que permite al cliente leer
+         *     hechos (incluido el estado por mes del SII) durante el proceso.
          */
         post: operations["onboarding_sync_run_start"];
         delete?: never;
@@ -3709,7 +3743,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lista financial_versions del tenant */
+        /** Lista financial_versions de la sociedad activa */
         get: operations["financial_versions_list"];
         put?: never;
         /** Crea un financial_version */
@@ -3806,6 +3840,30 @@ export interface paths {
         put?: never;
         /** Crea un scenario_assumption */
         post: operations["scenario_assumptions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Release Provenance
+         * @description Expose complete immutable build provenance, or explicitly abstain.
+         *
+         *     The response intentionally does not claim an OCI digest: that digest only
+         *     exists after the image is built and is verified from Azure's control plane
+         *     by the release receipt. A legacy/partial file is not a certified release.
+         */
+        get: operations["get_release_provenance_api_release_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4567,6 +4625,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sii/rcv/d08-gate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII RCV: estado observable de la compuerta del dual-write D08 (read-only)
+         * @description Último estado de la compuerta D08 del RCV (#701, ADR-0116 §9 paso 5): la fila del tenant
+         *     (identidad: ventas y compras observaron el mismo RUT empresa válido) y una por cuenta fuente
+         *     `cl_rut` (sociedad: el RUT prueba una sociedad única). Con Empresa seleccionada se ocultan las
+         *     cuentas que hoy declara otra sociedad. Sin montos. `d07_prerequisite` queda `not_credited`
+         *     hasta que el cierre de D07 esté registrado. Read-only: no abre ni cierra la compuerta.
+         */
+        get: operations["sii_rcv_d08_gate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sii/rcv/ventas": {
         parameters: {
             query?: never;
@@ -4955,10 +5037,11 @@ export interface paths {
         get?: never;
         /**
          * Atribuye una cuenta y sus impactos bancarios a una entidad legal (owner/admin)
-         * @description Atribución explícita, sin backfill por default, nombre o RUT.
+         * @description Atribución inicial explícita, sin backfill por default, nombre o RUT.
          *
-         *     El repo serializa contra los writers de impactos de movimientos bancarios y
-         *     actualiza en la misma transacción todos los impactos derivados de la cuenta.
+         *     Sólo acepta cuenta todavía ``unattributed``: una cuenta ya atribuida no se
+         *     mueve entre sociedades por este endpoint. El repo serializa contra los
+         *     writers de impactos y actualiza en la misma transacción sus derivados.
          */
         put: operations["treasury_bank_account_assign_legal_entity"];
         post?: never;
@@ -5464,7 +5547,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lista reglas del tenant (orden de evaluación, priority ASC) */
+        /** Lista reglas de la Empresa activa (orden de evaluación, priority ASC) */
         get: operations["classification_rules_list"];
         put?: never;
         /** Crea una regla de clasificación */
@@ -7269,6 +7352,10 @@ export interface paths {
          *     hermano N:1/N:N. Idempotente (`reverted=0` si no había match).
          *     Para una sugerencia en cola (no aplicada) usar `.../reject`. Principio: toda conciliación se
          *     desasigna.
+         *
+         *     Cuotas de crédito y pagos de cartola resueltos con autoridad canónica (#852/#858) se revierten
+         *     con la reversa exacta de su rail. Si el rail no la tiene (legacy-adapter, historia sin caso,
+         *     nómina) responde 409 `rail_owned_reconciliation:<rail>` sin escribir (#688).
          */
         post: operations["treasury_reconciliation_revert"];
         delete?: never;
@@ -7310,7 +7397,8 @@ export interface paths {
          * Reporte cash flow agregado por período + agrupación opcional
          * @description Genera el reporte cash flow para el rango/filtros del request.
          *
-         *     Source: `planning.financial_impacts` con `financial_model='cash_flow'`.
+         *     Source: `planning.financial_impacts` con sociedad explícita y categorías
+         *     canónicas de caja real.
          *     Sin escrituras. Sin caching (query directa; ADR-0019 si necesita
          *     materialized view).
          *
@@ -7654,9 +7742,9 @@ export interface components {
         ARAging: {
             /**
              * Current
-             * @description No vencido (due_date >= hoy). Siempre presente: es un piso de lo conocido, aunque haya documentos sin vencimiento (ver `undated_amount`).
+             * @description No vencido (due_date >= hoy). Es un piso de lo conocido, aunque haya documentos sin vencimiento (ver `undated_amount`). `null` sólo con una cuarentena de conciliación viva (#687, ver `AccountsReceivableResponse.amount_unknown_reason`).
              */
-            current: string;
+            current: string | null;
             /**
              * D1 30
              * @description 1-30 días de mora. `null` = desconocido.
@@ -7729,6 +7817,11 @@ export interface components {
          */
         AccountsPayableResponse: {
             /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
+            /**
              * As Of
              * Format: date
              * @description Fecha de negocio usada por vencido y ventanas, en `America/Santiago`.
@@ -7756,7 +7849,7 @@ export interface components {
             confidence: "high" | "medium" | "low";
             /**
              * Covers Critical
-             * @description ¿La caja proyectada cubre lo que vence en 14 días? Se responde comprobando si la curva completa se mantiene en o sobre cero durante los 14 días: las obligaciones ya están neteadas en la curva y no se vuelven a restar. **Tri-estado.** `null` = no se puede responder, y son SIETE casos: cuatro de la cobertura documental, dos de la caja y uno de unidad. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS —o con deuda en la ventana cuya moneda no se pudo verificar (#370, `total_by_currency[].currency: null`)—, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el séptimo no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma que la curva completa —con TODO lo que vence ya incorporado— nunca baja de cero en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
+             * @description ¿La caja proyectada cubre lo que vence en 14 días? Se responde comprobando si la curva completa se mantiene en o sobre cero durante los 14 días: las obligaciones ya están neteadas en la curva y no se vuelven a restar. **Tri-estado.** `null` = no se puede responder, y son OCHO casos: cuatro de la cobertura documental, dos de la caja, uno de unidad y uno de conciliación. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS —o con deuda en la ventana cuya moneda no se pudo verificar (#370, `total_by_currency[].currency: null`)—, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 pendiente de un tenant CLP cuyo monto no es estimable: remanente arrastrado sin ancla, o F29 que depende de historia sin sociedad (`f29_legacy_unattributed`); o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DE F29 (la 4.ª y la 5.ª; tres motivos: moneda no-CLP, remanente sin ancla, historia F29 sin sociedad) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el séptimo no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Y el octavo: una cuarentena de conciliación viva del lado por pagar (#687) vuelve desconocidos los montos (`amount_unknown_reason`), y no se compara una suma parcial. Un `true` afirma que la curva completa —con TODO lo que vence ya incorporado— nunca baja de cero en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
              */
             covers_critical?: boolean | null;
             /** @description Créditos/ajustes con saldo negativo, separados de las obligaciones críticas. El monto conserva su signo negativo y también recorre todo el universo vivo. */
@@ -7767,14 +7860,14 @@ export interface components {
              */
             data_state: "available" | "partial" | "estimated";
             /** Due 14D */
-            due_14d: string;
+            due_14d: string | null;
             /** Due 30D */
-            due_30d: string;
+            due_30d: string | null;
             /**
              * Due 7D
-             * @description Saldo que vence en ≤7 días (CLP, acumulativo, incl. vencido).
+             * @description Saldo que vence en ≤7 días (CLP, acumulativo, incl. vencido). `null` con cuarentena de conciliación viva (#687).
              */
-            due_7d: string;
+            due_7d: string | null;
             /**
              * Estimated Due Date Count
              * @description Cantidad de pagos con fecha estimada a 30 días desde la emisión. No entran en `due_*`, no habilitan prioridad crítica y hacen que `covers_critical` se abstenga.
@@ -7844,10 +7937,9 @@ export interface components {
             projected_cash_14d?: string | null;
             /**
              * Projected Cash Currency
-             * @description Moneda de `projected_cash_14d`, `min_14d` y `cash_gap_amount_14d`, que es la moneda funcional del tenant. Se publica porque sin ella el consumidor no puede darse cuenta de que está comparando unidades distintas: la única señal que salía antes era una frase en castellano dentro de `missing_sources`, y ningún código puede parsear eso. Convertir a CLP es el #160.
-             * @default CLP
+             * @description Moneda de `projected_cash_14d`, `min_14d` y `cash_gap_amount_14d`, que es la moneda funcional del tenant. Se publica porque sin ella el consumidor no puede darse cuenta de que está comparando unidades distintas: la única señal que salía antes era una frase en castellano dentro de `missing_sources`, y ningún código puede parsear eso. Convertir a CLP es el #160. #370 v1: sin default. El endpoint la resuelve desde el `FinancialScope` (siempre ISO-4217); `null` sólo si ni la proyección ni el scope la acreditan, y entonces las cifras de la curva también son `null` (`projection_currency_unknown`/`projection_currency_conflict` en `missing_sources`). Nunca se asume CLP.
              */
-            projected_cash_currency: string;
+            projected_cash_currency: string | null;
             /**
              * Snapshot Id
              * @description Identidad opaca del corte del universo AP vivo y sus tipos de cambio. Se conserva entre páginas/filtros mientras esos datos no cambien; no cubre la proyección de caja D01, que mantiene su propio gate `cash_projection_publicable_14d`.
@@ -7855,9 +7947,9 @@ export interface components {
             snapshot_id: string;
             /**
              * Total
-             * @description Total por pagar **convertido a CLP** al tipo de cambio vigente (para la cobertura de caja). El desglose crudo por moneda va en `total_by_currency`. Las monedas sin TC quedan fuera de este total (avisadas en `missing_sources`).
+             * @description Total por pagar **convertido a CLP** al tipo de cambio vigente (para la cobertura de caja). El desglose crudo por moneda va en `total_by_currency`. Las monedas sin TC quedan fuera de este total (avisadas en `missing_sources`). `null` = desconocido por una cuarentena de conciliación viva (#687); nunca una suma parcial.
              */
-            total: string;
+            total: string | null;
             /**
              * Total By Currency
              * @description Desglose del total por pagar por moneda, SIN convertir — para mostrar '(CLP $X + USD $Y)' junto al total en CLP. CLP primero, luego las demás monedas verificadas, y al final los buckets `currency: null` de documentos cuya moneda no se pudo verificar (#370): esos montos NO están en `total` ni en `due_*` y no se deben sumar ni mostrar como pesos.
@@ -7865,10 +7957,10 @@ export interface components {
             total_by_currency?: components["schemas"]["PayableCurrencyTotal"][];
             /**
              * Undated Amount
-             * @description Saldo por pagar de documentos SIN fecha de vencimiento (convertido a CLP). Las facturas del RCV entran sin vencimiento hasta enriquecerlas con el FchVenc del XML → este monto NO está en ningún bucket `due_*`, y desde el #41 su sola presencia hace que `covers_critical` se abstenga: si hay deuda sin fecha, los tramos son un PISO y no el total, así que no se puede afirmar cobertura sobre ellos. Exponerlo evita el 'agujero' entre `total` y la suma de los buckets (transparencia de frescura) y le da al FE el monto concreto con el que explicar el 'no sé'.
+             * @description `null` con cuarentena de conciliación viva (#687). Saldo por pagar de documentos SIN fecha de vencimiento (convertido a CLP). Las facturas del RCV entran sin vencimiento hasta enriquecerlas con el FchVenc del XML → este monto NO está en ningún bucket `due_*`, y desde el #41 su sola presencia hace que `covers_critical` se abstenga: si hay deuda sin fecha, los tramos son un PISO y no el total, así que no se puede afirmar cobertura sobre ellos. Exponerlo evita el 'agujero' entre `total` y la suma de los buckets (transparencia de frescura) y le da al FE el monto concreto con el que explicar el 'no sé'.
              * @default 0
              */
-            undated_amount: string;
+            undated_amount: string | null;
             /**
              * Undated Count
              * @description Cantidad de documentos por pagar sin fecha de vencimiento.
@@ -7889,6 +7981,11 @@ export interface components {
          */
         AccountsReceivableResponse: {
             aging: components["schemas"]["ARAging"];
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * Confidence
              * @enum {string}
@@ -7931,8 +8028,11 @@ export interface components {
             overdue_pct: string | null;
             /** Top Debtors */
             top_debtors?: components["schemas"]["TopDebtor"][];
-            /** Total */
-            total: string;
+            /**
+             * Total
+             * @description Saldo vivo por cobrar (suma cruda entre monedas). `null` = desconocido: hay una cuarentena de conciliación viva (#687, ver `amount_unknown_reason`). Nunca se publica la suma de lo que quedó fuera de la cuarentena.
+             */
+            total: string | null;
             /**
              * Total By Currency
              * @description Desglose de `total` por moneda, SIN convertir. Es la PARTICIÓN de `total` sobre el mismo universo (vivos, no cedidos): la suma de `amount` es igual a `total`, incluye vencidos y documentos sin fecha, y las notas de crédito netean dentro de su moneda. CLP primero. Sirve para contrastar el supuesto 'cartera CLP única' sobre el que `total` es una suma legítima: con más de una moneda, `total` deja de ser comparable y quien lo consuma debe abstenerse (INV-FX-001). LÍMITE: refleja la moneda tal como quedó GUARDADA; el ingest del RCV la escribe siempre como 'CLP' (#285), así que sobre esos documentos el desglose no puede mostrar divergencia aunque la cartera real la tenga.
@@ -7940,9 +8040,9 @@ export interface components {
             total_by_currency?: components["schemas"]["ReceivableCurrencyTotal"][];
             /**
              * Undated Amount
-             * @description Saldo vivo SIN vencimiento confirmado (fecha ausente, procedencia no verificable o `assumed_30d`), es decir la plata que queda fuera del aging. Explica el `null`: con `undated_amount == total` no se sabe nada de la mora. Sin default, por la misma razón que los buckets: es el campo con el que la pantalla explica el `null`, así que no puede ser el único que a veces no venga.
+             * @description `null` sólo con cuarentena de conciliación viva (#687). Saldo vivo SIN vencimiento confirmado (fecha ausente, procedencia no verificable o `assumed_30d`), es decir la plata que queda fuera del aging. Explica el `null`: con `undated_amount == total` no se sabe nada de la mora. Sin default, por la misma razón que los buckets: es el campo con el que la pantalla explica el `null`, así que no puede ser el único que a veces no venga.
              */
-            undated_amount: string;
+            undated_amount: string | null;
         };
         /**
          * ActividadEconomica
@@ -8843,8 +8943,14 @@ export interface components {
             matched_document_id?: string | null;
             /** Notes */
             notes?: string | null;
-            /** @description Documento conciliado sólo si el movimiento está `matched` y tiene exactamente una conciliación efectiva. `null` con cero, N:M o `review`; no representa contraparte bancaria ni deriva identidad de `description`. */
+            /** @description Documento conciliado sólo si el movimiento está `matched` y tiene exactamente una conciliación efectiva. `null` con cero, N:M o `review`; no representa contraparte bancaria ni deriva identidad de `description`. `null` también con cuarentena de conciliación viva (#687). */
             reconciliation_document?: components["schemas"]["ReconciliationDocument"] | null;
+            /**
+             * Reconciliation Quarantined
+             * @description `true` si el movimiento está en cuarentena de conciliación (#687): el monto es el de la cartola, pero su atribución a documentos está en revisión y no se publica.
+             * @default false
+             */
+            reconciliation_quarantined: boolean;
             /**
              * Reconciliation Status
              * @description Estado de conciliación. Conocidos: unmatched, suggested, matched, rejected, review, excluded, prepago, processor_batch.
@@ -10006,7 +10112,7 @@ export interface components {
         /** CashCycleEstimateCoverage */
         CashCycleEstimateCoverage: {
             /** Reason Codes */
-            reason_codes?: ("non_clp_payables_excluded" | "unvalued_payables_excluded" | "ceded_marking_incomplete" | "non_positive_revenue" | "non_positive_cogs" | "required_source_incomplete" | "cogs_classification_incomplete" | "negative_receivables_balance" | "negative_commercial_ap_balance")[];
+            reason_codes?: ("non_clp_payables_excluded" | "unvalued_payables_excluded" | "ceded_marking_incomplete" | "non_positive_revenue" | "non_positive_cogs" | "required_source_incomplete" | "cogs_classification_incomplete" | "negative_receivables_balance" | "negative_commercial_ap_balance" | "reconciliation_quarantine")[];
             /**
              * State
              * @enum {string}
@@ -10032,8 +10138,11 @@ export interface components {
             can_claim_current: false;
             /** Cash Cycle Proxy Days */
             cash_cycle_proxy_days: number | null;
-            /** Commercial Ap Total */
-            commercial_ap_total: string;
+            /**
+             * Commercial Ap Total
+             * @description `null` con cuarentena AP viva (#687).
+             */
+            commercial_ap_total: string | null;
             coverage: components["schemas"]["CashCycleEstimateCoverage"];
             /**
              * Currency
@@ -10124,20 +10233,25 @@ export interface components {
          */
         CashCycleResponse: {
             /**
-             * Ap Total
-             * @description Saldo vivo por pagar en CLP, base neta (sin IVA). NO convierte otras monedas: las descarta. Tampoco entra ninguna fila sin `net_amount`, y las de tarjeta se insertan sin ese campo: aportan CERO. Por eso es MENOR que el total que muestra Pagar. Es el numerador del DPO.
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` si `ar_total` o `ap_total` es desconocido (#687).
              */
-            ap_total: string;
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
+            /**
+             * Ap Total
+             * @description Saldo vivo por pagar en CLP, base neta (sin IVA). NO convierte otras monedas: las descarta. Tampoco entra ninguna fila sin `net_amount`, y las de tarjeta se insertan sin ese campo: aportan CERO. Por eso es MENOR que el total que muestra Pagar. Es el numerador del DPO. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
+             */
+            ap_total: string | null;
             /**
              * Ar Ceded
-             * @description Saldo vivo cedido al factoring (CLP, base neta). No entra en `ar_total`: lo cobra el factor. Se expone para poder decir 'X días · el N% de tu cartera está cedida'.
+             * @description Saldo vivo cedido al factoring (CLP, base neta). No entra en `ar_total`: lo cobra el factor. Se expone para poder decir 'X días · el N% de tu cartera está cedida'. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            ar_ceded: string;
+            ar_ceded: string | null;
             /**
              * Ar Total
-             * @description Saldo vivo de cuentas por cobrar PROPIAS (CLP, sin las cedidas al factoring).
+             * @description Saldo vivo de cuentas por cobrar PROPIAS (CLP, sin las cedidas al factoring). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            ar_total: string;
+            ar_total: string | null;
             /**
              * As Of
              * @description Fecha de cálculo (YYYY-MM-DD).
@@ -10150,9 +10264,9 @@ export interface components {
             ccc_days: number | null;
             /**
              * Ceded Pct Of Ar
-             * @description Porcentaje cedido sobre la cartera viva total (cedida + propia), acotado a [0, 100]. 0 si no hay cartera. El clamp existe porque el AR propio puede ser negativo cuando lo dominan las notas de crédito.
+             * @description Porcentaje cedido sobre la cartera viva total (cedida + propia), acotado a [0, 100]. 0 si no hay cartera. El clamp existe porque el AR propio puede ser negativo cuando lo dominan las notas de crédito. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            ceded_pct_of_ar: string;
+            ceded_pct_of_ar: string | null;
             /**
              * Cesiones Sin Marcar
              * @description Documentos con cesión registrada que NO tienen `ceded_at` en la cartera. Mide la COMPLETITUD del dato, no plata: el marcador sólo toca filas open/partially_paid, así que una factura pagada antes de que corra queda sin marcar y su venta vuelve al lado propio del DSO. Distinto de 0 ⇒ el DSO tiene un sesgo conocido y no medido.
@@ -10425,6 +10539,12 @@ export interface components {
              * @default 0
              */
             excluded_attention: number;
+            /**
+             * Excluded Unverified Currency
+             * @description #370 v1: impactos del período/filtro excluidos de toda suma porque su moneda no tiene procedencia verificada (`financial_impact_currency_unverified`). Mayor que 0 significa que los totales están incompletos; nunca se asume CLP.
+             * @default 0
+             */
+            excluded_unverified_currency: number;
             /**
              * Financial Layer
              * @enum {string}
@@ -11570,6 +11690,19 @@ export interface components {
         /** ClassifyRunAllResponse */
         ClassifyRunAllResponse: {
             /**
+             * Abstained
+             * @description Tenants que se abstuvieron sin leer su residuo (p. ej. sin sociedad única). No equivalen a tenants sin residuo.
+             * @default 0
+             */
+            abstained: number;
+            /**
+             * Abstained Reasons
+             * @description Conteo de abstenciones por motivo (`status` devuelto por el tenant).
+             */
+            abstained_reasons?: {
+                [key: string]: number;
+            };
+            /**
              * Applied
              * @description Clasificados en firme (alta confianza, auto-aplicados).
              */
@@ -11748,6 +11881,12 @@ export interface components {
          */
         Cobertura: {
             /**
+             * F29 Legacy Unattributed
+             * @description True si una obligación F29 pendiente depende de F29 histórico sin sociedad (`f29_legacy_unattributed`): su monto es desconocido y NO está en la curva — ni como $0 ni como estimado. Remediación: re-sincronizar el F29 bajo la sociedad.
+             * @default false
+             */
+            f29_legacy_unattributed: boolean;
+            /**
              * F29 Omitido Por Moneda
              * @description True si la moneda funcional no es CLP y por eso el F29 no se proyectó.
              */
@@ -11848,6 +11987,11 @@ export interface components {
          */
         CollectionForecastResponse: {
             /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` si todos los montos son desconocidos (#687).
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
+            /**
              * As Of
              * @description Fecha de cálculo (YYYY-MM-DD).
              */
@@ -11865,14 +12009,14 @@ export interface components {
             sin_vencimiento: components["schemas"]["ForecastAmount"];
             /**
              * Total Expected
-             * @description Σ ponderado por probabilidad de pago (CLP).
+             * @description Σ ponderado por probabilidad de pago (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            total_expected: string;
+            total_expected: string | null;
             /**
              * Total Nominal
-             * @description Σ outstanding de todos los receivables vivos (CLP).
+             * @description Σ outstanding de todos los receivables vivos (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            total_nominal: string;
+            total_nominal: string | null;
         };
         /**
          * CollectionProjectionResponse
@@ -11881,6 +12025,11 @@ export interface components {
          *     vencimiento nominal) mostrando ambos. Read-only.
          */
         CollectionProjectionResponse: {
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` si todos los montos son desconocidos (#687).
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * As Of
              * @description Fecha de cálculo (YYYY-MM-DD).
@@ -11899,14 +12048,14 @@ export interface components {
             sin_fecha: components["schemas"]["ForecastAmount"];
             /**
              * Total Expected
-             * @description Σ ponderado por probabilidad de pago (CLP).
+             * @description Σ ponderado por probabilidad de pago (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            total_expected: string;
+            total_expected: string | null;
             /**
              * Total Nominal
-             * @description Σ outstanding de todos los receivables vivos (CLP).
+             * @description Σ outstanding de todos los receivables vivos (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            total_nominal: string;
+            total_nominal: string | null;
             /** @description Cuánto difiere el comportamiento real del vencimiento nominal. */
             vs_nominal: components["schemas"]["ProjectionVsNominal"];
         };
@@ -13323,10 +13472,21 @@ export interface components {
         };
         /** CriticalPayments */
         CriticalPayments: {
-            /** Due 14D */
-            due_14d: string;
-            /** Due 7D */
-            due_7d: string;
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` si los montos del bloque son desconocidos.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
+            /**
+             * Due 14D
+             * @description Pagos a 14 días. `null` = desconocido por cuarentena de conciliación (#687).
+             */
+            due_14d: string | null;
+            /**
+             * Due 7D
+             * @description Pagos a 7 días. `null` = desconocido por cuarentena de conciliación (#687).
+             */
+            due_7d: string | null;
             /** Last Updated */
             last_updated?: string | null;
             /** @description El documento MÁS VENCIDO (el de `due_date` más antigua entre los ya vencidos), o `null` si no hay vencidos. Es lo que `next_critical` devolvía antes del #254, ahora bajo un nombre que dice lo que trae. */
@@ -13596,6 +13756,8 @@ export interface components {
             assumed_receivables_excluded?: components["schemas"]["DecisionBriefMoney"] | null;
             /** Assumed Receivables Excluded Count */
             assumed_receivables_excluded_count?: number | null;
+            /** Attribution Completeness */
+            attribution_completeness?: ("complete" | "partial" | "unknown") | null;
             conditional_due_date_collections_14d?: components["schemas"]["DecisionBriefMoney"] | null;
             /** Conditional Due Date Items 14D */
             conditional_due_date_items_14d?: number | null;
@@ -13611,6 +13773,10 @@ export interface components {
             state: "complete" | "partial" | "unavailable";
             /** Summary */
             summary: string;
+            /** Unattributed Bank Accounts */
+            unattributed_bank_accounts?: number | null;
+            /** Unattributed Financial Impacts */
+            unattributed_financial_impacts?: number | null;
             /** Undated Items */
             undated_items?: number | null;
         };
@@ -15369,6 +15535,8 @@ export interface components {
              * @default 0
              */
             count: number;
+            /** @description Con `incomplete`, `status`='incomplete' y los períodos listados NO están en `meses`: tienen F29 histórico sin sociedad. Ausente en `meses` no significa 'sin F29' ni $0. */
+            coverage?: components["schemas"]["F29CoverageInfo"];
             /**
              * Meses
              * @description Meses efectivamente sincronizados, ordenados 1..12.
@@ -15383,6 +15551,38 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * F29CoverageInfo
+         * @description Cobertura de la historia F29 sin sociedad para los períodos que la respuesta consultó.
+         *
+         *     `incomplete` = hay F29 histórico persistido sin `legal_entity_id` (pre-#685) para algún
+         *     período consultado y la sociedad pedida NO tiene fila propia de ese período. Ese F29 existe
+         *     pero no puede atribuirse sin evidencia: los montos afectados van null (nunca $0) hasta
+         *     re-materializarlo bajo la sociedad (`POST /api/sii/f29/sync?anio=`).
+         */
+        F29CoverageInfo: {
+            /**
+             * Reason Code
+             * @description Motivo estable de la incompletitud; null si complete.
+             */
+            reason_code?: "f29_legacy_unattributed" | null;
+            /**
+             * Remediation
+             * @description Acción requerida: re-sincronizar el F29 bajo la sociedad (POST /api/sii/f29/sync). null si complete.
+             */
+            remediation?: "rematerialize_required" | null;
+            /**
+             * Status
+             * @description complete | incomplete (historia F29 sin sociedad en los períodos consultados).
+             * @enum {string}
+             */
+            status: "complete" | "incomplete";
+            /**
+             * Unattributed Periods
+             * @description Períodos YYYY-MM con F29 legacy sin sociedad y sin fila de la sociedad.
+             */
+            unattributed_periods?: string[];
+        };
+        /**
          * F29EstadoResponse
          * @description Estado del F29 por período (año x mes): los 12 meses con su situación derivada de lo
          *     persistido + el calendario.
@@ -15395,9 +15595,11 @@ export interface components {
              * @default 0
              */
             count: number;
+            /** @description Cobertura legacy de los 12 meses; `incomplete` fija `status`='incomplete'. */
+            coverage?: components["schemas"]["F29CoverageInfo"];
             /**
              * Meses
-             * @description Los 12 meses con {anio, mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento, postergado_iva, monto_postergado, vencimiento_postergado}. estado ∈ declarado / sin_dato (vencido pero sin sincronizar → NO se afirma 'no declaró') / no_declarado_vencido (solo con evidencia) / por_declarar / en_curso / sin_periodo. postergado_iva (bool|null) = el F29 del mes declaró el código 755 ('Postergacion pago IVA') con monto > 0 → el IVA NO está incluido en `saldo` (código 91) y se debe aparte. **null = NO SE SABE** (F29 no parseado / folio-solo; NO afirmar 'no postergó'); False = parseado, no postergó. monto_postergado (int|null) = ese monto en CLP (null = el F29 del mes no se parseó, NO SE SABE; 0 = parseado sin postergación); vencimiento_postergado (ISO YYYY-MM-DD|null) = día 20 del mes M+3 corrido al lunes si cae fin de semana, solo cuando postergado_iva.
+             * @description Los 12 meses con {anio, mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento, postergado_iva, monto_postergado, vencimiento_postergado}. estado ∈ declarado / sin_dato (vencido pero sin sincronizar → NO se afirma 'no declaró') / no_declarado_vencido (solo con evidencia) / por_declarar / en_curso / sin_periodo. postergado_iva (bool|null) = el F29 del mes declaró el código 755 ('Postergacion pago IVA') con monto > 0 → el IVA NO está incluido en `saldo` (código 91) y se debe aparte. **null = NO SE SABE** (F29 no parseado / folio-solo; NO afirmar 'no postergó'); False = parseado, no postergó. monto_postergado (int|null) = ese monto en CLP (null = el F29 del mes no se parseó, NO SE SABE; 0 = parseado sin postergación); vencimiento_postergado (ISO YYYY-MM-DD|null) = día 20 del mes M+3 corrido al lunes si cae fin de semana, solo cuando postergado_iva. coverage_reason (str|null) = 'f29_legacy_unattributed' cuando el mes tiene F29 histórico sin sociedad y ninguna fila de la sociedad: el mes va `sin_dato` con montos null (NO 'no declaró', NO $0).
              */
             meses?: {
                 [key: string]: unknown;
@@ -15469,6 +15671,8 @@ export interface components {
              * @description Instante UTC en que se armó esta evaluación. No reemplaza `last_synced_at` de cada fuente ni afirma que los datos se observaron en este instante.
              */
             as_of: string;
+            /** @description Cobertura legacy del período y de los meses que su derivación lee. Con `incomplete`: `status`='incomplete', `estimable`=false y todos los montos null. */
+            coverage?: components["schemas"]["F29CoverageInfo"];
             /**
              * Declarado
              * @default false
@@ -15541,7 +15745,7 @@ export interface components {
             iva_postergado?: number | null;
             /**
              * Missing Inputs
-             * @description Insumos materiales que impiden estimar. Vocabulario estable: `remanente`, `impuesto_trabajadores` y `rcv_incompleto`.
+             * @description Insumos materiales que impiden estimar. Vocabulario estable: `remanente`, `impuesto_trabajadores`, `rcv_incompleto` y `f29_legacy_unattributed` (el período o su ventana de derivación tiene F29 histórico sin sociedad; ver `coverage`).
              */
             missing_inputs?: string[];
             /** Periodo */
@@ -16259,6 +16463,12 @@ export interface components {
             /** Currency Reporting Code */
             currency_reporting_code?: string | null;
             /**
+             * Currency Source
+             * @description #370 v1: evidencia de `currency_original_code`. `bank_declared`/`account_context` se heredan del movimiento bancario verificado; `explicit_request` es la moneda declarada por quien escribió un impacto no bancario; `legacy_unknown` es historia previa a 0220 y no es evidencia: los agregados monetarios la excluyen.
+             * @enum {string}
+             */
+            currency_source: "bank_declared" | "account_context" | "explicit_request" | "legacy_unknown";
+            /**
              * Data Status
              * @description Mismo dominio TEXT abierto que treasury.bank_movements.
              * @default available
@@ -16656,8 +16866,20 @@ export interface components {
             created_at: string;
             /** Created By */
             created_by?: string | null;
+            /**
+             * Functional Currency Code
+             * @description Moneda funcional declarada para la sociedad de la versión.
+             */
+            functional_currency_code?: string | null;
             /** Id */
             id: string;
+            /**
+             * Legal Entity Id
+             * @description Sociedad de la versión; NULL sólo para historia legacy no publicable scopeada.
+             */
+            legal_entity_id?: string | null;
+            /** Legal Entity Source */
+            legal_entity_source?: string | null;
             /** Month */
             month?: number | null;
             /** Name */
@@ -17026,14 +17248,14 @@ export interface components {
         ForecastAmount: {
             /**
              * Expected
-             * @description Σ ponderado por la probabilidad de pago del pagador.
+             * @description Σ ponderado por la probabilidad de pago del pagador. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            expected: string;
+            expected: string | null;
             /**
              * Nominal
-             * @description Σ outstanding de los receivables del bucket (CLP).
+             * @description Σ outstanding de los receivables del bucket (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            nominal: string;
+            nominal: string | null;
         };
         /**
          * ForecastBucket
@@ -17052,9 +17274,9 @@ export interface components {
             days_to: number;
             /**
              * Expected
-             * @description Σ ponderado por la probabilidad de pago del pagador.
+             * @description Σ ponderado por la probabilidad de pago del pagador. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            expected: string;
+            expected: string | null;
             /**
              * Label
              * @description Etiqueta del bucket (p.ej. '0-7d').
@@ -17062,9 +17284,9 @@ export interface components {
             label: string;
             /**
              * Nominal
-             * @description Σ outstanding de los receivables del bucket (CLP).
+             * @description Σ outstanding de los receivables del bucket (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.
              */
-            nominal: string;
+            nominal: string | null;
         };
         /**
          * ForeignPurchaseClassifyResponse
@@ -17454,8 +17676,13 @@ export interface components {
         };
         /** InboxItem */
         InboxItem: {
-            /** Amount */
-            amount: string;
+            /**
+             * Amount
+             * @description `null` = documento/movimiento en cuarentena de conciliación (#687).
+             */
+            amount: string | null;
+            /** Amount Unknown Reason */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /** Currency */
             currency: string | null;
             /** Href */
@@ -17476,8 +17703,13 @@ export interface components {
         };
         /** InboxMoney */
         InboxMoney: {
-            /** Amount */
-            amount: string;
+            /**
+             * Amount
+             * @description `null` = desconocido por cuarentena de conciliación (#687); nunca cero.
+             */
+            amount: string | null;
+            /** Amount Unknown Reason */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * Currency
              * @description Moneda ISO-4217; null si la fuente no la informo.
@@ -17486,8 +17718,13 @@ export interface components {
         };
         /** InboxPriority */
         InboxPriority: {
-            /** Amount */
-            amount: string;
+            /**
+             * Amount
+             * @description `null` = documento/movimiento en cuarentena de conciliación (#687).
+             */
+            amount: string | null;
+            /** Amount Unknown Reason */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /** Currency */
             currency: string | null;
             /** Href */
@@ -17539,6 +17776,11 @@ export interface components {
             limitations: string[];
             /** Next Date */
             next_date: string | null;
+            /**
+             * Unattributed Count
+             * @description Pendientes del tenant de este tipo que ninguna sociedad declaró (`legal_entity_id` NULL). Sólo se declara que existen: no se suman a `count` ni a `amounts`, y no se atribuyen a esta sociedad.
+             */
+            unattributed_count: number;
         };
         /**
          * IncompleteMonth
@@ -18271,7 +18513,7 @@ export interface components {
             password: string;
             /**
              * Rut
-             * @description RUT chileno con DV (formato '12345678-9' o '12.345.678-9'). Alternativa a `email`: enviá uno de los dos.
+             * @description RUT chileno con DV (formato '12345678-9' o '12.345.678-9'). Alternativa a `email`: envía uno de los dos.
              */
             rut?: string | null;
         };
@@ -18885,8 +19127,13 @@ export interface components {
         };
         /** NextCriticalPayment */
         NextCriticalPayment: {
-            /** Amount */
-            amount: string;
+            /**
+             * Amount
+             * @description Monto del pago. `null` = documento en cuarentena de conciliación (#687).
+             */
+            amount: string | null;
+            /** Amount Unknown Reason */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * Category
              * @description QUÉ es el pago: `payroll` | `tax` | `supplier` | `other` (mismo vocabulario que `PayableItem.category`). Existe para que el FE no tenga que deducir el tipo leyendo `label` con una regex: una razón social con 'Planilla' disparaba riesgo de nómina, y la nómina real no disparaba cuando el label traía el nombre de un banco (#254). `null` sólo si el bloque viene de una fuente que no la resuelve.
@@ -19212,6 +19459,11 @@ export interface components {
             eta_seconds?: number | null;
             /** Finished At */
             finished_at?: string | null;
+            /**
+             * Periods
+             * @description Estado por mes de la ventana de importación (sólo SII). null = aún no se conoce; un mes fallido aparece como 'failed'/'not_attempted', nunca como vacío.
+             */
+            periods?: components["schemas"]["SiiPeriodResult"][] | null;
             /**
              * Records Read
              * @description Documentos leídos exactamente, o null si esa fuente no publica la unidad.
@@ -20590,6 +20842,11 @@ export interface components {
         };
         /** OverdueCollections */
         OverdueCollections: {
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` si los montos del bloque son desconocidos.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /** Last Updated */
             last_updated?: string | null;
             /**
@@ -20601,18 +20858,29 @@ export interface components {
             source?: string | null;
             /** Top Clients */
             top_clients?: components["schemas"]["TopClient"][];
-            /** Total Receivable */
-            total_receivable: string;
+            /**
+             * Total Receivable
+             * @description Saldo vivo por cobrar. `null` = desconocido por una cuarentena de conciliación viva (#687, ver `amount_unknown_reason`); el FE muestra 'Sin dato', nunca '$0'.
+             */
+            total_receivable: string | null;
         };
         /** OverdueDocument */
         OverdueDocument: {
-            /** Amount */
-            amount: string;
+            /**
+             * Amount
+             * @description Monto total del documento; `null` si está en cuarentena (#687).
+             */
+            amount: string | null;
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * Balance
-             * @description Saldo pendiente (≤ amount).
+             * @description Saldo pendiente (≤ amount); `null` si está en cuarentena (#687).
              */
-            balance: string;
+            balance: string | null;
             /** Client Name */
             client_name: string;
             /** Client Rut */
@@ -20714,6 +20982,11 @@ export interface components {
              */
             amount_clp: string | null;
             /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
+            /**
              * Complete
              * @description `true` sólo cuando `amount_clp` cubre todo el universo del bucket.
              */
@@ -20730,9 +21003,9 @@ export interface components {
             excluded_by_currency: components["schemas"]["PayableCurrencyTotal"][];
             /**
              * Known Amount Clp
-             * @description Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`.
+             * @description Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`. `null` con una cuarentena de conciliación viva (#687): entonces no hay una parte 'conocida' que publicar.
              */
-            known_amount_clp: string;
+            known_amount_clp: string | null;
             /**
              * Unknown Due Date Count
              * @description Obligaciones positivas sin vencimiento confirmado que podrían pertenecer a la ventana (fecha ausente o procedencia no verificable). Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.
@@ -20760,6 +21033,11 @@ export interface components {
              */
             amount_clp: string | null;
             /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
+            /**
              * Category
              * @enum {string}
              */
@@ -20781,9 +21059,9 @@ export interface components {
             excluded_by_currency: components["schemas"]["PayableCurrencyTotal"][];
             /**
              * Known Amount Clp
-             * @description Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`.
+             * @description Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`. `null` con una cuarentena de conciliación viva (#687): entonces no hay una parte 'conocida' que publicar.
              */
-            known_amount_clp: string;
+            known_amount_clp: string | null;
             /**
              * Unknown Due Date Count
              * @description Obligaciones positivas sin vencimiento confirmado que podrían pertenecer a la ventana (fecha ausente o procedencia no verificable). Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.
@@ -20811,9 +21089,14 @@ export interface components {
         PayableCurrencyTotal: {
             /**
              * Amount
-             * @description Suma cruda del saldo pendiente en esa moneda (SIN convertir a CLP).
+             * @description Suma cruda del saldo pendiente en esa moneda (SIN convertir a CLP). `null` = desconocida por una cuarentena de conciliación viva en esa moneda (#687).
              */
-            amount: string;
+            amount: string | null;
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * Currency
              * @description Moneda ISO-4217 (ej. 'CLP', 'USD'), o `null` cuando el bucket agrupa documentos cuya moneda no se pudo verificar (ver `currency_status`).
@@ -20896,13 +21179,21 @@ export interface components {
          * @description Un pago próximo (contrato CC-WEB `AccountsPayableResponse.items`).
          */
         PayableItem: {
-            /** Amount */
-            amount: string;
+            /**
+             * Amount
+             * @description Saldo del pago. `null` si el documento está en cuarentena de conciliación (#687); nunca se muestra como cero.
+             */
+            amount: string | null;
             /**
              * Amount Clp
              * @description `amount` convertido a CLP vía tipo de cambio, SOLO cuando `currency` != 'CLP'. Null cuando ya es CLP (usar `amount`), cuando no hay tipo de cambio disponible, o cuando la moneda no se pudo verificar (`currency_status` != 'verified').
              */
             amount_clp?: string | null;
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * Category
              * @enum {string}
@@ -21015,14 +21306,19 @@ export interface components {
         PayablePayrollHighlight: {
             /**
              * Amount
-             * @description Monto original en `currency`; string-decimal en JSON.
+             * @description Monto original en `currency`; string-decimal en JSON. `null` si el documento está en cuarentena de conciliación (#687).
              */
-            amount: string;
+            amount: string | null;
             /**
              * Amount Clp
              * @description Conversión a CLP capturada en el mismo snapshot AP+FX. `null` para montos ya CLP (se usa `amount`), cuando falta un tipo de cambio publicable, o cuando la moneda no se pudo verificar.
              */
             amount_clp: string | null;
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * Category
              * @constant
@@ -21117,6 +21413,14 @@ export interface components {
         PaymentMovementCandidates: {
             /** Items */
             items: components["schemas"]["PaymentMovement"][];
+        };
+        /** PayrollBatchRevertRequest */
+        PayrollBatchRevertRequest: {
+            /**
+             * Bank Movement Id
+             * @description Movimiento bancario del pago de lote a deshacer (de `links` en el GET).
+             */
+            bank_movement_id: string;
         };
         /**
          * PayrollDetailEmployee
@@ -22160,17 +22464,14 @@ export interface components {
             evaluation_id: string;
             /** Focused Abstention Reason */
             focused_abstention_reason: "focus_evidence_unavailable" | null;
-            /**
-             * Freshness Reason
-             * @constant
-             */
-            freshness_reason: "source_lineage_not_available";
+            /** Freshness Reason */
+            freshness_reason: string;
             /**
              * Freshness State
-             * @description D09 no infiere frescura desde la fecha de cálculo. Permanece unknown hasta que todas las fuentes del score aporten evidencia D10 consumible.
-             * @constant
+             * @description D09 publica la evidencia D10 sellada con el snapshot; no la recompone hoy.
+             * @enum {string}
              */
-            freshness_state: "unknown";
+            freshness_state: "fresh" | "warning" | "stale" | "unknown";
             /** Input Snapshot Id */
             input_snapshot_id: string;
             /** Knockout Cap */
@@ -22437,6 +22738,13 @@ export interface components {
              * @default 0
              */
             count: number;
+            /**
+             * Due Date Overlay Coverage
+             * @description Cobertura del overlay de vencimientos. Cache legado o identidad histórica ambigua declaran abstención; nunca se usa la sociedad seleccionada hoy.
+             */
+            due_date_overlay_coverage?: {
+                [key: string]: unknown;
+            } | null;
             /** Error */
             error?: string | null;
             /**
@@ -22461,6 +22769,94 @@ export interface components {
             status: string;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * RcvD08GateResponse
+         * @description `GET /api/sii/rcv/d08-gate`: estado observable de la compuerta del dual-write D08.
+         *
+         *     `overall=unobserved` cuando no hay observación (ausencia nunca es `enabled`). `enabled` sólo
+         *     dice que el dual-write prospectivo corrió: no autoriza backfill, shadow-read ni consumidores.
+         */
+        RcvD08GateResponse: {
+            d07_prerequisite: components["schemas"]["RcvD08Prerequisite"];
+            identity_gate: components["schemas"]["RcvD08GateState"] | null;
+            /**
+             * Overall
+             * @enum {string}
+             */
+            overall: "enabled" | "disabled" | "unobserved";
+            /** Source Accounts */
+            source_accounts: components["schemas"]["RcvD08GateState"][];
+            /**
+             * Source Code
+             * @constant
+             */
+            source_code: "sii_rcv";
+        };
+        /**
+         * RcvD08GateState
+         * @description Último estado observado de una compuerta D08 (tenant o cuenta fuente ``cl_rut``).
+         */
+        RcvD08GateState: {
+            /**
+             * Attribution
+             * @enum {string}
+             */
+            attribution: "tenant_level" | "legal_entity" | "unclaimed" | "ambiguous";
+            /**
+             * Consecutive Disabled Count
+             * @description Observaciones cerradas seguidas; 0 cuando está abierta.
+             */
+            consecutive_disabled_count: number;
+            /** Last Disabled At */
+            last_disabled_at?: string | null;
+            /** Last Enabled At */
+            last_enabled_at?: string | null;
+            /**
+             * Legal Entity Id
+             * @description Sociedad que HOY declara ese RUT (resuelta al leer, nunca persistida). Null si es la fila del tenant o si ninguna/más de una sociedad lo declara.
+             */
+            legal_entity_id: string | null;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /**
+             * Period
+             * @description Período RCV (YYYYMM) de la última observación.
+             */
+            period: string;
+            /**
+             * Producer
+             * @enum {string}
+             */
+            producer: "sync_rcv" | "rcv_backfill";
+            /**
+             * Provider Account Ref
+             * @description `cl_rut:<rut>` de la cuenta fuente RCV; null = compuerta de identidad del tenant.
+             */
+            provider_account_ref: string | null;
+            /**
+             * Reason Code
+             * @description Código cerrado del cierre (null sólo si `enabled`), p.ej. `observed_company_rut_mismatch` o `missing_scope:legal_entity_identity`.
+             */
+            reason_code: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "enabled" | "disabled";
+        };
+        /** RcvD08Prerequisite */
+        RcvD08Prerequisite: {
+            /** Reason Code */
+            reason_code: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "not_credited";
         };
         /**
          * RcvDocumento
@@ -22652,6 +23048,13 @@ export interface components {
              * @default 0
              */
             count: number;
+            /**
+             * Due Date Overlay Coverage
+             * @description Cobertura del overlay de vencimientos. Cache legado o identidad histórica ambigua declaran abstención; nunca se usa la sociedad seleccionada hoy.
+             */
+            due_date_overlay_coverage?: {
+                [key: string]: unknown;
+            } | null;
             /** Error */
             error?: string | null;
             /**
@@ -22787,9 +23190,14 @@ export interface components {
         ReceivableCurrencyTotal: {
             /**
              * Amount
-             * @description Suma cruda del saldo pendiente en esa moneda (SIN convertir). Puede ser negativa: las notas de crédito netean dentro de su moneda.
+             * @description Suma cruda del saldo pendiente en esa moneda (SIN convertir). Puede ser negativa: las notas de crédito netean dentro de su moneda. `null` = desconocido por una cuarentena de conciliación viva en esa moneda (#687); nunca una suma parcial.
              */
-            amount: string;
+            amount: string | null;
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * Currency
              * @description Moneda ISO-4217 (ej. 'CLP', 'USD'). Cadena VACÍA si el documento no declara moneda: es un 'no sé' explícito y no se normaliza a 'CLP'.
@@ -22827,6 +23235,11 @@ export interface components {
          */
         ReceivableDebtorCurrencyTotal: {
             /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando los montos de esta moneda son desconocidos porque hay evidencia de pago en revisión (#687); entonces todos los montos van `null` (nunca una suma parcial ni cero). `null` si los montos son conocidos.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
+            /**
              * Currency
              * @description Código de moneda conocido; null cuando la fuente no permite determinarlo.
              */
@@ -22858,6 +23271,11 @@ export interface components {
         };
         /** ReceivableDebtorsResponse */
         ReceivableDebtorsResponse: {
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` si alguna moneda del directorio tiene montos desconocidos por cuarentena de conciliación (#687).
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * As Of
              * Format: date-time
@@ -22925,6 +23343,8 @@ export interface components {
         };
         /** ReceivableDocumentItem */
         ReceivableDocumentItem: {
+            /** Amount Unknown Reason */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /**
              * Ceded
              * @default false
@@ -22971,15 +23391,21 @@ export interface components {
              * Format: date
              */
             issue_date: string;
-            /** Outstanding Amount */
-            outstanding_amount: string;
+            /**
+             * Outstanding Amount
+             * @description `null` si el documento está en cuarentena de conciliación (#687).
+             */
+            outstanding_amount: string | null;
             /**
              * Status
              * @enum {string}
              */
             status: "open" | "partially_paid" | "paid" | "cancelled";
-            /** Total Amount */
-            total_amount: string;
+            /**
+             * Total Amount
+             * @description `null` si el documento está en cuarentena de conciliación (#687).
+             */
+            total_amount: string | null;
         };
         /** ReceivableDocumentsResponse */
         ReceivableDocumentsResponse: {
@@ -23012,13 +23438,23 @@ export interface components {
         };
         /** ReceivableMoneyTotal */
         ReceivableMoneyTotal: {
-            /** Amount */
-            amount: string;
+            /**
+             * Amount
+             * @description Suma en la moneda. `null` = desconocida por una cuarentena de conciliación viva en esa moneda (#687); nunca una suma parcial ni cero.
+             */
+            amount: string | null;
+            /** Amount Unknown Reason */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /** Currency */
             currency: string;
         };
         /** ReceivableNetBridge */
         ReceivableNetBridge: {
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando los montos de esta moneda son desconocidos porque hay evidencia de pago en revisión (#687); entonces todos los montos van `null` (nunca una suma parcial ni cero). `null` si los montos son conocidos.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /** Ceded Excluded Total */
             ceded_excluded_total: string | null;
             /** Collectable Total */
@@ -23069,6 +23505,11 @@ export interface components {
         };
         /** ReceivableRankingBridge */
         ReceivableRankingBridge: {
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando los montos de esta moneda son desconocidos porque hay evidencia de pago en revisión (#687); entonces todos los montos van `null` (nunca una suma parcial ni cero). `null` si los montos son conocidos.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /** Currency */
             currency: string | null;
             /**
@@ -23318,6 +23759,8 @@ export interface components {
         ReconciliationDetail: {
             /** Allocations */
             allocations: components["schemas"]["AllocationDetail"][];
+            /** Amount Unknown Reason */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /** Components */
             components: components["schemas"]["ComponentDetail"][];
             current_case?: components["schemas"]["CaseDetail"] | null;
@@ -23329,8 +23772,11 @@ export interface components {
             history: components["schemas"]["CaseDetail"][];
             /** Legacy Documents */
             legacy_documents: components["schemas"]["LegacyDocumentDetail"][];
-            /** Remaining Amount */
-            remaining_amount: string;
+            /**
+             * Remaining Amount
+             * @description Saldo del movimiento aún no resuelto. `null` si el movimiento o un documento conciliado está en cuarentena de conciliación (#687): su resolución está en revisión.
+             */
+            remaining_amount: string | null;
             /** Stored Status */
             stored_status: string;
             /** Topology */
@@ -23493,6 +23939,34 @@ export interface components {
             movement_id: string;
             /** Status */
             status: string;
+        };
+        /**
+         * ReleaseIdentityResponse
+         * @description Source identity baked by the Dockerfile into the immutable artefact.
+         */
+        ReleaseIdentityResponse: {
+            /** Build Id */
+            build_id: string;
+            /** Source Archive Sha256 */
+            source_archive_sha256: string;
+            /** Source Sha */
+            source_sha: string;
+            /** Source Tree */
+            source_tree: string;
+            /** Version */
+            version: string;
+        };
+        /**
+         * ReleaseProvenanceResponse
+         * @description Public release provenance; unavailable means the artefact is not certified.
+         */
+        ReleaseProvenanceResponse: {
+            release?: components["schemas"]["ReleaseIdentityResponse"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "unavailable";
         };
         /** RemanenteSeedRequest */
         RemanenteSeedRequest: {
@@ -24580,6 +25054,33 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * SiiPeriodResult
+         * @description Resultado observado de un mes RCV (ventas + compras) dentro del sync.
+         */
+        SiiPeriodResult: {
+            /**
+             * Documents Read
+             * @description Documentos que entregó el SII para el mes; null si no respondió.
+             */
+            documents_read?: number | null;
+            /**
+             * Period
+             * @description Mes RCV `YYYY-MM` (calendario America/Santiago).
+             */
+            period: string;
+            /**
+             * Reason
+             * @description Causa técnica si no es éxito.
+             */
+            reason?: string | null;
+            /**
+             * Status
+             * @description 'ok' (importado), 'empty' (el SII respondió sin documentos), 'incomplete' (importado con documentos no atribuibles a una sociedad), 'failed' (el SII o la persistencia fallaron tras reintentos), 'not_attempted' (el sync se cortó antes).
+             * @enum {string}
+             */
+            status: "ok" | "empty" | "incomplete" | "failed" | "not_attempted";
+        };
         /** SiiPersonStatus */
         SiiPersonStatus: {
             /**
@@ -25253,11 +25754,21 @@ export interface components {
         /** SyncSourceResult */
         SyncSourceResult: {
             /**
+             * Periods
+             * @description Estado por mes del SII sincronizado dentro del request; null si no aplica.
+             */
+            periods?: components["schemas"]["SiiPeriodResult"][] | null;
+            /**
+             * Run Id
+             * @description Run consultable en `/api/onboarding/sync-runs/{run_id}` cuando es 'queued'.
+             */
+            run_id?: string | null;
+            /**
              * Status
-             * @description 'ok' (sincronizó), 'failed' (lo intentó y falló), 'skipped' (no conectada).
+             * @description 'ok' (sincronizó todos los meses pedidos), 'failed' (lo intentó y al menos un mes falló o quedó incompleto), 'skipped' (no conectada), 'queued' (la importación inicial corre en segundo plano: consultar `run_id`).
              * @enum {string}
              */
-            status: "ok" | "failed" | "skipped";
+            status: "ok" | "failed" | "skipped" | "queued";
         };
         /** TarjetaCredito */
         TarjetaCredito: {
@@ -25372,6 +25883,8 @@ export interface components {
              * @description Las obligaciones, ordenadas por fecha.
              */
             events?: components["schemas"]["TaxEvent"][];
+            /** @description Cobertura F29: sin `complete`, faltan obligaciones F29 de monto desconocido. */
+            f29_coverage?: components["schemas"]["TaxF29Coverage"];
             /**
              * Horizon Days
              * @description Ventana hacia adelante considerada (días).
@@ -25379,9 +25892,9 @@ export interface components {
             horizon_days: number;
             /**
              * Total
-             * @description Σ de las obligaciones de la ventana (CLP).
+             * @description Σ de las obligaciones de la ventana (CLP). null cuando `f29_coverage` no es complete: la parte F29 es desconocida y un Σ parcial no es el total.
              */
-            total: string;
+            total: string | null;
         };
         /** TaxEvent */
         TaxEvent: {
@@ -25410,6 +25923,24 @@ export interface components {
              * @description Fuente de la obligación: 'f29' | 'previred'.
              */
             tipo: string;
+        };
+        /**
+         * TaxF29Coverage
+         * @description Cobertura del F29 dentro del calendario.
+         */
+        TaxF29Coverage: {
+            /** Reason Code */
+            reason_code?: ("f29_legacy_unattributed" | "f29_scope_unavailable") | null;
+            /** Remediation */
+            remediation?: "rematerialize_required" | null;
+            /**
+             * Status
+             * @description complete | incomplete (F29 histórico sin sociedad sobre una obligación pendiente) | unavailable (sin FinancialScope único: el F29 no se leyó).
+             * @enum {string}
+             */
+            status: "complete" | "incomplete" | "unavailable";
+            /** Unattributed Periods */
+            unattributed_periods?: string[];
         };
         /** TaxIdEvidenceState */
         TaxIdEvidenceState: {
@@ -25666,6 +26197,11 @@ export interface components {
         };
         /** TopDebtor */
         TopDebtor: {
+            /**
+             * Amount Unknown Reason
+             * @description `reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.
+             */
+            amount_unknown_reason?: "reconciliation_quarantine" | null;
             /** Name */
             name: string;
             /**
@@ -25683,8 +26219,11 @@ export interface components {
              * @description RUT contraparte (del devengado); null si falta.
              */
             rut?: string | null;
-            /** Total */
-            total: string;
+            /**
+             * Total
+             * @description Saldo vivo del deudor. `null` = desconocido por cuarentena de conciliación (#687); nunca se muestra como cero.
+             */
+            total: string | null;
         };
         /** UnclassifiedComposition */
         UnclassifiedComposition: {
@@ -28596,7 +29135,65 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description La fuente tenant-wide exige una sola sociedad legal. */
+            /** @description La fuente tenant-wide exige una sola sociedad legal, o el link es parte de un pago de lote (`payroll_batch_revert_requires_decision`): se deshace con `POST /api/admin/treasury/payroll-reconcile/revert-batch`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_payroll_reconcile_revert_batch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayrollBatchRevertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Rol sin permiso (owner/admin/technical_admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El movimiento bancario no existe para el tenant y su sociedad. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La fuente tenant-wide exige una sola sociedad legal, o el lote cambió durante la reversa (no se escribió nada). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -29698,6 +30295,13 @@ export interface operations {
             };
             /** @description Movimiento o cuenta de gestión no existe en el tenant. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The requested rule has no legal-entity attribution. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -31502,14 +32106,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description El parent_id no existe en el tenant. */
+            /** @description El parent_id no existe en la Empresa. */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Ya existe una cuenta con ese code. */
+            /** @description Ya existe una cuenta con ese code en la Empresa, o no hay Empresa activa (`missing_scope:legal_entity`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -31549,6 +32153,13 @@ export interface operations {
                     "application/json": components["schemas"]["ManagementAccountTreeResponse"];
                 };
             };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -31586,6 +32197,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ManagementAccount"];
                 };
+            };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -31625,6 +32243,13 @@ export interface operations {
                     "application/json": components["schemas"]["ManagementAccount"];
                 };
             };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description El move generaría un ciclo. */
             422: {
                 headers: {
@@ -31656,6 +32281,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ManagementAccount"];
                 };
+            };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -31690,6 +32322,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ManagementAccount"];
                 };
+            };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -32471,7 +33110,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description BHE tenant-wide requiere una única sociedad. */
+            /** @description Las decisiones documentales requieren una única sociedad. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -32518,7 +33157,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description BHE tenant-wide requiere una única sociedad. */
+            /** @description Las decisiones documentales requieren una única sociedad. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -32555,6 +33194,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProposalsResponse"];
                 };
+            };
+            /** @description Document decisions require a single legal entity. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -32596,7 +33242,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description BHE tenant-wide requiere una única sociedad. */
+            /** @description Las decisiones documentales requieren una única sociedad. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -32643,7 +33289,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description BHE tenant-wide requiere una única sociedad. */
+            /** @description Las decisiones documentales requieren una única sociedad. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -32685,6 +33331,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClassifyRunResponse"];
                 };
+            };
+            /** @description Document decisions require a single legal entity. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description period_from/period_to mal formados, invertidos o > 36 meses. */
             422: {
@@ -33617,6 +34270,13 @@ export interface operations {
                     "application/json": components["schemas"]["BudgetByAccountResponse"];
                 };
             };
+            /** @description Falta FinancialScope societario verificable; el reader se abstiene. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description period mal formado. */
             422: {
                 headers: {
@@ -33651,6 +34311,13 @@ export interface operations {
                     "application/json": components["schemas"]["BudgetClosingProjectionResponse"];
                 };
             };
+            /** @description Falta FinancialScope societario verificable; el reader se abstiene. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description year/as_of mal formado. */
             422: {
                 headers: {
@@ -33682,6 +34349,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BudgetVsActualResponse"];
                 };
+            };
+            /** @description Falta FinancialScope societario verificable; el reader se abstiene. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description period mal formado. */
             422: {
@@ -33753,6 +34427,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BudgetGridResponse"];
                 };
+            };
+            /** @description Falta FinancialScope societario verificable; el reader se abstiene. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -33943,7 +34624,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Dominio inválido (CHECK / FK / NOT NULL). */
+            /** @description Dominio inválido (CHECK / FK / NOT NULL), o `bank_movement_currency_unverified`: el movimiento de origen no tiene moneda verificada (#370). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -34129,6 +34810,13 @@ export interface operations {
                     "application/json": components["schemas"]["FinancialVersionsResponse"];
                 };
             };
+            /** @description No existe un FinancialScope verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -34207,8 +34895,15 @@ export interface operations {
                     "application/json": components["schemas"]["FinancialVersion"];
                 };
             };
-            /** @description No existe (o cross-tenant). */
+            /** @description No existe (o cross-society). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe un FinancialScope verificable. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -34733,6 +35428,26 @@ export interface operations {
             };
         };
     };
+    get_release_provenance_api_release_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseProvenanceResponse"];
+                };
+            };
+        };
+    };
     reversible_actions_list: {
         parameters: {
             query?: {
@@ -34805,6 +35520,13 @@ export interface operations {
             };
             /** @description La acción no existe para este tenant. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe un FinancialScope verificable para deshacer efectos financieros. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -36070,6 +36792,44 @@ export interface operations {
             };
         };
     };
+    sii_rcv_d08_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RcvD08GateResponse"];
+                };
+            };
+            /** @description Request sin tenant verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     sii_rcv_ventas: {
         parameters: {
             query: {
@@ -36765,7 +37525,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Cuenta e impactos derivados reatribuidos atómicamente. */
+            /** @description Cuenta no atribuida e impactos derivados atribuidos atómicamente. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -36781,6 +37541,13 @@ export interface operations {
             };
             /** @description La cuenta no existe para el tenant. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La cuenta ya pertenece a una sociedad; no se reasigna implícitamente. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -36931,6 +37698,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Active rules have no legal-entity attribution. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -37023,6 +37797,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Active rules have no legal-entity attribution. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -37064,6 +37845,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Active rules have no legal-entity attribution. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -37097,6 +37885,13 @@ export interface operations {
             };
             /** @description Rol sin permiso de escritura (ADR-0028, §20). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Active rules have no legal-entity attribution. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -37274,6 +38069,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description The requested rule has no legal-entity attribution. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Body inválido (management_account_id requerido). */
             422: {
                 headers: {
@@ -37423,6 +38225,13 @@ export interface operations {
             };
             /** @description Movimiento no existe en el tenant. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Active rules have no legal-entity attribution. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -37938,6 +38747,13 @@ export interface operations {
                     "application/json": components["schemas"]["ClassificationRulesResponse"];
                 };
             };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -37983,8 +38799,15 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description El management_account_id no existe en el tenant. */
+            /** @description El management_account_id no existe en la Empresa activa. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -38026,6 +38849,13 @@ export interface operations {
                     "application/json": components["schemas"]["ClassificationRule"];
                 };
             };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -38059,6 +38889,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClassificationRule"];
                 };
+            };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -38094,8 +38931,15 @@ export interface operations {
                     "application/json": components["schemas"]["ClassificationRuleUsage"];
                 };
             };
-            /** @description La regla no existe en el tenant. */
+            /** @description La regla no existe en la Empresa activa. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -39515,6 +40359,13 @@ export interface operations {
                     "application/json": components["schemas"]["ForeignPurchasesListResponse"];
                 };
             };
+            /** @description No existe FinancialScope verificable para la lectura. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -39561,6 +40412,13 @@ export interface operations {
             };
             /** @description La compra no existe para el tenant. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe FinancialScope verificable para la compra. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -40703,6 +41561,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description El tenant tiene más de una sociedad y la nómina aún no tiene sociedad atribuida (`payroll_classifications_require_single_legal_entity`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -40750,6 +41615,13 @@ export interface operations {
             };
             /** @description Rol sin permiso (owner/admin). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El tenant tiene más de una sociedad y la nómina aún no tiene sociedad atribuida (`payroll_classifications_require_single_legal_entity`). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -42123,6 +42995,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CashFlowReportResponse"];
                 };
+            };
+            /** @description No existe una sociedad legal verificable o una moneda funcional declarada; el reporte no agrega flujos tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Params inválidos (rango invertido, currency_code faltante, granularity con rango excesivo, period mal formado). */
             422: {

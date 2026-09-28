@@ -40,6 +40,7 @@ const meta = {
         egresos: 3500000,
         neto: 2500000,
       },
+      excluidosMonedaNoVerificada: 0,
     },
   },
 } satisfies Meta<typeof FlujoCajaWidget>;

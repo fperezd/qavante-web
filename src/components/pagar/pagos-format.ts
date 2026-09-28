@@ -6,8 +6,14 @@ import { formatMoney } from "@/lib/formatters/clp";
 
 /** Implementación ÚNICA en `@/lib/formatters/amount`; se re-exporta acá para no
  *  tocar los llamadores de este módulo. */
-import { parseAmount } from "@/lib/formatters/amount";
+import { MONTO_EN_REVISION, parseAmount } from "@/lib/formatters/amount";
 export { parseAmount };
+
+/** Saldo DESCONOCIDO por cuarentena de conciliación (qavante-api#907): `amount` viene `null`.
+ *  No es cero ni "sin convertir": es un monto en revisión que no se muestra ni se suma. */
+export function montoEnRevision(item: Pick<PayableItem, "amount">): boolean {
+  return item.amount == null;
+}
 
 /** `amount_clp` "en blanco": `null`, `undefined` o string vacío. El backend manda `""` (no solo
  *  `null`) cuando no hay conversión → hay que tratarlo como ausente, que `??` no hace (solo cubre
@@ -31,6 +37,7 @@ export function monedaVerificada(
  *  pesos y NO debemos inventarlo con el nominal (US$1.240 ≠ $1.240). El backend debería mandar siempre
  *  `amount_clp` para las extranjeras (gap escalado, issue #726). Compartido por Pagar clásico y v2. */
 export function montoCLPFaltante(item: PayableItem): boolean {
+  if (montoEnRevision(item)) return true;
   if (!monedaVerificada(item)) return true;
   const extranjera = item.currency !== "CLP";
   return extranjera && amountClpEnBlanco(item.amount_clp);
@@ -43,6 +50,7 @@ export function montoCLPFaltante(item: PayableItem): boolean {
  *  (subestimando el total). */
 export function montoCLP(item: PayableItem): number {
   if (montoCLPFaltante(item)) return 0;
+  // `montoCLPFaltante` ya descartó el monto en revisión (`amount: null`, #907).
   return parseAmount(amountClpEnBlanco(item.amount_clp) ? item.amount : item.amount_clp);
 }
 
@@ -61,6 +69,8 @@ export function multiCurrencyNote(
   return verified
     .map((it) => {
       const cur = it.currency.toUpperCase();
+      // #907: la moneda en cuarentena no tiene cifra; se nombra, no se escribe $0.
+      if (it.amount == null) return `${MONTO_EN_REVISION.toLowerCase()} (${cur})`;
       return `${formatMoney(parseAmount(it.amount), cur)} (${cur})`;
     })
     .join(" + ");

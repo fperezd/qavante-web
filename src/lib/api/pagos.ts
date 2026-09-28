@@ -1,3 +1,4 @@
+import { AMOUNT_UNKNOWN_QUARANTINE } from "@/lib/formatters/amount";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import { dashboardKeys } from "./dashboard";
@@ -35,7 +36,9 @@ export interface PayableItem extends Omit<
   category: PaymentCategory;
   /** Fecha estimada de pago (ISO date "YYYY-MM-DD"). */
   due_date: string;
-  amount: string;
+  /** Saldo del pago. `null` = DESCONOCIDO porque el documento está en cuarentena de
+   *  conciliación (qavante-api#907, #687): viene con `amount_unknown_reason`. Nunca es 0. */
+  amount: string | null;
   criticality: "high" | "medium" | "low";
   /** Fuente del dato en lenguaje humano (ej. "SII", "Previred", "Manual"). */
   source: string;
@@ -329,13 +332,35 @@ function isCurrencyEvidence(value: Record<string, unknown>): boolean {
     : currency === null;
 }
 
+/** `true` si el registro declara su importe desconocido por cuarentena. */
+function isQuarantined(value: Record<string, unknown>): boolean {
+  return value.amount_unknown_reason === AMOUNT_UNKNOWN_QUARANTINE;
+}
+
+/** Motivo ausente, `null` o el de cuarentena. Cualquier otro valor es un contrato roto. */
+function isUnknownReason(value: Record<string, unknown>): boolean {
+  const reason = value.amount_unknown_reason;
+  return reason === undefined || reason === null || reason === AMOUNT_UNKNOWN_QUARANTINE;
+}
+
+/**
+ * Un importe conocido (string-decimal) o, sólo con el motivo de cuarentena, `null`. Un `null`
+ * sin motivo, o un importe junto al motivo, se rechazan: "desconocido" no es cero ni se mezcla
+ * con una cifra.
+ */
+function isAmountOrQuarantined(owner: Record<string, unknown>, amount: unknown): boolean {
+  if (!isUnknownReason(owner)) return false;
+  return isQuarantined(owner) ? amount === null : decimal(amount) !== null;
+}
+
 function isCurrencyTotals(value: unknown): value is Array<Record<string, unknown>> {
   if (!Array.isArray(value)) return false;
   const currencies = value.map((entry) => (isRecord(entry) ? entry.currency : null));
   return (
     new Set(currencies).size === currencies.length &&
     value.every(
-      (entry) => isRecord(entry) && isCurrencyEvidence(entry) && decimal(entry.amount) !== null,
+      (entry) =>
+        isRecord(entry) && isCurrencyEvidence(entry) && isAmountOrQuarantined(entry, entry.amount),
     )
   );
 }
@@ -344,7 +369,20 @@ function isAggregate(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) return false;
   const complete = value.complete;
   const excluded = value.excluded_by_currency;
+  // Cuarentena (#907): el universo del bucket es desconocido. No hay "parte conocida", ni
+  // monto completo, ni puede declararse completo.
+  if (isQuarantined(value)) {
+    return (
+      value.amount_clp === null &&
+      value.known_amount_clp === null &&
+      complete === false &&
+      isCount(value.count) &&
+      isCount(value.unknown_due_date_count) &&
+      isCurrencyTotals(excluded)
+    );
+  }
   const valid =
+    isUnknownReason(value) &&
     (value.amount_clp === null || decimal(value.amount_clp) !== null) &&
     decimal(value.known_amount_clp) !== null &&
     typeof value.complete === "boolean" &&
@@ -365,10 +403,10 @@ function isAggregate(value: unknown): value is Record<string, unknown> {
 function isNonNegativeAggregate(value: unknown): value is Record<string, unknown> {
   return (
     isAggregate(value) &&
-    isNonNegativeDecimal(value.known_amount_clp) &&
+    (isQuarantined(value) || isNonNegativeDecimal(value.known_amount_clp)) &&
     (value.amount_clp === null || isNonNegativeDecimal(value.amount_clp)) &&
-    (value.excluded_by_currency as Array<Record<string, unknown>>).every((bucket) =>
-      isNonNegativeDecimal(bucket.amount),
+    (value.excluded_by_currency as Array<Record<string, unknown>>).every(
+      (bucket) => isQuarantined(bucket) || isNonNegativeDecimal(bucket.amount),
     )
   );
 }
@@ -479,14 +517,14 @@ function isPayableItem(value: unknown): boolean {
     value.label.trim().length > 0 &&
     CATEGORIES.includes(value.category as (typeof CATEGORIES)[number]) &&
     isIsoCalendarDate(value.due_date) &&
-    decimal(value.amount) !== null &&
+    isAmountOrQuarantined(value, value.amount) &&
     CRITICALITIES.includes(value.criticality as (typeof CRITICALITIES)[number]) &&
     typeof value.source === "string" &&
     value.source.trim().length > 0 &&
     isCurrencyEvidence(value) &&
     (value.amount_clp === undefined ||
       value.amount_clp === null ||
-      decimal(value.amount_clp) !== null) &&
+      (!isQuarantined(value) && decimal(value.amount_clp) !== null)) &&
     typeof value.reclamado === "boolean"
   );
 }
@@ -499,10 +537,74 @@ function isNextPayroll(value: unknown): boolean {
       typeof value.label === "string" &&
       value.label.trim().length > 0 &&
       isIsoCalendarDate(value.due_date) &&
-      decimal(value.amount) !== null &&
+      isAmountOrQuarantined(value, value.amount) &&
       isCurrencyEvidence(value) &&
-      (value.amount_clp === null || decimal(value.amount_clp) !== null) &&
+      (value.amount_clp === null ||
+        (!isQuarantined(value) && decimal(value.amount_clp) !== null)) &&
       typeof value.is_overdue === "boolean")
+  );
+}
+
+/**
+ * Totales de Pagar. Con cuarentena AP viva (qavante-api#907) TODOS son desconocidos: `total`,
+ * tramos y sin-fecha vienen `null`, los resúmenes también, y la curva no se publica (la curva
+ * resta esos mismos payables). Nada de eso es un piso ni una suma parcial. Sin cuarentena rigen
+ * las invariantes de siempre.
+ */
+function hasCoherentTotals(value: Record<string, unknown>): boolean {
+  if (!isUnknownReason(value)) return false;
+  const summaries: unknown[] = [
+    value.non_postponable_or_overdue_14d,
+    value.overdue_summary,
+    value.undated_summary,
+    value.credits,
+    ...(Array.isArray(value.by_category) ? value.by_category : []),
+  ];
+  if (isQuarantined(value)) {
+    return (
+      value.total === null &&
+      value.due_7d === null &&
+      value.due_14d === null &&
+      value.due_30d === null &&
+      value.undated_amount === null &&
+      value.cash_projection_publicable_14d === false &&
+      (value.projected_cash_14d === undefined || value.projected_cash_14d === null) &&
+      (value.covers_critical === undefined || value.covers_critical === null) &&
+      summaries.every((summary) => isRecord(summary) && isQuarantined(summary))
+    );
+  }
+  const byCategory = value.by_category as Array<Record<string, unknown>>;
+  const undatedSummary = value.undated_summary as Record<string, unknown>;
+  return (
+    summaries.every((summary) => isRecord(summary) && !isQuarantined(summary)) &&
+    decimalSumEquals(
+      byCategory.map((entry) => entry.known_amount_clp),
+      value.total,
+    ) &&
+    decimal(value.total) !== null &&
+    isNonNegativeDecimal(value.due_7d) &&
+    isNonNegativeDecimal(value.due_14d) &&
+    isNonNegativeDecimal(value.due_30d) &&
+    compareDecimal(decimal(value.due_7d)!, decimal(value.due_14d)!) <= 0 &&
+    compareDecimal(decimal(value.due_14d)!, decimal(value.due_30d)!) <= 0 &&
+    isNonNegativeDecimal(value.undated_amount) &&
+    decimalEquals(undatedSummary.known_amount_clp, value.undated_amount)
+  );
+}
+
+/**
+ * Moneda de la curva de 14 días (#370 v1, qavante-api#905). Una ISO-4217 verificada, o `null`
+ * cuando ni la proyección ni la empresa la acreditan. `null` es abstención: sólo es coherente si
+ * la curva tampoco publica cifras. Una cifra con unidad `null` se rechaza, y nunca se completa
+ * con CLP.
+ */
+function isProjectedCashCurrency(value: Record<string, unknown>): boolean {
+  const currency = value.projected_cash_currency;
+  if (typeof currency === "string") return /^[A-Z]{3}$/.test(currency);
+  return (
+    currency === null &&
+    value.cash_projection_publicable_14d === false &&
+    (value.projected_cash_14d === undefined || value.projected_cash_14d === null)
   );
 }
 
@@ -544,20 +646,9 @@ export function assertAccountsPayableResponse(value: unknown): D02AccountsPayabl
     isAggregate(value.undated_summary) &&
     isAggregate(value.credits) &&
     isEnumBuckets(value.by_category, "category", CATEGORIES, true) &&
-    decimalSumEquals(
-      value.by_category.map((entry) => entry.known_amount_clp),
-      value.total,
-    ) &&
-    decimal(value.total) !== null &&
-    isNonNegativeDecimal(value.due_7d) &&
-    isNonNegativeDecimal(value.due_14d) &&
-    isNonNegativeDecimal(value.due_30d) &&
-    compareDecimal(decimal(value.due_7d)!, decimal(value.due_14d)!) <= 0 &&
-    compareDecimal(decimal(value.due_14d)!, decimal(value.due_30d)!) <= 0 &&
-    isNonNegativeDecimal(value.undated_amount) &&
+    hasCoherentTotals(value) &&
     isCount(value.undated_count) &&
     value.undated_summary.count === value.undated_count &&
-    decimalEquals(value.undated_summary.known_amount_clp, value.undated_amount) &&
     (value.zero_balance_count === null || isCount(value.zero_balance_count)) &&
     isCurrencyTotals(value.excluded_from_total_by_currency) &&
     (value.total_by_currency === undefined || isCurrencyTotals(value.total_by_currency)) &&
@@ -570,8 +661,7 @@ export function assertAccountsPayableResponse(value: unknown): D02AccountsPayabl
     typeof value.confidence === "string" &&
     ["high", "medium", "low"].includes(value.confidence) &&
     isRfc3339DateTime(value.generated_at) &&
-    typeof value.projected_cash_currency === "string" &&
-    /^[A-Z]{3}$/.test(value.projected_cash_currency) &&
+    isProjectedCashCurrency(value) &&
     (value.projected_cash_14d === undefined ||
       value.projected_cash_14d === null ||
       decimal(value.projected_cash_14d) !== null) &&

@@ -2,6 +2,7 @@ import * as React from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION, MONTO_EN_REVISION_MOTIVO } from "@/lib/formatters/amount";
 import { QavanteButton } from "@/components/qavante";
 
 /* VencimientosTimeline — "Por vencer y vencidos" de Pagar v2: los pagos ordenados por
@@ -31,6 +32,9 @@ export interface Vencimiento {
   /** Extranjera sin `amount_clp`: no se pudo convertir a CLP (monto=0). La fila muestra el nominal
    *  de origen + "sin convertir" en vez de un "$0" engañoso (issue #726). */
   sinConversion?: boolean;
+  /** Monto DESCONOCIDO por cuarentena de conciliación (qavante-api#907): `monto` no es una
+   *  cifra (vale 0 sólo para ordenar) y la fila dice "En revisión". */
+  enRevision?: boolean;
   postergabilidad?: Postergabilidad;
   /** Monto estimado (ej. F29 antes de que el SII lo emita) → badge "Estimación". */
   estimado?: boolean;
@@ -129,7 +133,14 @@ export function VencimientosTimeline({
 
               {/* monto */}
               <span className="whitespace-nowrap text-right">
-                {it.sinConversion ? (
+                {it.enRevision ? (
+                  <span
+                    className="block text-[13px] font-semibold text-neutral-mid"
+                    title={MONTO_EN_REVISION_MOTIVO}
+                  >
+                    {MONTO_EN_REVISION}
+                  </span>
+                ) : it.sinConversion ? (
                   <>
                     <span className="block text-[14px] font-bold tabular-nums text-neutral-dark">
                       {it.montoOrigen}

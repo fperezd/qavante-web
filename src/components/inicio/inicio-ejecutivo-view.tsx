@@ -27,6 +27,17 @@ import {
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike, formatDateTimeLike } from "@/lib/formatters/date";
 import { parseAmount, isEmptySummary } from "./dashboard-format";
+import {
+  MONTO_EN_REVISION,
+  MONTO_EN_REVISION_MOTIVO,
+  importeDesconocido,
+} from "@/lib/formatters/amount";
+
+/** Monto del resumen, o "En revisión" cuando el backend lo publica `null` por cuarentena de
+ *  conciliación (qavante-api#907). Nunca `$0`. */
+function montoOEnRevision(raw: string | null): string {
+  return raw == null ? MONTO_EN_REVISION : formatClp(parseAmount(raw));
+}
 import { describeCashGap14d } from "./cash-gap-14d";
 import type { CashGap14dCifras, CashGap14dInput } from "./cash-gap-14d";
 import { PulsoRing } from "./pulso-ring";
@@ -192,7 +203,15 @@ export function Dashboard({
         <DashCard title="Cobranza vencida" href="/cobrar" cta="Ver cobranza">
           {data.overdue_collections ? (
             <>
-              {data.overdue_collections.overdue == null ? (
+              {importeDesconocido(data.overdue_collections) ? (
+                /* #907: cuarentena de conciliación viva → montos desconocidos, ni $0 ni "al día". */
+                <>
+                  <p className="text-sm">
+                    <span className="text-xl font-bold text-neutral-dark">{MONTO_EN_REVISION}</span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-neutral-mid">{MONTO_EN_REVISION_MOTIVO}</p>
+                </>
+              ) : data.overdue_collections.overdue == null ? (
                 /* El SII no entrega los vencimientos (data_state parcial) → el backend manda
                    `overdue: null`. NO lo pintamos como "$0" (mentiría "estás al día"): decimos
                    "sin dato" honesto y dejamos el total por cobrar a la vista. */
@@ -204,7 +223,7 @@ export function Dashboard({
                   <p className="mt-0.5 text-xs text-neutral-mid">
                     de{" "}
                     <span className="tabular-nums">
-                      {formatClp(parseAmount(data.overdue_collections.total_receivable))}
+                      {montoOEnRevision(data.overdue_collections.total_receivable)}
                     </span>{" "}
                     por cobrar · el SII aún no entrega los vencimientos
                   </p>
@@ -218,7 +237,7 @@ export function Dashboard({
                     <span className="text-neutral-mid">
                       vencido de{" "}
                       <span className="tabular-nums">
-                        {formatClp(parseAmount(data.overdue_collections.total_receivable))}
+                        {montoOEnRevision(data.overdue_collections.total_receivable)}
                       </span>
                     </span>
                   </p>
@@ -247,13 +266,10 @@ export function Dashboard({
           {data.critical_payments ? (
             <>
               <dl className="space-y-1.5 text-sm">
-                <Row
-                  label="Próx. 7 días"
-                  value={formatClp(parseAmount(data.critical_payments.due_7d))}
-                />
+                <Row label="Próx. 7 días" value={montoOEnRevision(data.critical_payments.due_7d)} />
                 <Row
                   label="Próx. 14 días"
-                  value={formatClp(parseAmount(data.critical_payments.due_14d))}
+                  value={montoOEnRevision(data.critical_payments.due_14d)}
                 />
               </dl>
               {data.critical_payments.next_critical && (

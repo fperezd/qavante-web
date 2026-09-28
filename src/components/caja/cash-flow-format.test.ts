@@ -11,6 +11,10 @@ import {
   isValidPeriodRange,
   parseDecimal,
   normalizeNet,
+  avisoMonedaNoVerificada,
+  avisosDelReporte,
+  excludedUnverifiedCurrency,
+  CURRENCY_UNVERIFIED_WARNING_CODE,
 } from "./cash-flow-format";
 
 describe("normalizeNet — colapsa -0 y fracciones que redondean a cero (#12)", () => {
@@ -242,5 +246,45 @@ describe("isValidPeriodRange", () => {
   it("comparación lexicográfica cruza años correctamente", () => {
     expect(isValidPeriodRange("2025-11", "2026-02")).toBe(true);
     expect(isValidPeriodRange("2026-02", "2025-11")).toBe(false);
+  });
+});
+
+describe("moneda sin procedencia verificada (#370, qavante-api#905)", () => {
+  const CODIGO =
+    "financial_impact_currency_unverified: 2 filas omitidas por moneda sin procedencia verificada; los totales están incompletos (no se asume CLP).";
+
+  it("lee el conteo del backend; ausente o inválido es 0 (API previa no excluía nada)", () => {
+    expect(excludedUnverifiedCurrency({ excluded_unverified_currency: 2 })).toBe(2);
+    expect(excludedUnverifiedCurrency({})).toBe(0);
+    expect(excludedUnverifiedCurrency(undefined)).toBe(0);
+    expect(excludedUnverifiedCurrency({ excluded_unverified_currency: -1 })).toBe(0);
+    expect(excludedUnverifiedCurrency({ excluded_unverified_currency: 1.5 })).toBe(0);
+  });
+
+  it("sin exclusiones no hay aviso; con exclusiones declara que los totales están incompletos", () => {
+    expect(avisoMonedaNoVerificada(0)).toBeNull();
+    expect(avisoMonedaNoVerificada(1)).toBe(
+      "1 movimiento clasificado quedó fuera de estos totales porque su moneda no está verificada. Los totales están incompletos: no incluyen ese monto.",
+    );
+    expect(avisoMonedaNoVerificada(3)).toMatch(/^3 movimientos clasificados quedaron fuera/);
+  });
+
+  it("reemplaza el aviso técnico por la frase de usuario y conserva los demás avisos", () => {
+    const otro = "3 filas omitidas por data_status='requires_attention'.";
+    const out = avisosDelReporte({ excluded_unverified_currency: 2, warnings: [CODIGO, otro] });
+    expect(out).toEqual([avisoMonedaNoVerificada(2), otro]);
+    // El código crudo no llega a la pantalla (el gemelo de arriba prueba que sí estaba).
+    expect(out.some((w) => w.includes(CURRENCY_UNVERIFIED_WARNING_CODE))).toBe(false);
+  });
+
+  it("el aviso técnico sin conteo igual se declara, sin cifra; nunca se descarta", () => {
+    expect(avisosDelReporte({ excluded_unverified_currency: 0, warnings: [CODIGO] })).toEqual([
+      "Hay movimientos clasificados fuera de estos totales porque su moneda no está verificada. Los totales están incompletos.",
+    ]);
+  });
+
+  it("sin exclusiones ni código, los avisos pasan intactos", () => {
+    expect(avisosDelReporte({ warnings: ["otro aviso"] })).toEqual(["otro aviso"]);
+    expect(avisosDelReporte({})).toEqual([]);
   });
 });

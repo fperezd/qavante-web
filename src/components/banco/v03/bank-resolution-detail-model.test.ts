@@ -150,6 +150,16 @@ describe("resolutionDetailFromApi", () => {
     expect(detail.reconciliation.canUnreconcile).toBe(true);
     expect(detail.reconciliation.topology).toBe("N:N");
     expect(detail.reconciliation.balanceFormatted).toBe("$0");
+    // #907: saldo `null` (cuarentena de conciliación) es "En revisión", nunca el "$0" de arriba.
+    const enRevision = resolutionDetailFromApi({
+      ...apiDetail,
+      reconciliation: {
+        ...apiDetail.reconciliation,
+        remaining_amount: null,
+        amount_unknown_reason: "reconciliation_quarantine",
+      },
+    } as MovementResolutionDetailResponse);
+    expect(enRevision.reconciliation.balanceFormatted).toBe("En revisión");
     expect(detail.reconciliation.allocations[0]?.kind).toBe("bank_movement");
     expect(detail.reconciliation.allocations[0]?.label).toBe("Segundo movimiento");
     expect(detail.reconciliation.allocations[1]?.origin?.href).toBe("/pagar/facturas-recibidas");

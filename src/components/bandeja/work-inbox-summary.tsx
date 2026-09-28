@@ -10,11 +10,11 @@ import {
   type WorkInboxResponse,
   useWorkInbox,
 } from "@/lib/api/work-inbox";
-import { formatMoneyFromDecimalString } from "@/lib/formatters/clp";
 import { formatCount } from "@/lib/formatters/count";
 import { formatDateLike } from "@/lib/formatters/date";
 import {
   emptyQueueLabel,
+  formattedInboxAmount,
   formattedQueueAmounts,
   pendingCount,
   queueCoverageLabel,
@@ -106,9 +106,7 @@ export function WorkInboxSummaryView({ inbox }: { inbox: WorkInboxResponse }) {
 }
 
 function PriorityRow({ priority }: { priority: WorkInboxPriority }) {
-  const amount = priority.currency
-    ? formatMoneyFromDecimalString(priority.amount, priority.currency)
-    : `${priority.amount} · moneda no informada`;
+  const amount = formattedInboxAmount(priority.amount, priority.currency);
   return (
     <li>
       <Link

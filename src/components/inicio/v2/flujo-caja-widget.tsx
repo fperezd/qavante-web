@@ -7,6 +7,7 @@ import { QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { cn } from "@/lib/utils";
 import type { FlujoCaja } from "./flujo-caja-model";
+import { avisoMonedaNoVerificada } from "@/components/caja/cash-flow-format";
 
 /* Widget "Flujo de caja" (real) del Inicio: lo que ENTRÓ y SALIÓ por mes cerrado, con barra doble
    (verde entró / rojo salió) y el neto. Responde "¿entra más de lo que sale?" de un vistazo.
@@ -23,6 +24,8 @@ export function FlujoCajaWidget({ data, href = "/caja", cta = "Ver caja" }: Fluj
   const maxAbs = Math.max(1, ...data.meses.map((m) => Math.max(m.ingresos, m.egresos)));
   // Más nuevo arriba; el primero se resalta.
   const filas = [...data.meses].reverse();
+  // #370: lo excluido por moneda no verificada se declara; los meses quedan como piso.
+  const avisoMoneda = avisoMonedaNoVerificada(data.excluidosMonedaNoVerificada);
 
   return (
     <QavanteCard
@@ -68,6 +71,12 @@ export function FlujoCajaWidget({ data, href = "/caja", cta = "Ver caja" }: Fluj
           );
         })}
       </ul>
+
+      {avisoMoneda && (
+        <p role="note" className="mt-2 text-[11px] leading-snug text-warning-700">
+          {avisoMoneda}
+        </p>
+      )}
 
       <Link
         href={href}

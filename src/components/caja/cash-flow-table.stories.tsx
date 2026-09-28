@@ -63,6 +63,7 @@ const sampleWeek: CashFlowReportResponse = {
     row_count: 47,
   },
   excluded_attention: 0,
+  excluded_unverified_currency: 0,
   warnings: [],
 };
 
@@ -91,6 +92,7 @@ export const ConFilasExcluidas: Story = {
     data: {
       ...sampleWeek,
       excluded_attention: 3,
+      excluded_unverified_currency: 0,
     },
   },
 };
@@ -155,6 +157,7 @@ export const Mensual: Story = {
         row_count: 324,
       },
       excluded_attention: 0,
+      excluded_unverified_currency: 0,
     },
   },
 };

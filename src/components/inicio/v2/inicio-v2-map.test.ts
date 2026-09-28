@@ -329,7 +329,7 @@ describe("mapPlanBrecha (Fase 2 · brecha + forecast)", () => {
   } as unknown as import("@/lib/api/treasury").CollectionForecastResponse;
 
   it("brecha parcial: acción cobrar (probable) + residual a financiar (por evaluar)", () => {
-    const p = mapPlanBrecha(10_000_000, forecast);
+    const p = mapPlanBrecha(10_000_000, forecast)!;
     expect(p.brechaTotal).toBe(10_000_000);
     expect(p.acciones).toHaveLength(2);
     expect(p.acciones[0]!.impacto).toBe(7_000_000);
@@ -343,7 +343,7 @@ describe("mapPlanBrecha (Fase 2 · brecha + forecast)", () => {
   });
 
   it("brecha cubierta por la cobranza: 1 acción, sin pendiente", () => {
-    const p = mapPlanBrecha(5_000_000, forecast); // esperado 7M ≥ 5M
+    const p = mapPlanBrecha(5_000_000, forecast)!; // esperado 7M ≥ 5M
     expect(p.acciones).toHaveLength(1);
     expect(p.acciones[0]!.impacto).toBe(5_000_000); // min(7M, brecha)
     expect(p.acciones[0]!.brechaRestante).toBe(0);

@@ -24,6 +24,7 @@ const base: CashFlowReportResponse = {
   currency: "functional",
   currency_code: "CLP",
   excluded_attention: 0,
+  excluded_unverified_currency: 0,
   buckets: [
     bucket("2026-W19", "8200000", "6100000", "2100000"),
     bucket("2026-W20", "5400000", "7900000", "-2500000"),

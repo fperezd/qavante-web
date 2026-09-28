@@ -18,7 +18,11 @@
  * defecto con otro sustantivo. */
 
 import type { DashboardSummaryV2, DashboardAction } from "@/lib/api/dashboard";
-import { parseAmountOrNull } from "@/lib/formatters/amount";
+import {
+  MONTO_EN_REVISION_MOTIVO,
+  importeDesconocido,
+  parseAmountOrNull,
+} from "@/lib/formatters/amount";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLong, formatDateShort, formatRelative } from "@/lib/formatters/date";
 import { cajaHoy, type CajaHoy } from "@/lib/finanzas/caja-hoy";
@@ -279,8 +283,9 @@ export function indicadoresHoy(s: DashboardSummaryV2 | null | undefined): Indica
       /* `overdue: null` es el "no se sabe" DECLARADO del backend (el SII no entrega los
          vencimientos). Un "$0" ahí diría "estás al día" sobre documentos cuya fecha no
          conocemos. Se dice qué falta, y el total por cobrar —que sí se sabe— queda a la vista. */
-      detalle:
-        vencido == null
+      detalle: importeDesconocido(cobranza)
+        ? MONTO_EN_REVISION_MOTIVO
+        : vencido == null
           ? total != null
             ? `De ${formatClp(total)} por cobrar · el SII aún no entrega los vencimientos`
             : "El SII aún no entrega los vencimientos"

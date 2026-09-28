@@ -6,6 +6,7 @@
 import type { CashFlowReportResponse } from "@/lib/api/treasury-reports";
 import { parseAmount } from "@/components/gestion/gestion-format";
 import { mesCorto } from "@/components/gestion/v2/gestion-v2-map";
+import { excludedUnverifiedCurrency } from "@/components/caja/cash-flow-format";
 
 export interface FlujoMes {
   /** YYYY-MM del mes cerrado. */
@@ -25,6 +26,9 @@ export interface FlujoCaja {
   meses: FlujoMes[];
   /** Mes cerrado más reciente (para el titular). */
   ultimo: FlujoMes;
+  /** Movimientos clasificados que el backend dejó FUERA de estos totales porque su moneda no
+   *  está verificada (#370). Con > 0 los meses están incompletos; nunca se asume CLP. */
+  excluidosMonedaNoVerificada: number;
 }
 
 /** Deriva el flujo real (entró/salió/neto) por mes CERRADO desde el cash-flow report. EXCLUYE el
@@ -48,5 +52,5 @@ export function flujoCajaReal(
     .sort((a, b) => a.periodo.localeCompare(b.periodo));
   const ultimo = meses.at(-1);
   if (!ultimo) return null;
-  return { meses, ultimo };
+  return { meses, ultimo, excluidosMonedaNoVerificada: excludedUnverifiedCurrency(resp) };
 }

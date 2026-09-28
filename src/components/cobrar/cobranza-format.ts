@@ -94,7 +94,7 @@ export function totalVencidoDeudores(
         "sé que está al día", no menos;
      3. vencido conocido e igual a cero.
    Dentro de cada grupo, desempata el total mayor. */
-export function sortByUrgency<T extends { overdue: string | null; total: string }>(
+export function sortByUrgency<T extends { overdue: string | null; total: string | null }>(
   items: ReadonlyArray<T>,
 ): T[] {
   const grupo = (x: T) => {
@@ -110,14 +110,25 @@ export function sortByUrgency<T extends { overdue: string | null; total: string 
       const ov = (vencidoDeDeudor(b) ?? 0) - (vencidoDeDeudor(a) ?? 0);
       if (ov !== 0) return ov;
     }
-    return parseAmount(b.total) - parseAmount(a.total);
+    return compararTotalDesc(a.total, b.total);
   });
+}
+
+/** Desempate por total mayor. Un total en revisión de conciliación (`null`, qavante-api#907) no
+ *  vale 0: sólo se ordena después de los conocidos, sin inventarle una cifra. */
+export function compararTotalDesc(a: string | null, b: string | null): number {
+  const va = parseAmountOrNull(a);
+  const vb = parseAmountOrNull(b);
+  if (va == null || vb == null) return va == null ? (vb == null ? 0 : 1) : -1;
+  return vb - va;
 }
 
 /* Participación (%) de un monto sobre el total — indicador de CONCENTRACIÓN de
    control de gestión ("qué parte del total es esta contraparte"). Agnóstico al
-   tenant. `total<=0` → 0. PURO. */
-export function shareOfTotal(amount: string, total: string): number {
+   tenant. `total<=0` → 0. `null` si el monto o el total están en revisión de
+   conciliación (qavante-api#907): no hay proporción que calcular. PURO. */
+export function shareOfTotal(amount: string | null, total: string | null): number | null {
+  if (amount == null || total == null) return null;
   const t = parseAmount(total);
   return t > 0 ? (parseAmount(amount) / t) * 100 : 0;
 }

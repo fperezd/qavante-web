@@ -6,10 +6,17 @@
         "description": "Aging contable del saldo por cobrar (claves exactas del contrato FE).\n\nLos cuatro buckets de MORA son `null` cuando el vencido no se puede computar\n(documentos sin `due_date`): \"no sé cómo se reparte la mora\", no \"no hay mora\".\nVer `AccountsReceivableResponse.overdue`.",
         "properties": {
           "current": {
-            "description": "No vencido (due_date >= hoy). Siempre presente: es un piso de lo conocido, aunque haya documentos sin vencimiento (ver `undated_amount`).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Current",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "No vencido (due_date >= hoy). Es un piso de lo conocido, aunque haya documentos sin vencimiento (ver `undated_amount`). `null` sólo con una cuarentena de conciliación viva (#687, ver `AccountsReceivableResponse.amount_unknown_reason`).",
+            "title": "Current"
           },
           "d1_30": {
             "anyOf": [
@@ -175,6 +182,19 @@
         "additionalProperties": false,
         "description": "Respuesta de `GET /api/treasury/accounts-payable` (pantalla Pagar).",
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
+          },
           "as_of": {
             "description": "Fecha de negocio usada por vencido y ventanas, en `America/Santiago`.",
             "format": "date",
@@ -225,7 +245,7 @@
                 "type": "null"
               }
             ],
-            "description": "¿La caja proyectada cubre lo que vence en 14 días? Se responde comprobando si la curva completa se mantiene en o sobre cero durante los 14 días: las obligaciones ya están neteadas en la curva y no se vuelven a restar. **Tri-estado.** `null` = no se puede responder, y son SIETE casos: cuatro de la cobertura documental, dos de la caja y uno de unidad. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS —o con deuda en la ventana cuya moneda no se pudo verificar (#370, `total_by_currency[].currency: null`)—, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el séptimo no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma que la curva completa —con TODO lo que vence ya incorporado— nunca baja de cero en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).",
+            "description": "¿La caja proyectada cubre lo que vence en 14 días? Se responde comprobando si la curva completa se mantiene en o sobre cero durante los 14 días: las obligaciones ya están neteadas en la curva y no se vuelven a restar. **Tri-estado.** `null` = no se puede responder, y son OCHO casos: cuatro de la cobertura documental, dos de la caja, uno de unidad y uno de conciliación. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS —o con deuda en la ventana cuya moneda no se pudo verificar (#370, `total_by_currency[].currency: null`)—, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 pendiente de un tenant CLP cuyo monto no es estimable: remanente arrastrado sin ancla, o F29 que depende de historia sin sociedad (`f29_legacy_unattributed`); o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DE F29 (la 4.ª y la 5.ª; tres motivos: moneda no-CLP, remanente sin ancla, historia F29 sin sociedad) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el séptimo no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Y el octavo: una cuarentena de conciliación viva del lado por pagar (#687) vuelve desconocidos los montos (`amount_unknown_reason`), y no se compara una suma parcial. Un `true` afirma que la curva completa —con TODO lo que vence ya incorporado— nunca baja de cero en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).",
             "title": "Covers Critical"
           },
           "credits": {
@@ -242,20 +262,41 @@
             "type": "string"
           },
           "due_14d": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Due 14D",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due 14D"
           },
           "due_30d": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Due 30D",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due 30D"
           },
           "due_7d": {
-            "description": "Saldo que vence en ≤7 días (CLP, acumulativo, incl. vencido).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Due 7D",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo que vence en ≤7 días (CLP, acumulativo, incl. vencido). `null` con cuarentena de conciliación viva (#687).",
+            "title": "Due 7D"
           },
           "estimated_due_date_count": {
             "default": 0,
@@ -383,10 +424,16 @@
             "title": "Projected Cash 14D"
           },
           "projected_cash_currency": {
-            "default": "CLP",
-            "description": "Moneda de `projected_cash_14d`, `min_14d` y `cash_gap_amount_14d`, que es la moneda funcional del tenant. Se publica porque sin ella el consumidor no puede darse cuenta de que está comparando unidades distintas: la única señal que salía antes era una frase en castellano dentro de `missing_sources`, y ningún código puede parsear eso. Convertir a CLP es el #160.",
-            "title": "Projected Cash Currency",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda de `projected_cash_14d`, `min_14d` y `cash_gap_amount_14d`, que es la moneda funcional del tenant. Se publica porque sin ella el consumidor no puede darse cuenta de que está comparando unidades distintas: la única señal que salía antes era una frase en castellano dentro de `missing_sources`, y ningún código puede parsear eso. Convertir a CLP es el #160. #370 v1: sin default. El endpoint la resuelve desde el `FinancialScope` (siempre ISO-4217); `null` sólo si ni la proyección ni el scope la acreditan, y entonces las cifras de la curva también son `null` (`projection_currency_unknown`/`projection_currency_conflict` en `missing_sources`). Nunca se asume CLP.",
+            "title": "Projected Cash Currency"
           },
           "snapshot_id": {
             "description": "Identidad opaca del corte del universo AP vivo y sus tipos de cambio. Se conserva entre páginas/filtros mientras esos datos no cambien; no cubre la proyección de caja D01, que mantiene su propio gate `cash_projection_publicable_14d`.",
@@ -395,10 +442,17 @@
             "type": "string"
           },
           "total": {
-            "description": "Total por pagar **convertido a CLP** al tipo de cambio vigente (para la cobertura de caja). El desglose crudo por moneda va en `total_by_currency`. Las monedas sin TC quedan fuera de este total (avisadas en `missing_sources`).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Total",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Total por pagar **convertido a CLP** al tipo de cambio vigente (para la cobertura de caja). El desglose crudo por moneda va en `total_by_currency`. Las monedas sin TC quedan fuera de este total (avisadas en `missing_sources`). `null` = desconocido por una cuarentena de conciliación viva (#687); nunca una suma parcial.",
+            "title": "Total"
           },
           "total_by_currency": {
             "description": "Desglose del total por pagar por moneda, SIN convertir — para mostrar '(CLP $X + USD $Y)' junto al total en CLP. CLP primero, luego las demás monedas verificadas, y al final los buckets `currency: null` de documentos cuya moneda no se pudo verificar (#370): esos montos NO están en `total` ni en `due_*` y no se deben sumar ni mostrar como pesos.",
@@ -409,11 +463,18 @@
             "type": "array"
           },
           "undated_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "default": "0",
-            "description": "Saldo por pagar de documentos SIN fecha de vencimiento (convertido a CLP). Las facturas del RCV entran sin vencimiento hasta enriquecerlas con el FchVenc del XML → este monto NO está en ningún bucket `due_*`, y desde el #41 su sola presencia hace que `covers_critical` se abstenga: si hay deuda sin fecha, los tramos son un PISO y no el total, así que no se puede afirmar cobertura sobre ellos. Exponerlo evita el 'agujero' entre `total` y la suma de los buckets (transparencia de frescura) y le da al FE el monto concreto con el que explicar el 'no sé'.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Undated Amount",
-            "type": "string"
+            "description": "`null` con cuarentena de conciliación viva (#687). Saldo por pagar de documentos SIN fecha de vencimiento (convertido a CLP). Las facturas del RCV entran sin vencimiento hasta enriquecerlas con el FchVenc del XML → este monto NO está en ningún bucket `due_*`, y desde el #41 su sola presencia hace que `covers_critical` se abstenga: si hay deuda sin fecha, los tramos son un PISO y no el total, así que no se puede afirmar cobertura sobre ellos. Exponerlo evita el 'agujero' entre `total` y la suma de los buckets (transparencia de frescura) y le da al FE el monto concreto con el que explicar el 'no sé'.",
+            "title": "Undated Amount"
           },
           "undated_count": {
             "default": 0,
@@ -463,6 +524,7 @@
           "cash_gap_amount_14d",
           "has_gap",
           "cash_projection_publicable_14d",
+          "projected_cash_currency",
           "confidence",
           "data_state",
           "generated_at"
@@ -476,6 +538,19 @@
         "properties": {
           "aging": {
             "$ref": "#/components/schemas/ARAging"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
           },
           "confidence": {
             "enum": [
@@ -559,9 +634,17 @@
             "type": "array"
           },
           "total": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Total",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo vivo por cobrar (suma cruda entre monedas). `null` = desconocido: hay una cuarentena de conciliación viva (#687, ver `amount_unknown_reason`). Nunca se publica la suma de lo que quedó fuera de la cuarentena.",
+            "title": "Total"
           },
           "total_by_currency": {
             "description": "Desglose de `total` por moneda, SIN convertir. Es la PARTICIÓN de `total` sobre el mismo universo (vivos, no cedidos): la suma de `amount` es igual a `total`, incluye vencidos y documentos sin fecha, y las notas de crédito netean dentro de su moneda. CLP primero. Sirve para contrastar el supuesto 'cartera CLP única' sobre el que `total` es una suma legítima: con más de una moneda, `total` deja de ser comparable y quien lo consuma debe abstenerse (INV-FX-001). LÍMITE: refleja la moneda tal como quedó GUARDADA; el ingest del RCV la escribe siempre como 'CLP' (#285), así que sobre esos documentos el desglose no puede mostrar divergencia aunque la cartera real la tenga.",
@@ -572,10 +655,17 @@
             "type": "array"
           },
           "undated_amount": {
-            "description": "Saldo vivo SIN vencimiento confirmado (fecha ausente, procedencia no verificable o `assumed_30d`), es decir la plata que queda fuera del aging. Explica el `null`: con `undated_amount == total` no se sabe nada de la mora. Sin default, por la misma razón que los buckets: es el campo con el que la pantalla explica el `null`, así que no puede ser el único que a veces no venga.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Undated Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` sólo con cuarentena de conciliación viva (#687). Saldo vivo SIN vencimiento confirmado (fecha ausente, procedencia no verificable o `assumed_30d`), es decir la plata que queda fuera del aging. Explica el `null`: con `undated_amount == total` no se sabe nada de la mora. Sin default, por la misma razón que los buckets: es el campo con el que la pantalla explica el `null`, así que no puede ser el único que a veces no venga.",
+            "title": "Undated Amount"
           }
         },
         "required": [
@@ -2622,7 +2712,13 @@
                 "type": "null"
               }
             ],
-            "description": "Documento conciliado sólo si el movimiento está `matched` y tiene exactamente una conciliación efectiva. `null` con cero, N:M o `review`; no representa contraparte bancaria ni deriva identidad de `description`."
+            "description": "Documento conciliado sólo si el movimiento está `matched` y tiene exactamente una conciliación efectiva. `null` con cero, N:M o `review`; no representa contraparte bancaria ni deriva identidad de `description`. `null` también con cuarentena de conciliación viva (#687)."
+          },
+          "reconciliation_quarantined": {
+            "default": false,
+            "description": "`true` si el movimiento está en cuarentena de conciliación (#687): el monto es el de la cartola, pero su atribución a documentos está en revisión y no se publica.",
+            "title": "Reconciliation Quarantined",
+            "type": "boolean"
           },
           "reconciliation_status": {
             "default": "unmatched",
@@ -5143,7 +5239,8 @@
                 "required_source_incomplete",
                 "cogs_classification_incomplete",
                 "negative_receivables_balance",
-                "negative_commercial_ap_balance"
+                "negative_commercial_ap_balance",
+                "reconciliation_quarantine"
               ],
               "type": "string"
             },
@@ -5203,9 +5300,17 @@
             "title": "Cash Cycle Proxy Days"
           },
           "commercial_ap_total": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Commercial Ap Total",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` con cuarentena AP viva (#687).",
+            "title": "Commercial Ap Total"
           },
           "coverage": {
             "$ref": "#/components/schemas/CashCycleEstimateCoverage"
@@ -5365,23 +5470,57 @@
         "additionalProperties": false,
         "description": "Ciclo de conversión de caja: DSO / DPO / CCC (ADR-0033 derivados, Fase 2).\n\nLos `*_days` van `null` cuando el denominador (ventas o COGS de la ventana) es 0 o negativo\n(dominado por notas de crédito) — no se inventa el ratio. `ccc_days` es `null` si falta DSO.\n\n**El DSO excluye el factoring de los dos lados** (decisión del BO, 2026-08-23): `ar_total` no\ncuenta las facturas cedidas, y el denominador descuenta esas mismas ventas. Responde \"cuántos\ndías tardo en cobrar **lo que cobro yo**\". `ar_ceded` y `ceded_pct_of_ar` acompañan al número\npara que un DSO que baja no se lea como mejora de cobranza cuando se cedió el cobro.",
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` si `ar_total` o `ap_total` es desconocido (#687).",
+            "title": "Amount Unknown Reason"
+          },
           "ap_total": {
-            "description": "Saldo vivo por pagar en CLP, base neta (sin IVA). NO convierte otras monedas: las descarta. Tampoco entra ninguna fila sin `net_amount`, y las de tarjeta se insertan sin ese campo: aportan CERO. Por eso es MENOR que el total que muestra Pagar. Es el numerador del DPO.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Ap Total",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo vivo por pagar en CLP, base neta (sin IVA). NO convierte otras monedas: las descarta. Tampoco entra ninguna fila sin `net_amount`, y las de tarjeta se insertan sin ese campo: aportan CERO. Por eso es MENOR que el total que muestra Pagar. Es el numerador del DPO. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Ap Total"
           },
           "ar_ceded": {
-            "description": "Saldo vivo cedido al factoring (CLP, base neta). No entra en `ar_total`: lo cobra el factor. Se expone para poder decir 'X días · el N% de tu cartera está cedida'.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Ar Ceded",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo vivo cedido al factoring (CLP, base neta). No entra en `ar_total`: lo cobra el factor. Se expone para poder decir 'X días · el N% de tu cartera está cedida'. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Ar Ceded"
           },
           "ar_total": {
-            "description": "Saldo vivo de cuentas por cobrar PROPIAS (CLP, sin las cedidas al factoring).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Ar Total",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo vivo de cuentas por cobrar PROPIAS (CLP, sin las cedidas al factoring). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Ar Total"
           },
           "as_of": {
             "description": "Fecha de cálculo (YYYY-MM-DD).",
@@ -5401,10 +5540,17 @@
             "title": "Ccc Days"
           },
           "ceded_pct_of_ar": {
-            "description": "Porcentaje cedido sobre la cartera viva total (cedida + propia), acotado a [0, 100]. 0 si no hay cartera. El clamp existe porque el AR propio puede ser negativo cuando lo dominan las notas de crédito.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Ceded Pct Of Ar",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Porcentaje cedido sobre la cartera viva total (cedida + propia), acotado a [0, 100]. 0 si no hay cartera. El clamp existe porque el AR propio puede ser negativo cuando lo dominan las notas de crédito. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Ceded Pct Of Ar"
           },
           "cesiones_sin_marcar": {
             "default": 0,
@@ -5861,6 +6007,13 @@
             "description": "Filas omitidas por data_status='requires_attention' cuando include_attention=false.",
             "minimum": 0.0,
             "title": "Excluded Attention",
+            "type": "integer"
+          },
+          "excluded_unverified_currency": {
+            "default": 0,
+            "description": "#370 v1: impactos del período/filtro excluidos de toda suma porque su moneda no tiene procedencia verificada (`financial_impact_currency_unverified`). Mayor que 0 significa que los totales están incompletos; nunca se asume CLP.",
+            "minimum": 0.0,
+            "title": "Excluded Unverified Currency",
             "type": "integer"
           },
           "financial_layer": {
@@ -8553,6 +8706,20 @@
       },
       "ClassifyRunAllResponse": {
         "properties": {
+          "abstained": {
+            "default": 0,
+            "description": "Tenants que se abstuvieron sin leer su residuo (p. ej. sin sociedad única). No equivalen a tenants sin residuo.",
+            "title": "Abstained",
+            "type": "integer"
+          },
+          "abstained_reasons": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Conteo de abstenciones por motivo (`status` devuelto por el tenant).",
+            "title": "Abstained Reasons",
+            "type": "object"
+          },
           "applied": {
             "description": "Clasificados en firme (alta confianza, auto-aplicados).",
             "title": "Applied",
@@ -8824,6 +8991,12 @@
         "additionalProperties": false,
         "description": "Qué quedó FUERA del escenario firme y por qué — la misma nomenclatura que publica\n`obligaciones_agendadas` en la proyección canónica, para que las dos superficies se puedan\nponer una al lado de la otra sin traducir.\n\nLos montos van en `moneda` y son string-decimal. `moneda_distinta_excluidos` es SÓLO un\nconteo: sumar importes de otra unidad es exactamente lo que INV-FX-001 prohíbe.\n\n**El alcance NO es el mismo en los cuatro buckets, y es deliberado** (espeja el del\nproductor canónico): los `*_fecha_asumida_*` y `*_fecha_no_verificada_*` se acotan a\n`horizon_days`, porque describen lo que quedó fuera de ESTA curva; `sin_fecha_excluidos`\ny `moneda_distinta_excluidos` cuentan el universo VIVO completo, porque un documento sin\nvencimiento no tiene horizonte al que pertenecer y uno en otra moneda no entra a ninguno.",
         "properties": {
+          "f29_legacy_unattributed": {
+            "default": false,
+            "description": "True si una obligación F29 pendiente depende de F29 histórico sin sociedad (`f29_legacy_unattributed`): su monto es desconocido y NO está en la curva — ni como $0 ni como estimado. Remediación: re-sincronizar el F29 bajo la sociedad.",
+            "title": "F29 Legacy Unattributed",
+            "type": "boolean"
+          },
           "f29_omitido_por_moneda": {
             "description": "True si la moneda funcional no es CLP y por eso el F29 no se proyectó.",
             "title": "F29 Omitido Por Moneda",
@@ -9091,6 +9264,19 @@
         "additionalProperties": false,
         "description": "Cobranza realizable: lo que se espera cobrar y cuándo, ponderado por la probabilidad de\npago de cada pagador. `overdue` = vencidos (prob 0 hasta que aparezcan en el banco);\n`sin_vencimiento` = receivables del RCV sin fecha sincronizada (no se les inventa vencimiento).",
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` si todos los montos son desconocidos (#687).",
+            "title": "Amount Unknown Reason"
+          },
           "as_of": {
             "description": "Fecha de cálculo (YYYY-MM-DD).",
             "title": "As Of",
@@ -9117,16 +9303,30 @@
             "description": "Receivables sin due_date (RCV sin sincronizar)."
           },
           "total_expected": {
-            "description": "Σ ponderado por probabilidad de pago (CLP).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Total Expected",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Σ ponderado por probabilidad de pago (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Total Expected"
           },
           "total_nominal": {
-            "description": "Σ outstanding de todos los receivables vivos (CLP).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Total Nominal",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Σ outstanding de todos los receivables vivos (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Total Nominal"
           }
         },
         "required": [
@@ -9145,6 +9345,19 @@
         "additionalProperties": false,
         "description": "Proyección de cobros fechada por el COMPORTAMIENTO real del pagador (ADR-0083 B2),\nponderada por probabilidad de pago. Complementa `collection-forecast` (que fecha por el\nvencimiento nominal) mostrando ambos. Read-only.",
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` si todos los montos son desconocidos (#687).",
+            "title": "Amount Unknown Reason"
+          },
           "as_of": {
             "description": "Fecha de cálculo (YYYY-MM-DD).",
             "title": "As Of",
@@ -9171,16 +9384,30 @@
             "description": "Sin historial de pagador Y sin due_date → no se proyecta fecha (no se inventa)."
           },
           "total_expected": {
-            "description": "Σ ponderado por probabilidad de pago (CLP).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Total Expected",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Σ ponderado por probabilidad de pago (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Total Expected"
           },
           "total_nominal": {
-            "description": "Σ outstanding de todos los receivables vivos (CLP).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Total Nominal",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Σ outstanding de todos los receivables vivos (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Total Nominal"
           },
           "vs_nominal": {
             "$ref": "#/components/schemas/ProjectionVsNominal",
@@ -12431,13 +12658,42 @@
       "CriticalPayments": {
         "additionalProperties": false,
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` si los montos del bloque son desconocidos.",
+            "title": "Amount Unknown Reason"
+          },
           "due_14d": {
-            "title": "Due 14D",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pagos a 14 días. `null` = desconocido por cuarentena de conciliación (#687).",
+            "title": "Due 14D"
           },
           "due_7d": {
-            "title": "Due 7D",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pagos a 7 días. `null` = desconocido por cuarentena de conciliación (#687).",
+            "title": "Due 7D"
           },
           "last_updated": {
             "anyOf": [
@@ -13199,6 +13455,22 @@
             ],
             "title": "Assumed Receivables Excluded Count"
           },
+          "attribution_completeness": {
+            "anyOf": [
+              {
+                "enum": [
+                  "complete",
+                  "partial",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution Completeness"
+          },
           "conditional_due_date_collections_14d": {
             "anyOf": [
               {
@@ -13267,6 +13539,30 @@
           "summary": {
             "title": "Summary",
             "type": "string"
+          },
+          "unattributed_bank_accounts": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unattributed Bank Accounts"
+          },
+          "unattributed_financial_impacts": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unattributed Financial Impacts"
           },
           "undated_items": {
             "anyOf": [
@@ -17259,6 +17555,10 @@
             "title": "Count",
             "type": "integer"
           },
+          "coverage": {
+            "$ref": "#/components/schemas/F29CoverageInfo",
+            "description": "Con `incomplete`, `status`='incomplete' y los períodos listados NO están en `meses`: tienen F29 histórico sin sociedad. Ausente en `meses` no significa 'sin F29' ni $0."
+          },
           "meses": {
             "description": "Meses efectivamente sincronizados, ordenados 1..12.",
             "items": {
@@ -17279,6 +17579,60 @@
         "title": "F29AnualResponse",
         "type": "object"
       },
+      "F29CoverageInfo": {
+        "additionalProperties": false,
+        "description": "Cobertura de la historia F29 sin sociedad para los períodos que la respuesta consultó.\n\n`incomplete` = hay F29 histórico persistido sin `legal_entity_id` (pre-#685) para algún\nperíodo consultado y la sociedad pedida NO tiene fila propia de ese período. Ese F29 existe\npero no puede atribuirse sin evidencia: los montos afectados van null (nunca $0) hasta\nre-materializarlo bajo la sociedad (`POST /api/sii/f29/sync?anio=`).",
+        "properties": {
+          "reason_code": {
+            "anyOf": [
+              {
+                "const": "f29_legacy_unattributed",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Motivo estable de la incompletitud; null si complete.",
+            "title": "Reason Code"
+          },
+          "remediation": {
+            "anyOf": [
+              {
+                "const": "rematerialize_required",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Acción requerida: re-sincronizar el F29 bajo la sociedad (POST /api/sii/f29/sync). null si complete.",
+            "title": "Remediation"
+          },
+          "status": {
+            "description": "complete | incomplete (historia F29 sin sociedad en los períodos consultados).",
+            "enum": [
+              "complete",
+              "incomplete"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "unattributed_periods": {
+            "description": "Períodos YYYY-MM con F29 legacy sin sociedad y sin fila de la sociedad.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Unattributed Periods",
+            "type": "array"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "F29CoverageInfo",
+        "type": "object"
+      },
       "F29EstadoResponse": {
         "additionalProperties": true,
         "description": "Estado del F29 por período (año x mes): los 12 meses con su situación derivada de lo\npersistido + el calendario.",
@@ -17292,8 +17646,12 @@
             "title": "Count",
             "type": "integer"
           },
+          "coverage": {
+            "$ref": "#/components/schemas/F29CoverageInfo",
+            "description": "Cobertura legacy de los 12 meses; `incomplete` fija `status`='incomplete'."
+          },
           "meses": {
-            "description": "Los 12 meses con {anio, mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento, postergado_iva, monto_postergado, vencimiento_postergado}. estado ∈ declarado / sin_dato (vencido pero sin sincronizar → NO se afirma 'no declaró') / no_declarado_vencido (solo con evidencia) / por_declarar / en_curso / sin_periodo. postergado_iva (bool|null) = el F29 del mes declaró el código 755 ('Postergacion pago IVA') con monto > 0 → el IVA NO está incluido en `saldo` (código 91) y se debe aparte. **null = NO SE SABE** (F29 no parseado / folio-solo; NO afirmar 'no postergó'); False = parseado, no postergó. monto_postergado (int|null) = ese monto en CLP (null = el F29 del mes no se parseó, NO SE SABE; 0 = parseado sin postergación); vencimiento_postergado (ISO YYYY-MM-DD|null) = día 20 del mes M+3 corrido al lunes si cae fin de semana, solo cuando postergado_iva.",
+            "description": "Los 12 meses con {anio, mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento, postergado_iva, monto_postergado, vencimiento_postergado}. estado ∈ declarado / sin_dato (vencido pero sin sincronizar → NO se afirma 'no declaró') / no_declarado_vencido (solo con evidencia) / por_declarar / en_curso / sin_periodo. postergado_iva (bool|null) = el F29 del mes declaró el código 755 ('Postergacion pago IVA') con monto > 0 → el IVA NO está incluido en `saldo` (código 91) y se debe aparte. **null = NO SE SABE** (F29 no parseado / folio-solo; NO afirmar 'no postergó'); False = parseado, no postergó. monto_postergado (int|null) = ese monto en CLP (null = el F29 del mes no se parseó, NO SE SABE; 0 = parseado sin postergación); vencimiento_postergado (ISO YYYY-MM-DD|null) = día 20 del mes M+3 corrido al lunes si cae fin de semana, solo cuando postergado_iva. coverage_reason (str|null) = 'f29_legacy_unattributed' cuando el mes tiene F29 histórico sin sociedad y ninguna fila de la sociedad: el mes va `sin_dato` con montos null (NO 'no declaró', NO $0).",
             "items": {
               "additionalProperties": true,
               "type": "object"
@@ -17394,6 +17752,10 @@
             "format": "date-time",
             "title": "As Of",
             "type": "string"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/F29CoverageInfo",
+            "description": "Cobertura legacy del período y de los meses que su derivación lee. Con `incomplete`: `status`='incomplete', `estimable`=false y todos los montos null."
           },
           "declarado": {
             "default": false,
@@ -17536,7 +17898,7 @@
             "title": "Iva Postergado"
           },
           "missing_inputs": {
-            "description": "Insumos materiales que impiden estimar. Vocabulario estable: `remanente`, `impuesto_trabajadores` y `rcv_incompleto`.",
+            "description": "Insumos materiales que impiden estimar. Vocabulario estable: `remanente`, `impuesto_trabajadores`, `rcv_incompleto` y `f29_legacy_unattributed` (el período o su ventana de derivación tiene F29 histórico sin sociedad; ver `coverage`).",
             "items": {
               "type": "string"
             },
@@ -19357,6 +19719,17 @@
             ],
             "title": "Currency Reporting Code"
           },
+          "currency_source": {
+            "description": "#370 v1: evidencia de `currency_original_code`. `bank_declared`/`account_context` se heredan del movimiento bancario verificado; `explicit_request` es la moneda declarada por quien escribió un impacto no bancario; `legacy_unknown` es historia previa a 0220 y no es evidencia: los agregados monetarios la excluyen.",
+            "enum": [
+              "bank_declared",
+              "account_context",
+              "explicit_request",
+              "legacy_unknown"
+            ],
+            "title": "Currency Source",
+            "type": "string"
+          },
           "data_status": {
             "default": "available",
             "description": "Mismo dominio TEXT abierto que treasury.bank_movements.",
@@ -19581,6 +19954,7 @@
           "date_type",
           "id",
           "tenant_id",
+          "currency_source",
           "period_year",
           "period_month",
           "created_at",
@@ -20581,9 +20955,44 @@
             ],
             "title": "Created By"
           },
+          "functional_currency_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda funcional declarada para la sociedad de la versión.",
+            "title": "Functional Currency Code"
+          },
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "legal_entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sociedad de la versión; NULL sólo para historia legacy no publicable scopeada.",
+            "title": "Legal Entity Id"
+          },
+          "legal_entity_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Entity Source"
           },
           "month": {
             "anyOf": [
@@ -21689,16 +22098,30 @@
         "description": "Monto nominal (Σ outstanding) vs esperado (Σ ponderado por prob de pago).",
         "properties": {
           "expected": {
-            "description": "Σ ponderado por la probabilidad de pago del pagador.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Expected",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Σ ponderado por la probabilidad de pago del pagador. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Expected"
           },
           "nominal": {
-            "description": "Σ outstanding de los receivables del bucket (CLP).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Nominal",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Σ outstanding de los receivables del bucket (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Nominal"
           }
         },
         "required": [
@@ -21723,10 +22146,17 @@
             "type": "integer"
           },
           "expected": {
-            "description": "Σ ponderado por la probabilidad de pago del pagador.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Expected",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Σ ponderado por la probabilidad de pago del pagador. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Expected"
           },
           "label": {
             "description": "Etiqueta del bucket (p.ej. '0-7d').",
@@ -21734,10 +22164,17 @@
             "type": "string"
           },
           "nominal": {
-            "description": "Σ outstanding de los receivables del bucket (CLP).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Nominal",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Σ outstanding de los receivables del bucket (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
+            "title": "Nominal"
           }
         },
         "required": [
@@ -22640,9 +23077,29 @@
         "additionalProperties": false,
         "properties": {
           "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` = documento/movimiento en cuarentena de conciliación (#687).",
+            "title": "Amount"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Unknown Reason"
           },
           "currency": {
             "anyOf": [
@@ -22711,9 +23168,29 @@
         "additionalProperties": false,
         "properties": {
           "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` = desconocido por cuarentena de conciliación (#687); nunca cero.",
+            "title": "Amount"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Unknown Reason"
           },
           "currency": {
             "anyOf": [
@@ -22739,9 +23216,29 @@
         "additionalProperties": false,
         "properties": {
           "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` = documento/movimiento en cuarentena de conciliación (#687).",
+            "title": "Amount"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Unknown Reason"
           },
           "currency": {
             "anyOf": [
@@ -22888,6 +23385,12 @@
               }
             ],
             "title": "Next Date"
+          },
+          "unattributed_count": {
+            "description": "Pendientes del tenant de este tipo que ninguna sociedad declaró (`legal_entity_id` NULL). Sólo se declara que existen: no se suman a `count` ni a `amounts`, y no se atribuyen a esta sociedad.",
+            "minimum": 0.0,
+            "title": "Unattributed Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -22896,6 +23399,7 @@
           "action_label",
           "href",
           "count",
+          "unattributed_count",
           "amounts",
           "data_state",
           "limitations",
@@ -24471,7 +24975,7 @@
                 "type": "null"
               }
             ],
-            "description": "RUT chileno con DV (formato '12345678-9' o '12.345.678-9'). Alternativa a `email`: enviá uno de los dos.",
+            "description": "RUT chileno con DV (formato '12345678-9' o '12.345.678-9'). Alternativa a `email`: envía uno de los dos.",
             "title": "Rut"
           }
         },
@@ -25691,8 +26195,28 @@
         "additionalProperties": false,
         "properties": {
           "amount": {
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Monto del pago. `null` = documento en cuarentena de conciliación (#687).",
+            "title": "Amount"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Unknown Reason"
           },
           "category": {
             "anyOf": [
@@ -26385,6 +26909,21 @@
               }
             ],
             "title": "Finished At"
+          },
+          "periods": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SiiPeriodResult"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estado por mes de la ventana de importación (sólo SII). null = aún no se conoce; un mes fallido aparece como 'failed'/'not_attempted', nunca como vacío.",
+            "title": "Periods"
           },
           "records_read": {
             "anyOf": [
@@ -29570,6 +30109,19 @@
       "OverdueCollections": {
         "additionalProperties": false,
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` si los montos del bloque son desconocidos.",
+            "title": "Amount Unknown Reason"
+          },
           "last_updated": {
             "anyOf": [
               {
@@ -29613,8 +30165,16 @@
             "type": "array"
           },
           "total_receivable": {
-            "title": "Total Receivable",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo vivo por cobrar. `null` = desconocido por una cuarentena de conciliación viva (#687, ver `amount_unknown_reason`); el FE muestra 'Sin dato', nunca '$0'.",
+            "title": "Total Receivable"
           }
         },
         "required": [
@@ -29627,15 +30187,43 @@
         "additionalProperties": false,
         "properties": {
           "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Monto total del documento; `null` si está en cuarentena (#687).",
+            "title": "Amount"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
           },
           "balance": {
-            "description": "Saldo pendiente (≤ amount).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Balance",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo pendiente (≤ amount); `null` si está en cuarentena (#687).",
+            "title": "Balance"
           },
           "client_name": {
             "title": "Client Name",
@@ -29870,6 +30458,19 @@
             "description": "Monto completo en CLP, o `null` si falta una fecha necesaria para clasificarlo o un tipo de cambio. Un agregado parcial nunca se publica como $0 conocido.",
             "title": "Amount Clp"
           },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
+          },
           "complete": {
             "description": "`true` sólo cuando `amount_clp` cubre todo el universo del bucket.",
             "title": "Complete",
@@ -29889,10 +30490,17 @@
             "type": "array"
           },
           "known_amount_clp": {
-            "description": "Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Known Amount Clp",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`. `null` con una cuarentena de conciliación viva (#687): entonces no hay una parte 'conocida' que publicar.",
+            "title": "Known Amount Clp"
           },
           "unknown_due_date_count": {
             "description": "Obligaciones positivas sin vencimiento confirmado que podrían pertenecer a la ventana (fecha ausente o procedencia no verificable). Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.",
@@ -29956,6 +30564,19 @@
             "description": "Monto completo en CLP, o `null` si falta una fecha necesaria para clasificarlo o un tipo de cambio. Un agregado parcial nunca se publica como $0 conocido.",
             "title": "Amount Clp"
           },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
+          },
           "category": {
             "enum": [
               "supplier",
@@ -29988,10 +30609,17 @@
             "type": "array"
           },
           "known_amount_clp": {
-            "description": "Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Known Amount Clp",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`. `null` con una cuarentena de conciliación viva (#687): entonces no hay una parte 'conocida' que publicar.",
+            "title": "Known Amount Clp"
           },
           "unknown_due_date_count": {
             "description": "Obligaciones positivas sin vencimiento confirmado que podrían pertenecer a la ventana (fecha ausente o procedencia no verificable). Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.",
@@ -30041,10 +30669,30 @@
         "description": "Total por pagar de UNA moneda, sin convertir — para el desglose '(CLP $X + USD $Y)'.\n\nDesde #370 también es el bucket de lo NO verificable: `currency: null` con\n`currency_status` y `reason`. Ese monto está en unidad desconocida; no se convierte, no se\nsuma a nada y no se muestra como pesos.",
         "properties": {
           "amount": {
-            "description": "Suma cruda del saldo pendiente en esa moneda (SIN convertir a CLP).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Suma cruda del saldo pendiente en esa moneda (SIN convertir a CLP). `null` = desconocida por una cuarentena de conciliación viva en esa moneda (#687).",
+            "title": "Amount"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
           },
           "currency": {
             "anyOf": [
@@ -30182,9 +30830,17 @@
         "description": "Un pago próximo (contrato CC-WEB `AccountsPayableResponse.items`).",
         "properties": {
           "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo del pago. `null` si el documento está en cuarentena de conciliación (#687); nunca se muestra como cero.",
+            "title": "Amount"
           },
           "amount_clp": {
             "anyOf": [
@@ -30198,6 +30854,19 @@
             ],
             "description": "`amount` convertido a CLP vía tipo de cambio, SOLO cuando `currency` != 'CLP'. Null cuando ya es CLP (usar `amount`), cuando no hay tipo de cambio disponible, o cuando la moneda no se pudo verificar (`currency_status` != 'verified').",
             "title": "Amount Clp"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
           },
           "category": {
             "enum": [
@@ -30411,10 +31080,17 @@
         "description": "Próxima obligación de nómina con monto y unidad explícitos.",
         "properties": {
           "amount": {
-            "description": "Monto original en `currency`; string-decimal en JSON.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Monto original en `currency`; string-decimal en JSON. `null` si el documento está en cuarentena de conciliación (#687).",
+            "title": "Amount"
           },
           "amount_clp": {
             "anyOf": [
@@ -30428,6 +31104,19 @@
             ],
             "description": "Conversión a CLP capturada en el mismo snapshot AP+FX. `null` para montos ya CLP (se usa `amount`), cuando falta un tipo de cambio publicable, o cuando la moneda no se pudo verificar.",
             "title": "Amount Clp"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
           },
           "category": {
             "const": "payroll",
@@ -30637,6 +31326,21 @@
           "items"
         ],
         "title": "PaymentMovementCandidates",
+        "type": "object"
+      },
+      "PayrollBatchRevertRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bank_movement_id": {
+            "description": "Movimiento bancario del pago de lote a deshacer (de `links` en el GET).",
+            "title": "Bank Movement Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bank_movement_id"
+        ],
+        "title": "PayrollBatchRevertRequest",
         "type": "object"
       },
       "PayrollDetailEmployee": {
@@ -32800,13 +33504,17 @@
             "title": "Focused Abstention Reason"
           },
           "freshness_reason": {
-            "const": "source_lineage_not_available",
             "title": "Freshness Reason",
             "type": "string"
           },
           "freshness_state": {
-            "const": "unknown",
-            "description": "D09 no infiere frescura desde la fecha de cálculo. Permanece unknown hasta que todas las fuentes del score aporten evidencia D10 consumible.",
+            "description": "D09 publica la evidencia D10 sellada con el snapshot; no la recompone hoy.",
+            "enum": [
+              "fresh",
+              "warning",
+              "stale",
+              "unknown"
+            ],
             "title": "Freshness State",
             "type": "string"
           },
@@ -33403,6 +34111,19 @@
             "title": "Count",
             "type": "integer"
           },
+          "due_date_overlay_coverage": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cobertura del overlay de vencimientos. Cache legado o identidad histórica ambigua declaran abstención; nunca se usa la sociedad seleccionada hoy.",
+            "title": "Due Date Overlay Coverage"
+          },
           "error": {
             "anyOf": [
               {
@@ -33464,6 +34185,193 @@
           "status"
         ],
         "title": "RcvComprasResponse",
+        "type": "object"
+      },
+      "RcvD08GateResponse": {
+        "description": "`GET /api/sii/rcv/d08-gate`: estado observable de la compuerta del dual-write D08.\n\n`overall=unobserved` cuando no hay observación (ausencia nunca es `enabled`). `enabled` sólo\ndice que el dual-write prospectivo corrió: no autoriza backfill, shadow-read ni consumidores.",
+        "properties": {
+          "d07_prerequisite": {
+            "$ref": "#/components/schemas/RcvD08Prerequisite"
+          },
+          "identity_gate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RcvD08GateState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "overall": {
+            "enum": [
+              "enabled",
+              "disabled",
+              "unobserved"
+            ],
+            "title": "Overall",
+            "type": "string"
+          },
+          "source_accounts": {
+            "items": {
+              "$ref": "#/components/schemas/RcvD08GateState"
+            },
+            "title": "Source Accounts",
+            "type": "array"
+          },
+          "source_code": {
+            "const": "sii_rcv",
+            "title": "Source Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_code",
+          "overall",
+          "d07_prerequisite",
+          "identity_gate",
+          "source_accounts"
+        ],
+        "title": "RcvD08GateResponse",
+        "type": "object"
+      },
+      "RcvD08GateState": {
+        "description": "Último estado observado de una compuerta D08 (tenant o cuenta fuente ``cl_rut``).",
+        "properties": {
+          "attribution": {
+            "enum": [
+              "tenant_level",
+              "legal_entity",
+              "unclaimed",
+              "ambiguous"
+            ],
+            "title": "Attribution",
+            "type": "string"
+          },
+          "consecutive_disabled_count": {
+            "description": "Observaciones cerradas seguidas; 0 cuando está abierta.",
+            "minimum": 0.0,
+            "title": "Consecutive Disabled Count",
+            "type": "integer"
+          },
+          "last_disabled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Disabled At"
+          },
+          "last_enabled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Enabled At"
+          },
+          "legal_entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sociedad que HOY declara ese RUT (resuelta al leer, nunca persistida). Null si es la fila del tenant o si ninguna/más de una sociedad lo declara.",
+            "title": "Legal Entity Id"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "period": {
+            "description": "Período RCV (YYYYMM) de la última observación.",
+            "title": "Period",
+            "type": "string"
+          },
+          "producer": {
+            "enum": [
+              "sync_rcv",
+              "rcv_backfill"
+            ],
+            "title": "Producer",
+            "type": "string"
+          },
+          "provider_account_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`cl_rut:<rut>` de la cuenta fuente RCV; null = compuerta de identidad del tenant.",
+            "title": "Provider Account Ref"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Código cerrado del cierre (null sólo si `enabled`), p.ej. `observed_company_rut_mismatch` o `missing_scope:legal_entity_identity`.",
+            "title": "Reason Code"
+          },
+          "status": {
+            "enum": [
+              "enabled",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_account_ref",
+          "legal_entity_id",
+          "attribution",
+          "status",
+          "reason_code",
+          "producer",
+          "period",
+          "observed_at",
+          "consecutive_disabled_count"
+        ],
+        "title": "RcvD08GateState",
+        "type": "object"
+      },
+      "RcvD08Prerequisite": {
+        "properties": {
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          },
+          "status": {
+            "const": "not_credited",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "reason_code"
+        ],
+        "title": "RcvD08Prerequisite",
         "type": "object"
       },
       "RcvDocumento": {
@@ -33878,6 +34786,19 @@
             "title": "Count",
             "type": "integer"
           },
+          "due_date_overlay_coverage": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cobertura del overlay de vencimientos. Cache legado o identidad histórica ambigua declaran abstención; nunca se usa la sociedad seleccionada hoy.",
+            "title": "Due Date Overlay Coverage"
+          },
           "error": {
             "anyOf": [
               {
@@ -34049,10 +34970,30 @@
         "description": "Total por cobrar de UNA moneda, sin convertir — partición cruda de `total`.\n\nDeliberadamente NO se reutiliza `PayableCurrencyTotal`, aunque la forma coincida:\nahí el desglose acompaña a un `total` YA convertido a CLP, y acá acompaña a un\n`total` que es una suma cruda entre monedas. Un mismo nombre en el contrato\ninvitaría a leerlos como homólogos y son cosas distintas (#281 §2.5).",
         "properties": {
           "amount": {
-            "description": "Suma cruda del saldo pendiente en esa moneda (SIN convertir). Puede ser negativa: las notas de crédito netean dentro de su moneda.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Suma cruda del saldo pendiente en esa moneda (SIN convertir). Puede ser negativa: las notas de crédito netean dentro de su moneda. `null` = desconocido por una cuarentena de conciliación viva en esa moneda (#687); nunca una suma parcial.",
+            "title": "Amount"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
           },
           "currency": {
             "description": "Moneda ISO-4217 (ej. 'CLP', 'USD'). Cadena VACÍA si el documento no declara moneda: es un 'no sé' explícito y no se normaliza a 'CLP'.",
@@ -34131,6 +35072,19 @@
         "additionalProperties": false,
         "description": "Saldo de un deudor en una moneda, sin conversión FX implícita.",
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando los montos de esta moneda son desconocidos porque hay evidencia de pago en revisión (#687); entonces todos los montos van `null` (nunca una suma parcial ni cero). `null` si los montos son conocidos.",
+            "title": "Amount Unknown Reason"
+          },
           "currency": {
             "anyOf": [
               {
@@ -34217,6 +35171,19 @@
       "ReceivableDebtorsResponse": {
         "additionalProperties": false,
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` si alguna moneda del directorio tiene montos desconocidos por cuarentena de conciliación (#687).",
+            "title": "Amount Unknown Reason"
+          },
           "as_of": {
             "description": "Corte con zona horaria America/Santiago.",
             "format": "date-time",
@@ -34388,6 +35355,18 @@
       "ReceivableDocumentItem": {
         "additionalProperties": false,
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Unknown Reason"
+          },
           "ceded": {
             "default": false,
             "title": "Ceded",
@@ -34492,9 +35471,17 @@
             "type": "string"
           },
           "outstanding_amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Outstanding Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` si el documento está en cuarentena de conciliación (#687).",
+            "title": "Outstanding Amount"
           },
           "status": {
             "enum": [
@@ -34507,9 +35494,17 @@
             "type": "string"
           },
           "total_amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Total Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` si el documento está en cuarentena de conciliación (#687).",
+            "title": "Total Amount"
           }
         },
         "required": [
@@ -34620,9 +35615,29 @@
         "additionalProperties": false,
         "properties": {
           "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Suma en la moneda. `null` = desconocida por una cuarentena de conciliación viva en esa moneda (#687); nunca una suma parcial ni cero.",
+            "title": "Amount"
+          },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Unknown Reason"
           },
           "currency": {
             "title": "Currency",
@@ -34639,6 +35654,19 @@
       "ReceivableNetBridge": {
         "additionalProperties": false,
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando los montos de esta moneda son desconocidos porque hay evidencia de pago en revisión (#687); entonces todos los montos van `null` (nunca una suma parcial ni cero). `null` si los montos son conocidos.",
+            "title": "Amount Unknown Reason"
+          },
           "ceded_excluded_total": {
             "anyOf": [
               {
@@ -34814,6 +35842,19 @@
       "ReceivableRankingBridge": {
         "additionalProperties": false,
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando los montos de esta moneda son desconocidos porque hay evidencia de pago en revisión (#687); entonces todos los montos van `null` (nunca una suma parcial ni cero). `null` si los montos son conocidos.",
+            "title": "Amount Unknown Reason"
+          },
           "currency": {
             "anyOf": [
               {
@@ -35327,6 +36368,18 @@
             "title": "Allocations",
             "type": "array"
           },
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Unknown Reason"
+          },
           "components": {
             "items": {
               "$ref": "#/components/schemas/ComponentDetail"
@@ -35370,8 +36423,16 @@
             "type": "array"
           },
           "remaining_amount": {
-            "title": "Remaining Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo del movimiento aún no resuelto. `null` si el movimiento o un documento conciliado está en cuarentena de conciliación (#687): su resolución está en revisión.",
+            "title": "Remaining Amount"
           },
           "stored_status": {
             "title": "Stored Status",
@@ -35800,6 +36861,68 @@
           "document_id"
         ],
         "title": "RejectDocumentSuggestionResponse",
+        "type": "object"
+      },
+      "ReleaseIdentityResponse": {
+        "description": "Source identity baked by the Dockerfile into the immutable artefact.",
+        "properties": {
+          "build_id": {
+            "title": "Build Id",
+            "type": "string"
+          },
+          "source_archive_sha256": {
+            "title": "Source Archive Sha256",
+            "type": "string"
+          },
+          "source_sha": {
+            "title": "Source Sha",
+            "type": "string"
+          },
+          "source_tree": {
+            "title": "Source Tree",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_sha",
+          "source_tree",
+          "version",
+          "build_id",
+          "source_archive_sha256"
+        ],
+        "title": "ReleaseIdentityResponse",
+        "type": "object"
+      },
+      "ReleaseProvenanceResponse": {
+        "description": "Public release provenance; unavailable means the artefact is not certified.",
+        "properties": {
+          "release": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReleaseIdentityResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ReleaseProvenanceResponse",
         "type": "object"
       },
       "RemanenteSeedRequest": {
@@ -38417,6 +39540,60 @@
         "title": "SiiHealthResponse",
         "type": "object"
       },
+      "SiiPeriodResult": {
+        "additionalProperties": false,
+        "description": "Resultado observado de un mes RCV (ventas + compras) dentro del sync.",
+        "properties": {
+          "documents_read": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Documentos que entregó el SII para el mes; null si no respondió.",
+            "title": "Documents Read"
+          },
+          "period": {
+            "description": "Mes RCV `YYYY-MM` (calendario America/Santiago).",
+            "title": "Period",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Causa técnica si no es éxito.",
+            "title": "Reason"
+          },
+          "status": {
+            "description": "'ok' (importado), 'empty' (el SII respondió sin documentos), 'incomplete' (importado con documentos no atribuibles a una sociedad), 'failed' (el SII o la persistencia fallaron tras reintentos), 'not_attempted' (el sync se cortó antes).",
+            "enum": [
+              "ok",
+              "empty",
+              "incomplete",
+              "failed",
+              "not_attempted"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "period",
+          "status"
+        ],
+        "title": "SiiPeriodResult",
+        "type": "object"
+      },
       "SiiPersonStatus": {
         "additionalProperties": false,
         "properties": {
@@ -39890,12 +41067,41 @@
       "SyncSourceResult": {
         "additionalProperties": false,
         "properties": {
+          "periods": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SiiPeriodResult"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estado por mes del SII sincronizado dentro del request; null si no aplica.",
+            "title": "Periods"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Run consultable en `/api/onboarding/sync-runs/{run_id}` cuando es 'queued'.",
+            "title": "Run Id"
+          },
           "status": {
-            "description": "'ok' (sincronizó), 'failed' (lo intentó y falló), 'skipped' (no conectada).",
+            "description": "'ok' (sincronizó todos los meses pedidos), 'failed' (lo intentó y al menos un mes falló o quedó incompleto), 'skipped' (no conectada), 'queued' (la importación inicial corre en segundo plano: consultar `run_id`).",
             "enum": [
               "ok",
               "failed",
-              "skipped"
+              "skipped",
+              "queued"
             ],
             "title": "Status",
             "type": "string"
@@ -40284,16 +41490,27 @@
             "title": "Events",
             "type": "array"
           },
+          "f29_coverage": {
+            "$ref": "#/components/schemas/TaxF29Coverage",
+            "description": "Cobertura F29: sin `complete`, faltan obligaciones F29 de monto desconocido."
+          },
           "horizon_days": {
             "description": "Ventana hacia adelante considerada (días).",
             "title": "Horizon Days",
             "type": "integer"
           },
           "total": {
-            "description": "Σ de las obligaciones de la ventana (CLP).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Total",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Σ de las obligaciones de la ventana (CLP). null cuando `f29_coverage` no es complete: la parte F29 es desconocida y un Σ parcial no es el total.",
+            "title": "Total"
           }
         },
         "required": [
@@ -40341,6 +41558,61 @@
           "glosa"
         ],
         "title": "TaxEvent",
+        "type": "object"
+      },
+      "TaxF29Coverage": {
+        "additionalProperties": false,
+        "description": "Cobertura del F29 dentro del calendario.",
+        "properties": {
+          "reason_code": {
+            "anyOf": [
+              {
+                "enum": [
+                  "f29_legacy_unattributed",
+                  "f29_scope_unavailable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "remediation": {
+            "anyOf": [
+              {
+                "const": "rematerialize_required",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remediation"
+          },
+          "status": {
+            "description": "complete | incomplete (F29 histórico sin sociedad sobre una obligación pendiente) | unavailable (sin FinancialScope único: el F29 no se leyó).",
+            "enum": [
+              "complete",
+              "incomplete",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "unattributed_periods": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unattributed Periods",
+            "type": "array"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TaxF29Coverage",
         "type": "object"
       },
       "TaxIdEvidenceState": {
@@ -41073,6 +42345,19 @@
       "TopDebtor": {
         "additionalProperties": false,
         "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "const": "reconciliation_quarantine",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
+            "title": "Amount Unknown Reason"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -41112,9 +42397,17 @@
             "title": "Rut"
           },
           "total": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Total",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo vivo del deudor. `null` = desconocido por cuarentena de conciliación (#687); nunca se muestra como cero.",
+            "title": "Total"
           }
         },
         "required": [
@@ -47088,7 +48381,7 @@
             "description": "El link de pago no existe para el tenant."
           },
           "409": {
-            "description": "La fuente tenant-wide exige una sola sociedad legal."
+            "description": "La fuente tenant-wide exige una sola sociedad legal, o el link es parte de un pago de lote (`payroll_batch_revert_requires_decision`): se deshace con `POST /api/admin/treasury/payroll-reconcile/revert-batch`."
           },
           "422": {
             "content": {
@@ -47107,6 +48400,82 @@
           }
         ],
         "summary": "DESASIGNA un pago de nómina aplicado a un trabajador (owner/admin)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/treasury/payroll-reconcile/revert-batch": {
+      "post": {
+        "description": "Deshace el pago de lote COMPLETO de un movimiento: todos los links de sus trabajadores,\nsus saldos, el payable del período y el caso canónico, en una sola transacción auditada.\nEs la forma de desasignar a un trabajador de un pago de lote (decisión del BO 2026-09-28,\n#688 opción a): después se re-concilia a los trabajadores correctos con\n`POST /api/admin/treasury/payroll-reconcile`. Idempotente: una segunda llamada devuelve\n`reverted_links=0` sin escribir.",
+        "operationId": "admin_payroll_reconcile_revert_batch",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayrollBatchRevertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Admin Payroll Reconcile Revert Batch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Rol sin permiso (owner/admin/technical_admin)."
+          },
+          "404": {
+            "description": "El movimiento bancario no existe para el tenant y su sociedad."
+          },
+          "409": {
+            "description": "La fuente tenant-wide exige una sola sociedad legal, o el lote cambió durante la reversa (no se escribió nada)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "DESHACE el pago de nómina completo de un movimiento bancario (owner/admin)",
         "tags": [
           "admin"
         ]
@@ -48886,6 +50255,9 @@
           },
           "404": {
             "description": "Movimiento o cuenta de gestión no existe en el tenant."
+          },
+          "409": {
+            "description": "The requested rule has no legal-entity attribution."
           },
           "422": {
             "description": "Body inválido (management_account_id requerido)."
@@ -52191,10 +53563,10 @@
             "description": "Rol sin permiso de escritura (§20)."
           },
           "404": {
-            "description": "El parent_id no existe en el tenant."
+            "description": "El parent_id no existe en la Empresa."
           },
           "409": {
-            "description": "Ya existe una cuenta con ese code."
+            "description": "Ya existe una cuenta con ese code en la Empresa, o no hay Empresa activa (`missing_scope:legal_entity`)."
           },
           "422": {
             "content": {
@@ -52261,6 +53633,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -52277,7 +53652,7 @@
             "APIKeyHeader": []
           }
         ],
-        "summary": "Árbol de cuentas de gestión del tenant (anidado)",
+        "summary": "Árbol de cuentas de gestión de la Empresa activa (anidado)",
         "tags": [
           "management-accounts"
         ]
@@ -52335,6 +53710,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
           },
           "422": {
             "content": {
@@ -52411,6 +53789,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
+          },
           "422": {
             "description": "El move generaría un ciclo."
           }
@@ -52468,6 +53849,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
           },
           "422": {
             "content": {
@@ -52533,6 +53917,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
           },
           "422": {
             "content": {
@@ -53799,7 +55186,7 @@
             "description": "El documento no existe en la fuente canónica del tenant."
           },
           "409": {
-            "description": "BHE tenant-wide requiere una única sociedad."
+            "description": "Las decisiones documentales requieren una única sociedad."
           },
           "422": {
             "description": "La cuenta no existe en el plan del tenant, o el side es inválido."
@@ -53863,7 +55250,7 @@
             "description": "El documento no existe o no tiene clasificación aplicada."
           },
           "409": {
-            "description": "BHE tenant-wide requiere una única sociedad."
+            "description": "Las decisiones documentales requieren una única sociedad."
           },
           "422": {
             "description": "El side es inválido."
@@ -53924,6 +55311,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "Document decisions require a single legal entity."
           },
           "422": {
             "content": {
@@ -53993,7 +55383,7 @@
             "description": "La propuesta no existe o ya no está pendiente."
           },
           "409": {
-            "description": "BHE tenant-wide requiere una única sociedad."
+            "description": "Las decisiones documentales requieren una única sociedad."
           },
           "422": {
             "content": {
@@ -54063,7 +55453,7 @@
             "description": "La propuesta no existe o ya no está pendiente."
           },
           "409": {
-            "description": "BHE tenant-wide requiere una única sociedad."
+            "description": "Las decisiones documentales requieren una única sociedad."
           },
           "422": {
             "content": {
@@ -54141,6 +55531,9 @@
               }
             },
             "description": "Resumen del job (o status='llm_off' si el LLM no está configurado)."
+          },
+          "409": {
+            "description": "Document decisions require a single legal entity."
           },
           "422": {
             "description": "period_from/period_to mal formados, invertidos o > 36 meses."
@@ -55613,7 +57006,7 @@
     },
     "/api/onboarding/sync": {
       "post": {
-        "description": "Dispara el primer sync de las fuentes **conectadas** (banco BICE + SII RCV).\nPer-source + partial-success: cada fuente reporta `ok`/`failed`/`skipped` y una\nno bloquea a la otra (el wizard puede continuar). `skipped` = no conectada.",
+        "description": "Dispara el sync de las fuentes **conectadas** (banco BICE + SII RCV).\nPer-source + partial-success: cada fuente reporta su estado y una no bloquea a la\notra (el wizard puede continuar). `skipped` = no conectada.\n\nSII:\n- Onboarding pendiente → la importación inicial cubre la ventana persistida\n  (`/import-window`) + el mes en curso. Son hasta ~7 meses por 2 llamadas SII con\n  reintentos: NO van dentro del request. Se crea un run consultable\n  (`/sync-runs/{run_id}`) que publica el estado de cada mes y se responde `queued`.\n- Onboarding completo (botón \"Actualizar\") → sólo el mes de negocio en curso,\n  dentro del request, con su estado por mes en `periods`.",
         "operationId": "onboarding_sync",
         "parameters": [
           {
@@ -55671,7 +57064,7 @@
     },
     "/api/onboarding/sync-runs": {
       "post": {
-        "description": "Crea una ejecución estable y responde antes de correr conectores lentos.\n\n``POST /sync`` queda intacto para consumidores existentes; esta ruta es la\nextensión explícita que permite al cliente leer hechos durante el proceso.",
+        "description": "Crea una ejecución estable y responde antes de correr conectores lentos.\n\n``POST /sync`` delega aquí la importación inicial del SII mientras el onboarding\nsigue pendiente; esta ruta es la extensión explícita que permite al cliente leer\nhechos (incluido el estado por mes del SII) durante el proceso.",
         "operationId": "onboarding_sync_run_start",
         "parameters": [
           {
@@ -55841,6 +57234,9 @@
             },
             "description": "Budget-vs-actual por cuenta (budget vs committed)."
           },
+          "409": {
+            "description": "Falta FinancialScope societario verificable; el reader se abstiene."
+          },
           "422": {
             "description": "period mal formado."
           }
@@ -55928,6 +57324,9 @@
             },
             "description": "Cierre cubierto o abstención explícita por cobertura insuficiente."
           },
+          "409": {
+            "description": "Falta FinancialScope societario verificable; el reader se abstiene."
+          },
           "422": {
             "description": "year/as_of mal formado."
           }
@@ -55992,6 +57391,9 @@
               }
             },
             "description": "Budget-vs-actual; has_budget=false si no hay presupuesto."
+          },
+          "409": {
+            "description": "Falta FinancialScope societario verificable; el reader se abstiene."
           },
           "422": {
             "description": "period mal formado."
@@ -56110,6 +57512,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "Falta FinancialScope societario verificable; el reader se abstiene."
           },
           "422": {
             "content": {
@@ -56449,7 +57854,7 @@
             "description": "El movimiento de origen ya está partido en componentes de cuota: agregarle un impacto 1:1 lo contaría dos veces; o no existe un FinancialScope verificable."
           },
           "422": {
-            "description": "Dominio inválido (CHECK / FK / NOT NULL)."
+            "description": "Dominio inválido (CHECK / FK / NOT NULL), o `bank_movement_currency_unverified`: el movimiento de origen no tiene moneda verificada (#370)."
           }
         },
         "security": [
@@ -56751,6 +58156,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "No existe un FinancialScope verificable."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -56767,7 +58175,7 @@
             "APIKeyHeader": []
           }
         ],
-        "summary": "Lista financial_versions del tenant",
+        "summary": "Lista financial_versions de la sociedad activa",
         "tags": [
           "planning-financial-versions"
         ]
@@ -56907,7 +58315,10 @@
             "description": "Successful Response"
           },
           "404": {
-            "description": "No existe (o cross-tenant)."
+            "description": "No existe (o cross-society)."
+          },
+          "409": {
+            "description": "No existe un FinancialScope verificable."
           },
           "422": {
             "content": {
@@ -57555,6 +58966,28 @@
         ]
       }
     },
+    "/api/release": {
+      "get": {
+        "description": "Expose complete immutable build provenance, or explicitly abstain.\n\nThe response intentionally does not claim an OCI digest: that digest only\nexists after the image is built and is verified from Azure's control plane\nby the release receipt. A legacy/partial file is not a certified release.",
+        "operationId": "get_release_provenance_api_release_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseProvenanceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Release Provenance",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
     "/api/reversible-actions": {
       "get": {
         "description": "Lo que Qavante hizo SOLO en este tenant, con `undo_available` y `undo_expires_at` por\nitem. Sólo lectura. Las acciones que dispara el usuario no entran acá: la Ley 5 cubre lo\nautomático.",
@@ -57726,6 +59159,9 @@
           },
           "404": {
             "description": "La acción no existe para este tenant."
+          },
+          "409": {
+            "description": "No existe un FinancialScope verificable para deshacer efectos financieros."
           },
           "422": {
             "content": {
@@ -60048,6 +61484,64 @@
         ]
       }
     },
+    "/api/sii/rcv/d08-gate": {
+      "get": {
+        "description": "Último estado de la compuerta D08 del RCV (#701, ADR-0116 §9 paso 5): la fila del tenant\n(identidad: ventas y compras observaron el mismo RUT empresa válido) y una por cuenta fuente\n`cl_rut` (sociedad: el RUT prueba una sociedad única). Con Empresa seleccionada se ocultan las\ncuentas que hoy declara otra sociedad. Sin montos. `d07_prerequisite` queda `not_credited`\nhasta que el cierre de D07 esté registrado. Read-only: no abre ni cierra la compuerta.",
+        "operationId": "sii_rcv_d08_gate",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RcvD08GateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Request sin tenant verificable."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "SII RCV: estado observable de la compuerta del dual-write D08 (read-only)",
+        "tags": [
+          "sii"
+        ]
+      }
+    },
     "/api/sii/rcv/ventas": {
       "get": {
         "description": "RCV Ventas del período. Slim devuelve: tipo_doc, folio, fecha,\nrut_contraparte, razon_social, montos.",
@@ -61446,7 +62940,7 @@
     },
     "/api/treasury/bank-accounts/{account_id}/legal-entity": {
       "put": {
-        "description": "Atribución explícita, sin backfill por default, nombre o RUT.\n\nEl repo serializa contra los writers de impactos de movimientos bancarios y\nactualiza en la misma transacción todos los impactos derivados de la cuenta.",
+        "description": "Atribución inicial explícita, sin backfill por default, nombre o RUT.\n\nSólo acepta cuenta todavía ``unattributed``: una cuenta ya atribuida no se\nmueve entre sociedades por este endpoint. El repo serializa contra los\nwriters de impactos y actualiza en la misma transacción sus derivados.",
         "operationId": "treasury_bank_account_assign_legal_entity",
         "parameters": [
           {
@@ -61488,13 +62982,16 @@
         },
         "responses": {
           "204": {
-            "description": "Cuenta e impactos derivados reatribuidos atómicamente."
+            "description": "Cuenta no atribuida e impactos derivados atribuidos atómicamente."
           },
           "403": {
             "description": "Rol sin permiso (owner/admin)."
           },
           "404": {
             "description": "La cuenta no existe para el tenant."
+          },
+          "409": {
+            "description": "La cuenta ya pertenece a una sociedad; no se reasigna implícitamente."
           },
           "422": {
             "description": "La entidad legal no existe o pertenece a otro tenant."
@@ -61824,6 +63321,9 @@
           "403": {
             "description": "Rol sin permiso de escritura (ADR-0028, §20)."
           },
+          "409": {
+            "description": "Active rules have no legal-entity attribution."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -61949,6 +63449,9 @@
           "403": {
             "description": "Rol sin permiso de escritura (ADR-0028, §20)."
           },
+          "409": {
+            "description": "Active rules have no legal-entity attribution."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -62019,6 +63522,9 @@
           "403": {
             "description": "Rol sin permiso de escritura (ADR-0028, §20)."
           },
+          "409": {
+            "description": "Active rules have no legal-entity attribution."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -62076,6 +63582,9 @@
           },
           "403": {
             "description": "Rol sin permiso de escritura (ADR-0028, §20)."
+          },
+          "409": {
+            "description": "Active rules have no legal-entity attribution."
           },
           "422": {
             "content": {
@@ -62384,6 +63893,9 @@
           "404": {
             "description": "Movimiento o cuenta de gestión no existe en el tenant."
           },
+          "409": {
+            "description": "The requested rule has no legal-entity attribution."
+          },
           "422": {
             "description": "Body inválido (management_account_id requerido)."
           }
@@ -62642,6 +64154,9 @@
           },
           "404": {
             "description": "Movimiento no existe en el tenant."
+          },
+          "409": {
+            "description": "Active rules have no legal-entity attribution."
           },
           "422": {
             "content": {
@@ -63423,6 +64938,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -63439,7 +64957,7 @@
             "APIKeyHeader": []
           }
         ],
-        "summary": "Lista reglas del tenant (orden de evaluación, priority ASC)",
+        "summary": "Lista reglas de la Empresa activa (orden de evaluación, priority ASC)",
         "tags": [
           "classification-rules"
         ]
@@ -63509,7 +65027,10 @@
             "description": "Rol sin permiso (§20)."
           },
           "404": {
-            "description": "El management_account_id no existe en el tenant."
+            "description": "El management_account_id no existe en la Empresa activa."
+          },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
           },
           "422": {
             "description": "Dominio inválido (source_type/condition_field/operator)."
@@ -63579,6 +65100,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -63643,6 +65167,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
           },
           "422": {
             "content": {
@@ -63710,7 +65237,10 @@
             "description": "Successful Response"
           },
           "404": {
-            "description": "La regla no existe en el tenant."
+            "description": "La regla no existe en la Empresa activa."
+          },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide."
           },
           "422": {
             "content": {
@@ -66568,6 +68098,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "No existe FinancialScope verificable para la lectura."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -66648,6 +68181,9 @@
           },
           "404": {
             "description": "La compra no existe para el tenant."
+          },
+          "409": {
+            "description": "No existe FinancialScope verificable para la compra."
           },
           "422": {
             "content": {
@@ -68548,6 +70084,9 @@
           "403": {
             "description": "Rol sin permiso (owner/admin)."
           },
+          "409": {
+            "description": "El tenant tiene más de una sociedad y la nómina aún no tiene sociedad atribuida (`payroll_classifications_require_single_legal_entity`)."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -68628,6 +70167,9 @@
           },
           "403": {
             "description": "Rol sin permiso (owner/admin)."
+          },
+          "409": {
+            "description": "El tenant tiene más de una sociedad y la nómina aún no tiene sociedad atribuida (`payroll_classifications_require_single_legal_entity`)."
           },
           "422": {
             "content": {
@@ -70682,7 +72224,7 @@
     },
     "/api/treasury/reconciliation/{movement_id}/revert": {
       "post": {
-        "description": "Deshace una conciliación banco↔documento YA APLICADA (auto ≥90 o confirmada): restaura el\n`outstanding` del/los documento(s), los vuelve a `open`/`partially_paid` y libera todas las\npatas bancarias del caso (`unmatched`). Puede invocarse desde el ancla o desde un movimiento\nhermano N:1/N:N. Idempotente (`reverted=0` si no había match).\nPara una sugerencia en cola (no aplicada) usar `.../reject`. Principio: toda conciliación se\ndesasigna.",
+        "description": "Deshace una conciliación banco↔documento YA APLICADA (auto ≥90 o confirmada): restaura el\n`outstanding` del/los documento(s), los vuelve a `open`/`partially_paid` y libera todas las\npatas bancarias del caso (`unmatched`). Puede invocarse desde el ancla o desde un movimiento\nhermano N:1/N:N. Idempotente (`reverted=0` si no había match).\nPara una sugerencia en cola (no aplicada) usar `.../reject`. Principio: toda conciliación se\ndesasigna.\n\nCuotas de crédito y pagos de cartola resueltos con autoridad canónica (#852/#858) se revierten\ncon la reversa exacta de su rail. Si el rail no la tiene (legacy-adapter, historia sin caso,\nnómina) responde 409 `rail_owned_reconciliation:<rail>` sin escribir (#688).",
         "operationId": "treasury_reconciliation_revert",
         "parameters": [
           {
@@ -70803,7 +72345,7 @@
     },
     "/api/treasury/reports/cash-flow": {
       "get": {
-        "description": "Genera el reporte cash flow para el rango/filtros del request.\n\nSource: `planning.financial_impacts` con `financial_model='cash_flow'`.\nSin escrituras. Sin caching (query directa; ADR-0019 si necesita\nmaterialized view).\n\nErrores 422:\n  - period_from > period_to.\n  - currency=original sin currency_code.\n  - granularity=week con rango > 12 meses.\n  - granularity=day con rango > 3 meses.\n  - period_* mal formado (no YYYY-MM).",
+        "description": "Genera el reporte cash flow para el rango/filtros del request.\n\nSource: `planning.financial_impacts` con sociedad explícita y categorías\ncanónicas de caja real.\nSin escrituras. Sin caching (query directa; ADR-0019 si necesita\nmaterialized view).\n\nErrores 422:\n  - period_from > period_to.\n  - currency=original sin currency_code.\n  - granularity=week con rango > 12 meses.\n  - granularity=day con rango > 3 meses.\n  - period_* mal formado (no YYYY-MM).",
         "operationId": "treasury_reports_cash_flow",
         "parameters": [
           {
@@ -70987,6 +72529,9 @@
               }
             },
             "description": "Buckets temporales agregados + grand total."
+          },
+          "409": {
+            "description": "No existe una sociedad legal verificable o una moneda funcional declarada; el reporte no agrega flujos tenant-wide."
           },
           "422": {
             "description": "Params inválidos (rango invertido, currency_code faltante, granularity con rango excesivo, period mal formado)."

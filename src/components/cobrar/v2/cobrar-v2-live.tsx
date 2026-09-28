@@ -11,11 +11,13 @@ import {
 } from "@/lib/api/cobranza";
 import { usePreferences, useUpdatePreferences } from "@/lib/api/preferences";
 import {
+  MontosEnRevisionState,
   PartialDataBanner,
   SyncPendingState,
   isPartial,
   isSyncPending,
 } from "@/components/treasury/sync-pending-state";
+import { MONTO_EN_REVISION, importeDesconocido } from "@/lib/formatters/amount";
 import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { SortBar } from "@/components/filters/sort-bar";
 import { formatClp } from "@/lib/formatters/clp";
@@ -93,6 +95,11 @@ export function CobrarV2Live({
   }
   const data = query.data;
   if (!data) return null;
+  /* #907: cuarentena de conciliación viva → montos AR desconocidos. Ni "$0" ni "no tienes
+     cuentas por cobrar": se declara la revisión. */
+  if (importeDesconocido(data) || data.total == null) {
+    return <MontosEnRevisionState what="tus cuentas por cobrar" />;
+  }
   if (parseAmount(data.total) === 0) {
     return isSyncPending(data) ? (
       <SyncPendingState missingSources={data.missing_sources} what="tus cuentas por cobrar" />
@@ -179,9 +186,12 @@ function Assembled({
     return data.top_debtors ?? [];
   }, [useRcv, cps, data.top_debtors]);
 
-  const grandTotal = useRcv
-    ? debtors.reduce((s, d) => s + parseAmount(d.total), 0)
-    : parseAmount(data.total);
+  // #907: un total (o un saldo de deudor) en revisión vuelve desconocida la suma; nunca 0.
+  const grandTotal: number | null = useRcv
+    ? debtors.some((d) => d.total == null)
+      ? null
+      : debtors.reduce((s, d) => s + (parseAmountOrNull(d.total) ?? 0), 0)
+    : parseAmountOrNull(data.total);
   /* Vencido: por la vía RCV se DERIVA localmente (siempre se conoce). Por la vía
      `accounts-receivable` puede venir `null` = la API no pudo computarlo
      (qavante-api#123, hallazgo H6) → se propaga el null, NO se aplasta a 0. Un `0`
@@ -194,7 +204,11 @@ function Assembled({
       totalVencidoDeudores(debtors)
     : parseAmountOrNull(data.overdue);
   const overduePct =
-    totalVencido == null ? null : grandTotal > 0 ? (totalVencido / grandTotal) * 100 : 0;
+    totalVencido == null || grandTotal == null
+      ? null
+      : grandTotal > 0
+        ? (totalVencido / grandTotal) * 100
+        : 0;
   const sinDato = explicarVencidoSinDato(data);
 
   /* ÚNICA fuente de verdad sobre si CONOCEMOS la mora agregada (H6-F).
@@ -216,7 +230,12 @@ function Assembled({
   const debtorCols = React.useMemo<SortColumn<TopDebtor>[]>(
     () => [
       { key: "nombre", kind: "text", get: (d) => d.name },
-      { key: "monto", kind: "number", get: (d) => parseAmount(d.total) },
+      // #907: saldo en revisión → al final del orden, sin cifra inventada.
+      {
+        key: "monto",
+        kind: "number",
+        get: (d) => parseAmountOrNull(d.total) ?? Number.NEGATIVE_INFINITY,
+      },
       /* Desconocido → −1: en ESTA columna ordenable el "no se sabe" queda al final,
          porque el usuario que ordena por vencido está pidiendo montos. La urgencia
          real la resuelve `sortByUrgency`, que sí lo pone por encima de los ceros. */
@@ -276,7 +295,7 @@ function Assembled({
   const remFor = (d: TopDebtor) =>
     reminderText({
       name: d.name,
-      total: parseAmount(d.total),
+      total: parseAmountOrNull(d.total),
       /* Si no se sabe el vencido, el recordatorio va en modo CONCENTRACION y con 0:
          este texto se le manda al cliente, y afirmarle una mora que no verificamos
          es peor que no mencionarla. */
@@ -361,13 +380,17 @@ function Assembled({
           </>
         ) : relato.hero === "sin-dato" ? (
           <>
-            {formatPct(prioridad.pctDelTotal)} de tus {formatClp(grandTotal)} por cobrar. Aún no
-            sabemos qué está vencido, así que priorizamos por tamaño. {sinDato.motivo}
+            {formatPct(prioridad.pctDelTotal)} de tus{" "}
+            {grandTotal == null ? MONTO_EN_REVISION.toLowerCase() : formatClp(grandTotal)} por
+            cobrar. Aún no sabemos qué está vencido, así que priorizamos por tamaño.{" "}
+            {sinDato.motivo}
           </>
         ) : (
           <>
-            {formatPct(prioridad.pctDelTotal)} de tus {formatClp(grandTotal)} por cobrar. Nada
-            vencido entre lo pendiente por ahora, así que priorizamos por el tamaño de la deuda.
+            {formatPct(prioridad.pctDelTotal)} de tus{" "}
+            {grandTotal == null ? MONTO_EN_REVISION.toLowerCase() : formatClp(grandTotal)} por
+            cobrar. Nada vencido entre lo pendiente por ahora, así que priorizamos por el tamaño de
+            la deuda.
           </>
         )
       }
@@ -404,10 +427,10 @@ function Assembled({
             key={rut || d.name}
             name={d.name}
             rut={d.rut ?? null}
-            total={parseAmount(d.total)}
+            total={parseAmountOrNull(d.total)}
             overdue={vencidoDeDeudor(d)}
             pct={
-              suppressRecommendations
+              suppressRecommendations || grandTotal == null || d.total == null
                 ? undefined
                 : grandTotal > 0
                   ? (parseAmount(d.total) / grandTotal) * 100

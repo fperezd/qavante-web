@@ -289,3 +289,18 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     expect(out).not.toMatch(/TypeError|\/api\/|trace_id/);
   });
 });
+
+describe("#370 — 422 bank_movement_currency_unverified (qavante-api#905)", () => {
+  it("explica que no se guardó y por qué, sin reflejar el mensaje técnico del backend", () => {
+    const err = new ApiError(
+      "movimiento sin moneda verificada (currency_unverified)",
+      422,
+      "bank_movement_currency_unverified",
+    );
+    const out = apiErrorToUserMessage(err);
+    expect(out).toBe(
+      "No se guardó la clasificación: la moneda de este movimiento bancario no está verificada. Revisa el movimiento en Banco o sincroniza la cuenta antes de clasificarlo.",
+    );
+    expect(out).not.toMatch(/currency_unverified/);
+  });
+});

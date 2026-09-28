@@ -6,6 +6,7 @@ import { QavanteCard, QavanteBadge } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import type { CashFlowBucket, CashFlowReportResponse } from "@/lib/api/treasury-reports";
 import {
+  avisosDelReporte,
   formatPeriodLabel,
   formatBucketLabel,
   parseDecimal,
@@ -34,7 +35,8 @@ export interface CashFlowTableProps {
 export function CashFlowTable({ data }: CashFlowTableProps) {
   const buckets: CashFlowBucket[] = data.buckets ?? [];
   const grand = data.grand_total;
-  const warnings = data.warnings ?? [];
+  // #370: lo excluido por moneda no verificada va primero y en lenguaje de usuario.
+  const warnings = avisosDelReporte(data);
 
   return (
     <QavanteCard

@@ -1,3 +1,5 @@
+import { formatClp } from "./clp";
+
 /* Parseo de los montos que el backend manda como STRING decimal ("18500000",
    "-300000.50", "", null). Esto vivía copiado carácter por carácter en cuatro
    módulos de dominio (cobrar / gestión / inicio / pagar), cada uno con su
@@ -34,4 +36,35 @@ export function parseAmountOrNull(raw: string | null | undefined): number | null
   if (s === "") return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
+}
+
+/* ── Importe DESCONOCIDO por cuarentena de conciliación (qavante-api#907, #687) ──────────────
+   El backend publica `null` + `amount_unknown_reason: "reconciliation_quarantine"` cuando el
+   importe depende de una evidencia de pago en revisión. No es cero, no es un piso y no se suma:
+   la pantalla lo dice con estas palabras, iguales en todas las vistas. */
+
+/** Motivo que el contrato publica hoy para un importe desconocido. */
+export const AMOUNT_UNKNOWN_QUARANTINE = "reconciliation_quarantine";
+
+/** Rótulo corto en lugar de la cifra. */
+export const MONTO_EN_REVISION = "En revisión";
+
+/** Explicación para el usuario (tooltip, "sin dato", detalle). */
+export const MONTO_EN_REVISION_MOTIVO =
+  "Hay un pago en revisión de conciliación que afecta este monto; lo mostraremos cuando se resuelva.";
+
+/** ¿El registro declara su importe desconocido? Un motivo presente basta: nunca se lee su
+ *  importe (que viene `null`) como 0. */
+export function importeDesconocido(
+  value: { amount_unknown_reason?: string | null } | null | undefined,
+): boolean {
+  return value?.amount_unknown_reason != null;
+}
+
+/** Monto CLP formateado, o "En revisión" cuando el backend lo publica `null` por cuarentena de
+ *  conciliación. Para campos cuyo único `null` es la cuarentena (#907); nunca devuelve "$0"
+ *  por un `null`. */
+export function formatClpOEnRevision(raw: string | null | undefined): string {
+  const value = parseAmountOrNull(raw);
+  return value == null ? MONTO_EN_REVISION : formatClp(value);
 }

@@ -3,6 +3,7 @@ import { CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AmountCountUp } from "@/components/qavante/amount-count-up";
 import { InfoHint } from "@/components/ui/info-hint";
+import { MONTO_EN_REVISION, MONTO_EN_REVISION_MOTIVO } from "@/lib/formatters/amount";
 
 /* PagarHero — la "respuesta de dueño" de Pagar v2: cuánto debe pagar + la respuesta que
    importa (¿la caja alcanza?). Pagar mira ADELANTE (compromiso futuro + cobertura), por
@@ -13,8 +14,9 @@ export type CoberturaTono = "ok" | "bad" | "neutral";
 export interface PagarHeroProps {
   /** Antetítulo, ej. "La empresa debe pagar". */
   titulo: string;
-  /** Total por pagar (CLP). */
-  montoTotal: number;
+  /** Total por pagar (CLP). `null` = en revisión de conciliación (qavante-api#907): se dice,
+   *  nunca se pinta $0. */
+  montoTotal: number | null;
   /** Señal tri-estado de cobertura informada por la API, sin monto derivado localmente. */
   cobertura: React.ReactNode;
   /** Tono de la cobertura. Default "ok". */
@@ -43,7 +45,11 @@ export function PagarHero({
     <div className={cn("p-5", className)}>
       <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">{titulo}</p>
       <p className="mt-1.5 text-[33px] font-extrabold leading-none tracking-tight text-neutral-dark tabular-nums">
-        <AmountCountUp value={montoTotal} />
+        {montoTotal == null ? (
+          <span title={MONTO_EN_REVISION_MOTIVO}>{MONTO_EN_REVISION}</span>
+        ) : (
+          <AmountCountUp value={montoTotal} />
+        )}
       </p>
       <div
         className={cn(

@@ -8,6 +8,8 @@ import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AccountsReceivableResponse, CollectionReminderItemResult } from "@/lib/api/cobranza";
 import { formatClp } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION, importeDesconocido } from "@/lib/formatters/amount";
+import { MontosEnRevisionState } from "@/components/treasury/sync-pending-state";
 import { formatPct } from "@/lib/formatters/pct";
 import { Banner } from "@/components/rediseno/banner";
 import { DataState } from "@/components/rediseno/data-state";
@@ -198,6 +200,17 @@ export function CobrarV04View({
               : { label: "Revisar conexiones", href: "/conexiones" }
           }
         />
+      </div>
+    );
+  }
+
+  /* (0'') Montos en revisión (qavante-api#907): con una cuarentena de conciliación viva el total,
+     los tramos y los saldos son desconocidos. Se declara; nunca se pinta $0 ni "sin cartera". */
+  if (importeDesconocido(ar) || ar.total == null) {
+    return (
+      <div className="space-y-5">
+        <Crumb chip={crumb.chip} />
+        <MontosEnRevisionState what="tus cuentas por cobrar" />
       </div>
     );
   }
@@ -575,7 +588,7 @@ function LotePanel({
                 <span className="block text-[12px] text-rediseno-tinta-3">
                   {conc.kind === "vencido"
                     ? `${formatClp(c.vencido ?? 0)} vencido`
-                    : `${formatClp(c.saldo)} por cobrar · vencido: no se sabe`}
+                    : `${c.saldo == null ? MONTO_EN_REVISION.toLowerCase() : formatClp(c.saldo)} por cobrar · vencido: no se sabe`}
                 </span>
               </span>
               <details className="w-full text-[12px] text-rediseno-tinta-3 sm:w-auto">
@@ -789,7 +802,8 @@ function TablaClientes({
 }: {
   clientes: ClienteV04[];
   totalClientes: number;
-  bruto: number;
+  /** `null` = en revisión de conciliación (qavante-api#907). */
+  bruto: number | null;
   copiadoKey: string | null;
   onCopiar: (r: RecordatorioV04) => void;
   onToggleGestionado?: (c: ClienteV04) => void;
@@ -840,10 +854,12 @@ function TablaClientes({
         : []),
       {
         id: "saldo",
-        accessorFn: (c) => c.saldo,
+        // #907: un saldo en revisión se ordena al final, sin inventarle una cifra.
+        accessorFn: (c) => c.saldo ?? Number.NEGATIVE_INFINITY,
         header: "Saldo",
         meta: { align: "right" },
-        cell: ({ row }) => formatClp(row.original.saldo),
+        cell: ({ row }) =>
+          row.original.saldo == null ? MONTO_EN_REVISION : formatClp(row.original.saldo),
       },
       {
         id: "acciones",
@@ -897,7 +913,7 @@ function TablaClientes({
           <span>
             total por cobrar{" "}
             <span className="font-semibold tabular-nums text-rediseno-tinta">
-              {formatClp(bruto)}
+              {bruto == null ? MONTO_EN_REVISION.toLowerCase() : formatClp(bruto)}
             </span>
           </span>
         </span>

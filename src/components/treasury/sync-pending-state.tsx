@@ -1,5 +1,6 @@
 import { Info, RefreshCw } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
+import { MONTO_EN_REVISION_MOTIVO } from "@/lib/formatters/amount";
 // Predicados puros (unit-testeables) extraídos a un .ts hermano; se re-exportan acá para
 // no romper los imports existentes (`import { isSyncPending } from ".../sync-pending-state"`).
 export { isSyncPending, isPartial } from "./sync-pending-state.logic";
@@ -48,6 +49,23 @@ export function SyncPendingState({
           >
             {falta ? "Revisar en Credenciales →" : "Ir a Credenciales →"}
           </a>
+        </div>
+      </div>
+    </QavanteCard>
+  );
+}
+
+/* Montos EN REVISIÓN (qavante-api#907, #687): el backend publica los importes `null` +
+ * `amount_unknown_reason` porque una evidencia de pago está en cuarentena de conciliación. No es
+ * "sin deuda" ni "datos parciales con montos correctos": los montos son desconocidos. */
+export function MontosEnRevisionState({ what }: { what: string }) {
+  return (
+    <QavanteCard variant="bordered" className="border-warning-500/30 bg-warning-500/5">
+      <div role="status" className="flex items-start gap-3">
+        <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning-700" aria-hidden="true" />
+        <div className="space-y-1">
+          <p className="font-medium text-neutral-dark">Los montos de {what} están en revisión.</p>
+          <p className="text-sm text-neutral-mid">{MONTO_EN_REVISION_MOTIVO}</p>
         </div>
       </div>
     </QavanteCard>

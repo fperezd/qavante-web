@@ -20,6 +20,7 @@ import {
   useSendCollectionReminders,
 } from "@/lib/api/cobranza";
 import { formatMoneyFromDecimalString } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION } from "@/lib/formatters/amount";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
 
@@ -45,11 +46,18 @@ function todayIso() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
 }
 
-export function formatCollectionMoney(values: { currency: string; amount: string }[] | null) {
+export function formatCollectionMoney(
+  values: { currency: string; amount: string | null }[] | null,
+) {
   if (values == null) return "Sin información";
   if (values.length === 0) return "$0";
   return values
-    .map(({ currency, amount }) => formatMoneyFromDecimalString(amount, currency) ?? "s/d")
+    .map(({ currency, amount }) =>
+      // #907: `amount: null` = en revisión de conciliación en esa moneda; nunca "$0" ni "s/d".
+      amount == null
+        ? `${MONTO_EN_REVISION} (${currency})`
+        : (formatMoneyFromDecimalString(amount, currency) ?? "s/d"),
+    )
     .join(" · ");
 }
 
@@ -97,6 +105,8 @@ export function matchesCollectionStatus(
 }
 
 export function isReminderEligible(item: ReceivableDocumentItem) {
+  // #907: un saldo en revisión de conciliación no se cobra por recordatorio (y nunca `Number(null)`).
+  if (item.outstanding_amount == null) return false;
   const outstanding = Number(item.outstanding_amount);
   return (
     ["open", "partially_paid"].includes(item.status) &&

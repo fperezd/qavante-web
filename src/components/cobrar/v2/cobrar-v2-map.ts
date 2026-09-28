@@ -19,8 +19,11 @@ import type { AccountsReceivableResponse, TopDebtor } from "@/lib/api/cobranza";
 import type { PreferencesBlob } from "@/lib/api/preferences";
 import type { DocMaestro } from "@/components/terminos/terminos-pago";
 import { formatClp } from "@/lib/formatters/clp";
+import { importeDesconocido } from "@/lib/formatters/amount";
 import {
+  compararTotalDesc,
   parseAmount,
+  parseAmountOrNull,
   sortByUrgency,
   shareOfTotal,
   rutKey,
@@ -46,8 +49,9 @@ export interface Prioridad {
 
 /** Ordena deudores por TAMAÑO (mayor total primero) — el criterio del modo
  *  concentración, cuando no hay vencimientos para priorizar por mora. PURO. */
-export function sortByTotal<T extends { total: string }>(items: ReadonlyArray<T>): T[] {
-  return [...items].sort((a, b) => parseAmount(b.total) - parseAmount(a.total));
+export function sortByTotal<T extends { total: string | null }>(items: ReadonlyArray<T>): T[] {
+  // #907: un total en revisión queda al final, sin inventarle una cifra.
+  return [...items].sort((a, b) => compararTotalDesc(a.total, b.total));
 }
 
 /** Elige a quién cobrarle primero y en qué modo. `null` si no hay deudores.
@@ -55,6 +59,11 @@ export function sortByTotal<T extends { total: string }>(items: ReadonlyArray<T>
 export function pickPrioridad(data: AccountsReceivableResponse): Prioridad | null {
   const debtors = data.top_debtors ?? [];
   if (debtors.length === 0) return null;
+  // #907: con montos en revisión de conciliación no hay a quién priorizar por monto; no se
+  // recomienda sobre cifras desconocidas.
+  if (importeDesconocido(data) || data.total == null || debtors.some((d) => d.total == null)) {
+    return null;
+  }
   /* `estadoVencidoDeudores` y no un `some(... > 0)`: con todos los `overdue` en
      `null` el booleano respondía `false` —"nadie debe vencido"— cuando la respuesta
      real es "no lo sabemos". Ordenar por total es correcto en los dos casos, pero
@@ -62,12 +71,16 @@ export function pickPrioridad(data: AccountsReceivableResponse): Prioridad | nul
   const estado = estadoVencidoDeudores(debtors);
   const ordered = estado === "con-mora" ? sortByUrgency(debtors) : sortByTotal(debtors);
   const top = ordered[0]!;
+  // Ya garantizado por la guarda de arriba; se re-verifica para no leer un `null` como 0.
+  const topTotal = parseAmountOrNull(top.total);
+  const pctDelTotal = shareOfTotal(top.total, data.total);
+  if (topTotal == null || pctDelTotal == null) return null;
   return {
     mode: estado === "con-mora" ? "urgencia" : "concentracion",
     debtor: top,
-    total: parseAmount(top.total),
+    total: topTotal,
     overdue: vencidoDeDeudor(top) ?? 0,
-    pctDelTotal: shareOfTotal(top.total, data.total),
+    pctDelTotal,
     grandTotal: parseAmount(data.total),
   };
 }
@@ -77,7 +90,9 @@ export function pickPrioridad(data: AccountsReceivableResponse): Prioridad | nul
  *  el canal que quiera. El texto cambia según haya mora conocida o no. PURO. */
 export function reminderText(p: {
   name: string;
-  total: number;
+  /** `null` = saldo en revisión de conciliación (qavante-api#907): el texto no cita un monto que
+   *  no conocemos (nunca "$0"). */
+  total: number | null;
   overdue: number;
   mode: PrioridadMode;
 }): string {
@@ -87,7 +102,9 @@ export function reminderText(p: {
     return [
       saludo,
       "",
-      `Junto con saludar, escribo para regularizar los documentos vencidos que mantienen con nosotros, por ${formatClp(p.overdue)} (de un total de ${formatClp(p.total)} pendiente).`,
+      p.total == null
+        ? `Junto con saludar, escribo para regularizar los documentos vencidos que mantienen con nosotros, por ${formatClp(p.overdue)}.`
+        : `Junto con saludar, escribo para regularizar los documentos vencidos que mantienen con nosotros, por ${formatClp(p.overdue)} (de un total de ${formatClp(p.total)} pendiente).`,
       "",
       `¿Podríamos coordinar su pago a la brevedad? ${cierre}`,
     ].join("\n");
@@ -95,7 +112,9 @@ export function reminderText(p: {
   return [
     saludo,
     "",
-    `Junto con saludar, escribo para coordinar el pago de los documentos pendientes que mantienen con nosotros, por un total de ${formatClp(p.total)}.`,
+    p.total == null
+      ? "Junto con saludar, escribo para coordinar el pago de los documentos pendientes que mantienen con nosotros."
+      : `Junto con saludar, escribo para coordinar el pago de los documentos pendientes que mantienen con nosotros, por un total de ${formatClp(p.total)}.`,
     "",
     `¿Podríamos revisar el estado de estas facturas y agendar su pago? ${cierre}`,
   ].join("\n");

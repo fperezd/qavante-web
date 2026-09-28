@@ -21,11 +21,17 @@ import {
   isSyncPending,
 } from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
+import {
+  MONTO_EN_REVISION,
+  MONTO_EN_REVISION_MOTIVO,
+  importeDesconocido,
+} from "@/lib/formatters/amount";
 import { formatPct } from "@/lib/formatters/pct";
 import { formatDateLike } from "@/lib/formatters/date";
 import {
   montoCLP,
   montoCLPFaltante,
+  montoEnRevision,
   multiCurrencyNote,
   parseAmount,
   payableItemLabel,
@@ -90,7 +96,8 @@ export function PagarView({
       </div>
     );
   }
-  if (query.data && parseAmount(query.data.total) === 0) {
+  // #907: `total: null` (cuarentena de conciliación) es DESCONOCIDO, no "sin pagos pendientes".
+  if (query.data && query.data.total != null && parseAmount(query.data.total) === 0) {
     return (
       <div className="space-y-4">
         {projection}
@@ -146,6 +153,10 @@ function Payable({
   const now = React.useMemo(() => new Date(), []);
   // `items` es opcional en el contrato (backend lo omite en estado partial).
   const rawItems = React.useMemo(() => data.items ?? [], [data.items]);
+  // #907: con cuarentena de conciliación viva los montos AP son desconocidos. Las sumas locales
+  // sobre la página (vencido, subtotales, %) dejarían fuera los pagos en revisión y se leerían
+  // como totales: no se publican.
+  const enRevision = importeDesconocido(data);
   const overdue = React.useMemo(() => overdueTotal(rawItems, now), [rawItems, now]);
   const subtotals = React.useMemo(
     () => (suppressRecommendations ? null : subtotalsByCriticality(rawItems)),
@@ -156,32 +167,45 @@ function Payable({
     () => groupByCategory(rawItems, { order: suppressRecommendations ? "source" : "subtotal" }),
     [rawItems, suppressRecommendations],
   );
-  const total = parseAmount(data.total);
+  const total = data.total == null ? null : parseAmount(data.total);
+  const tile = (raw: string | null) =>
+    raw == null ? MONTO_EN_REVISION : <AmountCountUp value={parseAmount(raw)} />;
   return (
     <div className="space-y-4">
-      {isPartial(data) && <PartialDataBanner missingSources={data.missing_sources} />}
+      {/* "Los montos son correctos" sería falso con montos en revisión (#907). */}
+      {isPartial(data) && !enRevision && (
+        <PartialDataBanner missingSources={data.missing_sources} />
+      )}
+      {enRevision && (
+        <p
+          role="status"
+          className="rounded-xl border border-warning-500/30 bg-warning-500/5 p-3 text-sm text-neutral-dark"
+        >
+          <span className="font-medium">Montos en revisión.</span> {MONTO_EN_REVISION_MOTIVO}
+        </p>
+      )}
 
       {/* Resumen. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <QavanteStatTile
           label="Total por pagar"
-          value={<AmountCountUp value={parseAmount(data.total)} />}
+          value={tile(data.total)}
           info="Todo lo que le debes a tus proveedores y aún no pagas, según las facturas que recibiste."
         />
         <QavanteStatTile
           label="Próx. 7 días"
-          value={<AmountCountUp value={parseAmount(data.due_7d)} />}
+          value={tile(data.due_7d)}
           tone={suppressRecommendations ? "default" : "danger"}
           info="Lo que vence dentro de los próximos 7 días. Es tu compromiso de caja más inmediato."
         />
         <QavanteStatTile
           label="Próx. 14 días"
-          value={<AmountCountUp value={parseAmount(data.due_14d)} />}
+          value={tile(data.due_14d)}
           info="Lo que vence dentro de los próximos 14 días. Incluye lo de los próximos 7."
         />
         <QavanteStatTile
           label="Próx. 30 días"
-          value={<AmountCountUp value={parseAmount(data.due_30d)} />}
+          value={tile(data.due_30d)}
           info="Lo que vence dentro de los próximos 30 días. Incluye lo de los próximos 14."
         />
       </div>
@@ -198,7 +222,8 @@ function Payable({
       })()}
 
       {/* Con Brief, vencido sigue siendo evidencia de fecha, no una instrucción local. */}
-      {overdue > 0 &&
+      {!enRevision &&
+        overdue > 0 &&
         (suppressRecommendations ? (
           <div
             role="status"
@@ -222,6 +247,7 @@ function Payable({
       {/* Subtotales por criticidad (control de gestión: dónde está la plata que
           más urge). Solo cuando hay más de un nivel con monto. */}
       {!suppressRecommendations &&
+        !enRevision &&
         subtotals &&
         [subtotals.high, subtotals.medium, subtotals.low].filter((v) => v > 0).length > 1 && (
           <div className="flex flex-wrap gap-x-6 gap-y-1 rounded-xl border border-border bg-surface-muted px-4 py-2.5 text-sm">
@@ -307,6 +333,18 @@ export function CoberturaDeCaja({ data }: { data: AccountsPayableResponse }) {
  * `TopDebtors` en Cobrar: las stories del container no pueden llevar `play` porque muere
  * con "NEXT_PUBLIC_API_URL no configurada" antes de que MSW intercepte. */
 export function CoberturaIndeterminada({ data }: { data: AccountsPayableResponse }) {
+  // #907: con cuarentena los montos son desconocidos: ni "sin fecha $0" ni "piso".
+  if (importeDesconocido(data)) {
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-border bg-neutral-light/40 p-3 text-sm text-neutral-dark">
+        <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-neutral-mid" aria-hidden="true" />
+        <p>
+          <span className="font-medium">No podemos decirte si la caja alcanza</span> para los pagos
+          críticos próximos. {MONTO_EN_REVISION_MOTIVO}
+        </p>
+      </div>
+    );
+  }
   const sinFecha = parseAmount(data.undated_amount ?? "0");
   const cuantos = data.undated_count ?? 0;
   const faltaTc = (data.missing_sources ?? []).some((m) => m.startsWith("Tipo de cambio"));
@@ -348,7 +386,8 @@ function PagosPorCategoria({
   suppressRecommendations,
 }: {
   groups: ReturnType<typeof groupByCategory>;
-  total: number;
+  /** `null` = total en revisión (#907): no hay base para porcentajes. */
+  total: number | null;
   now: Date;
   suppressRecommendations: boolean;
 }) {
@@ -365,7 +404,10 @@ function PagosPorCategoria({
       <ul className="divide-y divide-border">
         {groups.map((g) => {
           const isOpen = openCat === g.category;
-          const pct = suppressRecommendations ? null : shareOfTotal(g.subtotal, total);
+          const pct =
+            suppressRecommendations || total == null || g.items.some(montoEnRevision)
+              ? null
+              : shareOfTotal(g.subtotal, total);
           return (
             <li key={g.category}>
               <button
@@ -390,7 +432,12 @@ function PagosPorCategoria({
                   </span>
                 </div>
                 <div className="shrink-0 text-right tabular-nums">
-                  <span className="font-semibold text-neutral-dark">{formatClp(g.subtotal)}</span>
+                  {/* #907: un grupo con un pago en revisión no tiene subtotal conocido. */}
+                  <span className="font-semibold text-neutral-dark">
+                    {g.items.some(montoEnRevision)
+                      ? MONTO_EN_REVISION.toLowerCase()
+                      : formatClp(g.subtotal)}
+                  </span>
                   {pct !== null && pct >= 0.5 && (
                     <span className="ml-2 text-xs text-neutral-mid">
                       {formatPct(pct)} del total
@@ -471,7 +518,11 @@ function CategoryItems({
                 </span>
               </td>
               <td className="py-1.5 pr-3 text-right tabular-nums text-neutral-dark">
-                {montoCLPFaltante(it) ? (
+                {montoEnRevision(it) ? (
+                  <span className="text-neutral-mid" title={MONTO_EN_REVISION_MOTIVO}>
+                    {MONTO_EN_REVISION.toLowerCase()}
+                  </span>
+                ) : montoCLPFaltante(it) ? (
                   <span
                     className="text-neutral-mid"
                     title="Monto en moneda extranjera sin convertir a pesos"

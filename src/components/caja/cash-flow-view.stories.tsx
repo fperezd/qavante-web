@@ -17,6 +17,7 @@ const REPORT: CashFlowReportResponse = {
   group_by: "none",
   currency: "functional",
   excluded_attention: 0,
+  excluded_unverified_currency: 0,
   warnings: [],
   buckets: [
     {

@@ -13,6 +13,7 @@ import type {
   PayableDuplicatePair,
 } from "@/lib/api/pagos";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
+import { MONTO_EN_REVISION, MONTO_EN_REVISION_MOTIVO } from "@/lib/formatters/amount";
 import { concordar, formatCount } from "@/lib/formatters/count";
 import { Banner } from "@/components/rediseno/banner";
 import { DataState } from "@/components/rediseno/data-state";
@@ -205,11 +206,15 @@ export function PagarV05View({
       : critico.cobertura === false
         ? "No alcanza para los pagos críticos."
         : "Cobertura sin dato.";
-  const contextoCritico = critico.completo
-    ? `${formatClp(critico.total)} críticos · ${critico.n} ${concordar(critico.n, "pago", "pagos")}`
-    : critico.total > 0
-      ? `Al menos ${formatClp(critico.total)} críticos · ${critico.n} ${concordar(critico.n, "pago", "pagos")}`
-      : `${critico.n} ${concordar(critico.n, "pago crítico", "pagos críticos")} · monto sin dato`;
+  // #907: con cuarentena de conciliación el monto crítico es desconocido, no "sin dato" ni $0.
+  const contextoCritico =
+    critico.total == null
+      ? `${critico.n} ${concordar(critico.n, "pago crítico", "pagos críticos")} · monto en revisión`
+      : critico.completo
+        ? `${formatClp(critico.total)} críticos · ${critico.n} ${concordar(critico.n, "pago", "pagos")}`
+        : critico.total > 0
+          ? `Al menos ${formatClp(critico.total)} críticos · ${critico.n} ${concordar(critico.n, "pago", "pagos")}`
+          : `${critico.n} ${concordar(critico.n, "pago crítico", "pagos críticos")} · monto sin dato`;
   const detalleCaja = `${coberturaTexto} ${contextoCritico}`;
 
   return (
@@ -221,16 +226,20 @@ export function PagarV05View({
       >
         <KpiCard
           label="Vencido"
-          {...(vencido.total == null
-            ? { sinDato: { reason: "La cobertura de fechas o monedas está incompleta." } }
-            : { value: formatClp(vencido.total) })}
+          {...(vencido.enRevision
+            ? { sinDato: { reason: MONTO_EN_REVISION_MOTIVO } }
+            : vencido.total == null
+              ? { sinDato: { reason: "La cobertura de fechas o monedas está incompleta." } }
+              : { value: formatClp(vencido.total) })}
           detail={
             <>
               {vencido.n > 0 ? (
                 <>
                   {formatCount(vencido.n)} {concordar(vencido.n, "pago", "pagos")} en todo el
                   registro
-                  {!vencido.completo && ` · al menos ${formatClp(vencido.conocido)} conocidos`}
+                  {!vencido.completo &&
+                    vencido.conocido != null &&
+                    ` · al menos ${formatClp(vencido.conocido)} conocidos`}
                   {vencido.monedasExcluidas > 0 &&
                     ` · ${vencido.monedasExcluidas} monedas sin conversión`}
                   {vencido.sinFecha > 0 && ` · ${vencido.sinFecha} sin fecha clasificable`}
@@ -266,12 +275,18 @@ export function PagarV05View({
           <KpiCard
             label="Por pagar"
             period={`${periodo} días`}
-            sinDato={{ reason: "La fuente no informó este tramo." }}
+            sinDato={{
+              reason: porPagar.enRevision
+                ? MONTO_EN_REVISION_MOTIVO
+                : "La fuente no informó este tramo.",
+            }}
             detail={<SelectorPeriodo periodo={periodo} onChange={setPeriodo} />}
           />
         )}
         {!canonicalProjection &&
-          (critico.cajaFinal != null ? (
+          /* `formatMoney` completa con CLP una moneda nula: por eso la cifra sólo se pinta con
+             moneda verificada (#370). Sin ella, el motivo explícito del modelo. */
+          (critico.cajaFinal != null && critico.monedaCaja != null ? (
             <KpiCard
               label="Caja proyectada"
               period={`${VENTANA_DIAS} días`}
@@ -406,7 +421,11 @@ export function PagarV05View({
         <p className="text-[12.5px] text-rediseno-tinta-3">
           Total por pagar{" "}
           <span className="font-semibold tabular-nums text-rediseno-tinta">
-            {tot.totalClp != null ? formatClp(tot.totalClp) : "sin dato"}
+            {tot.totalClp != null
+              ? formatClp(tot.totalClp)
+              : tot.enRevision
+                ? MONTO_EN_REVISION.toLowerCase()
+                : "sin dato"}
           </span>{" "}
           convertido a pesos
           {tot.porMoneda.length > 1 && (
@@ -577,8 +596,9 @@ function TablaPagos({
         meta: { align: "right" },
         cell: ({ row }) => {
           const p = row.original;
-          if (p.moneda !== "CLP") return p.montoLabel;
-          return formatClp(p.montoClp ?? 0);
+          // #907: en revisión (y cualquier fila sin cifra) nunca se pinta "$0".
+          if (p.enRevision || p.moneda !== "CLP" || p.montoClp == null) return p.montoLabel;
+          return formatClp(p.montoClp);
         },
       },
       {
@@ -633,6 +653,7 @@ function DetallePago({ pago: p }: { pago: PagoV05 }) {
             k="Monto"
             v={`${p.montoLabel}${p.moneda !== "CLP" && p.montoClp != null ? ` · ${formatClp(p.montoClp)} al tipo de cambio` : ""}`}
           />
+          {p.enRevision && <Dato k="Estado" v={MONTO_EN_REVISION_MOTIVO} />}
           {p.sinConvertir && <Dato k="Conversión" v="sin tipo de cambio: no se suma como pesos" />}
           {p.reclamado && <Dato k="Estado SII" v="reclamada por el receptor" />}
           {p.anomalia && <Dato k="Revisar" v={p.anomalia.detalle} />}
@@ -675,11 +696,15 @@ function EstadoNomina({ ap }: { ap: AccountsPayableResponse }) {
   if (next) {
     const currency = next.currency?.trim().toUpperCase();
     const monedaVerificada = next.currency_status === "verified" && currency != null;
-    const original = monedaVerificada
-      ? formatMoney(Number(next.amount), currency)
-      : "monto con moneda sin verificar";
+    // #907: `amount` null = en revisión de conciliación. Nunca `Number(null)` (= $0).
+    const original =
+      next.amount == null
+        ? "monto en revisión"
+        : monedaVerificada
+          ? formatMoney(Number(next.amount), currency)
+          : "monto con moneda sin verificar";
     const convertido =
-      monedaVerificada && currency !== "CLP" && next.amount_clp != null
+      next.amount != null && monedaVerificada && currency !== "CLP" && next.amount_clp != null
         ? ` · ${formatClp(Number(next.amount_clp))} convertido`
         : "";
     return (

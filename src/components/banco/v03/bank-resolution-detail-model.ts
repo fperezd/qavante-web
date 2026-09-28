@@ -2,6 +2,7 @@ import type { BankMovement, MovementResolutionDetailResponse } from "@/lib/api/t
 import { financialEventLabel } from "@/lib/formatters/financial-event";
 import { formatClpBare, formatMoney } from "@/lib/formatters/clp";
 import { formatPct } from "@/lib/formatters/pct";
+import { MONTO_EN_REVISION } from "@/lib/formatters/amount";
 import type { EstadoClasificacionV03, EstadoConciliacionV03 } from "./banco-v03-model";
 import { estadoClasificacionDe, estadoConciliacionDe } from "./banco-v03-model";
 
@@ -163,10 +164,11 @@ export function resolutionDetailFromApi(
         sourceReference: item.source_reference,
         taxTreatment: item.tax_treatment,
       })),
-      balanceFormatted: displayMoney(
-        detail.reconciliation.remaining_amount,
-        detail.movement.currency_code,
-      ),
+      // #907: saldo `null` = la resolución está en revisión de conciliación; nunca `Number(null)`.
+      balanceFormatted:
+        detail.reconciliation.remaining_amount == null
+          ? MONTO_EN_REVISION
+          : displayMoney(detail.reconciliation.remaining_amount, detail.movement.currency_code),
       evidence: (detail.reconciliation.evidence ?? current?.evidence ?? []).map((item) =>
         /^(true|pass|passed|matched|ok|success)$/i.test(item.result)
           ? "Coincidencia verificada"

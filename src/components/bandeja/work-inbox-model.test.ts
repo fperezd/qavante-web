@@ -7,6 +7,7 @@ function queue(overrides: Partial<WorkInboxQueue> = {}): WorkInboxQueue {
     action_label: "Abrir",
     amounts: [],
     count: 0,
+    unattributed_count: 0,
     data_state: "available",
     href: "/bandeja",
     items: [],

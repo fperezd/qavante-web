@@ -73,3 +73,21 @@ describe("flujoCajaReal", () => {
     expect(flujoCajaReal(resp([]), "2026-08")).toBeNull();
   });
 });
+
+describe("flujoCajaReal — moneda no verificada (#370)", () => {
+  const base = [{ period: "2026-06", inflow: "5000000", outflow: "3000000", net: "2000000" }];
+
+  it("propaga lo excluido por moneda no verificada para que el widget lo declare", () => {
+    const r = flujoCajaReal(
+      { ...resp(base), excluded_unverified_currency: 4 } as CashFlowReportResponse,
+      "2026-08",
+    );
+    expect(r!.excluidosMonedaNoVerificada).toBe(4);
+    // Los montos publicados no se tocan: el backend ya los excluyó; el FE no los reconstruye.
+    expect(r!.ultimo.ingresos).toBe(5000000);
+  });
+
+  it("sin el campo (API previa a #905) no inventa exclusiones", () => {
+    expect(flujoCajaReal(resp(base), "2026-08")!.excluidosMonedaNoVerificada).toBe(0);
+  });
+});

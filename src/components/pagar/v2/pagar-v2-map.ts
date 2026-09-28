@@ -15,6 +15,7 @@ import {
   monedaVerificada,
   montoCLP,
   montoCLPFaltante,
+  montoEnRevision,
 } from "../pagos-format";
 import { daysUntilDue, isOverdue, overdueThenCritical } from "../pagos-v2-format";
 import { categoryGroupLabel } from "../pagos-group";
@@ -122,8 +123,13 @@ export function mapVencimientos(
       acreedor: it.counterparty_name ?? it.label,
       detalle: [paymentCategoryLabel(it.category), it.source].filter(Boolean).join(" · "),
       monto: montoCLP(it),
-      montoOrigen: extranjera ? formatMoney(parseAmount(it.amount), it.currency) : undefined,
-      sinConversion: montoCLPFaltante(it),
+      montoOrigen:
+        extranjera && it.amount != null
+          ? formatMoney(parseAmount(it.amount), it.currency)
+          : undefined,
+      // #907: en revisión no es "sin convertir": es un monto desconocido.
+      enRevision: montoEnRevision(it),
+      sinConversion: !montoEnRevision(it) && montoCLPFaltante(it),
       postergabilidad: options.includePostergabilidad === false ? undefined : postergabilidadDe(it),
       estimado: it.estimated ?? false,
       onClick: onClickDe?.(it),
@@ -159,7 +165,9 @@ export function mapFechasClave(
     return {
       id,
       label,
-      monto: monedaVerificada(item) ? montoCLP(item) : null,
+      // #907: un monto en revisión no es $0: queda sin cifra y se rotula en la tarjeta.
+      monto: monedaVerificada(item) && !montoEnRevision(item) ? montoCLP(item) : null,
+      enRevision: montoEnRevision(item),
       vence: formatDateLike(item.due_date),
       enDias: dias ?? undefined,
       icono,

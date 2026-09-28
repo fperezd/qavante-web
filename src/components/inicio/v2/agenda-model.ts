@@ -7,6 +7,7 @@
 import {
   movimientosDeMaestro,
   movimientosDeObligaciones,
+  obligacionesEnRevision,
   rangoSemanaLabel,
 } from "@/components/caja/v2/caja-proyeccion-model";
 import type { MovimientoCaja } from "@/components/caja/v2/caja-cascada-model";
@@ -37,6 +38,13 @@ export function componerAgenda(
     ...movimientosDeObligaciones(oblig, hoy, HORIZONTE_AGENDA, 0),
   ];
   return [...movs].sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+}
+
+/** Pagos de la agenda cuyo monto está en revisión de conciliación (qavante-api#907). No aparecen
+ *  como filas (no tienen monto) y vuelven desconocido el total que sale. PURO. */
+export function pagosEnRevisionAgenda(obligaciones: PayableItem[], hoy: Date): number {
+  const oblig = obligaciones.filter((i) => OBLIG_CATS.has(i.category ?? ""));
+  return obligacionesEnRevision(oblig, hoy, HORIZONTE_AGENDA, 0);
 }
 
 export interface GrupoAgenda {

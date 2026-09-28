@@ -18,11 +18,13 @@ import {
   type TopDebtor,
 } from "@/lib/api/cobranza";
 import {
+  MontosEnRevisionState,
   PartialDataBanner,
   SyncPendingState,
   isPartial,
   isSyncPending,
 } from "@/components/treasury/sync-pending-state";
+import { formatClpOEnRevision, importeDesconocido } from "@/lib/formatters/amount";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
@@ -81,7 +83,11 @@ export function CobrarView({ siiEnabled, suppressRecommendations = false }: Cobr
           what="las cuentas por cobrar"
           onRetry={() => query.refetch()}
         />
-      ) : query.data && parseAmount(query.data.total) === 0 ? (
+      ) : query.data && (importeDesconocido(query.data) || query.data.total == null) ? (
+        /* #907: cuarentena de conciliación viva → los montos AR son desconocidos. Ni "$0" ni
+           "no tienes cuentas por cobrar": se declara la revisión. */
+        <MontosEnRevisionState what="tus cuentas por cobrar" />
+      ) : query.data && parseAmountOrNull(query.data.total) === 0 ? (
         isSyncPending(query.data) ? (
           <SyncPendingState
             missingSources={query.data.missing_sources}
@@ -154,7 +160,13 @@ function Receivable({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <QavanteStatTile
           label="Total por cobrar"
-          value={<AmountCountUp value={parseAmount(data.total)} />}
+          value={
+            data.total == null ? (
+              formatClpOEnRevision(null)
+            ) : (
+              <AmountCountUp value={parseAmount(data.total)} />
+            )
+          }
           info="Todo lo que tus clientes te deben y aún no pagan, según las facturas que emitiste."
         />
         <QavanteStatTile
@@ -240,7 +252,7 @@ function Receivable({
                     <td className="py-2 pr-3 text-neutral-dark">{doc.document}</td>
                     <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(doc.due_date)}</td>
                     <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-                      {formatClp(parseAmount(doc.balance))}
+                      {formatClpOEnRevision(doc.balance)}
                     </td>
                     <td className="py-2 text-right tabular-nums">
                       <QavanteBadge variant={doc.days_overdue > 60 ? "danger" : "warning"}>
@@ -326,7 +338,8 @@ export function TopDebtors({
   neutralOrder = false,
 }: {
   debtors: TopDebtor[];
-  total: string;
+  /** `null` = en revisión de conciliación (qavante-api#907). */
+  total: string | null;
   siiEnabled: boolean;
   neutralOrder?: boolean;
 }) {
@@ -385,9 +398,7 @@ export function TopDebtors({
                   </div>
                 </div>
                 <div className="shrink-0 text-right tabular-nums">
-                  <p className="font-semibold text-neutral-dark">
-                    {formatClp(parseAmount(d.total))}
-                  </p>
+                  <p className="font-semibold text-neutral-dark">{formatClpOEnRevision(d.total)}</p>
                   {/* Concentración: qué parte del total por cobrar es este cliente. */}
                   {showDecisionSignals && pct != null && pct >= 0.5 && (
                     <p className="text-xs text-neutral-mid">{formatPct(pct)} del total</p>

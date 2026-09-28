@@ -30,7 +30,7 @@ import {
 import { CajaCurva } from "./caja-curva";
 import { CajaProyeccionLive } from "./caja-proyeccion-live";
 import { fechaCortaLabel } from "./caja-proyeccion-model";
-import { formatBucketLabel } from "@/components/caja/cash-flow-format";
+import { avisosDelReporte, formatBucketLabel } from "@/components/caja/cash-flow-format";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { orderRange, type PeriodRange } from "@/lib/period/period-range";
 import { type SaldoPunto } from "./caja-curva-model";
@@ -79,8 +79,10 @@ export function CajaV2ResumenLive({
   // tema técnico (que no parpadeara al recargar); ya resuelto con `keepPreviousData` en el hook.
   /* Avisos del propio reporte de caja (`CashFlowReportResponse.warnings`): el backend marca cuándo el
      flujo del período puede estar distorsionado y el FE los ignoraba. Van junto al selector, que es lo
-     que gobierna esos números. Código desconocido → se muestra tal cual (no inventamos traducción). */
-  const cfWarnings = cf.data?.warnings ?? [];
+     que gobierna esos números. Código desconocido → se muestra tal cual (no inventamos traducción).
+     #370: el aviso `financial_impact_currency_unverified` se reemplaza por la frase de usuario con
+     el conteo de lo excluido por moneda no verificada (los totales quedan incompletos). */
+  const cfWarnings = cf.data ? avisosDelReporte(cf.data) : [];
   const periodoSelector = (
     <div className="space-y-2">
       <PeriodRangeFilter
