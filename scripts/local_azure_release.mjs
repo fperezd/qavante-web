@@ -514,7 +514,16 @@ async function promote(directory) {
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const [operation, directory] = process.argv.slice(2);
-  if (!["prepare", "promote"].includes(operation) || !directory || !path.isAbsolute(directory)) {
+  // Ruta local desactivada por defecto: Azure PROD se despliega con GitHub Actions.
+  // Se conserva como referencia y sólo se habilita por decisión explícita del owner.
+  if (process.env.QAVANTE_ENABLE_LEGACY_LOCAL_RELEASE !== "1") {
+    console.error("release local desactivado; usar Deploy web to Azure PROD");
+    process.exitCode = 2;
+  } else if (
+    !["prepare", "promote"].includes(operation) ||
+    !directory ||
+    !path.isAbsolute(directory)
+  ) {
     console.error(
       "usage: node scripts/local_azure_release.mjs prepare|promote <absolute-directory>",
     );

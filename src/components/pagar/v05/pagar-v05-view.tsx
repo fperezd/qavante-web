@@ -620,6 +620,7 @@ function TablaPagos({
       onExport={onExport}
       exportLabel="Exportar esta página"
       emptyMessage={emptyMessage}
+      rowKey={(pago) => pago.key}
     />
   );
 }

@@ -1,15 +1,16 @@
 # Activación de feature flags en producción
 
-La única ruta de promoción es el [release local verificable](./local-release.md).
-Los flags de producción se fijan en el `Dockerfile` de la imagen que esa ruta
-construye; no se cambian desde paneles de proveedor, workflows ni secretos de
-GitHub. Un merge por sí solo no cambia producción.
+La ruta de promoción es [Deploy web to Azure PROD](../../.github/workflows/deploy-azure-prod.yml).
+Los flags de producción se fijan en el `Dockerfile` de la imagen que el workflow
+construye; no se cambian desde paneles de proveedor ni secretos de GitHub.
+Con Actions habilitado, un merge que cambie `Dockerfile` en `main` despliega
+automáticamente a producción.
 
 ## Invariante
 
 Todas las flags de `src/lib/feature-flags.ts` son `false` por defecto. Activar
-una requiere una modificación revisada de la imagen y una promoción local
-verificada por digest. El frontend nunca inventa una respuesta: si falta el
+una requiere una modificación revisada de la imagen y un despliegue validado.
+El frontend nunca inventa una respuesta: si falta el
 endpoint, la pantalla debe mantener su estado no disponible.
 
 ## Procedimiento
@@ -17,14 +18,15 @@ endpoint, la pantalla debe mantener su estado no disponible.
 1. Verificar que el endpoint backend requerido existe en `api.qavante.com`.
 2. Cambiar únicamente el valor `NEXT_PUBLIC_FF_<FLAG>` correspondiente en las
    secciones `ENV` de build y runner del `Dockerfile`.
-3. Abrir PR, completar los gates locales y mergear a `main`.
-4. Ejecutar el [release local](./local-release.md) sobre el tip limpio de
-   `origin/main`.
+3. Abrir PR, completar los checks y mergear a `main` durante la ventana de
+   despliegue con Actions habilitado.
+4. Verificar la ejecución de [Deploy web to Azure PROD](./deploy-runbook.md).
+   Si el push ocurrió con Actions apagado, iniciar el workflow manualmente.
 5. Validar la ruta en una sesión nueva. Si el endpoint está ausente, dejar la
    flag apagada y corregir primero el contrato backend.
 
 Para un kill-switch, revertir sólo ese valor a `false` en el `Dockerfile` y
-repetir el mismo release local verificable. No se modifica infraestructura ni
+repetir el mismo despliegue Azure. No se modifica infraestructura ni
 se usa un bypass de configuración.
 
 ## Mapping flag → endpoint
@@ -62,6 +64,6 @@ la tabla de este documento.
 
 ## Referencias
 
-- [Release local verificable](./local-release.md).
+- [Despliegue Azure PROD](./deploy-runbook.md).
 - [ADR-0008 — feature flags](../adr/0008-feature-flags-gating-pantallas-sin-backend.md).
 - `src/lib/feature-flags.ts` y `src/lib/feature-flags.test.ts`.

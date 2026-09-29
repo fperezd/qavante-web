@@ -1,9 +1,20 @@
-# Release local verificable de Qavante Web
+# Release local verificable de Qavante Web (inactivo)
+
+> **Procedimiento desactivado por defecto.** Se conserva como referencia
+> histórica y no se usa para desplegar a producción. La CLI requiere activar
+> explícitamente `QAVANTE_ENABLE_LEGACY_LOCAL_RELEASE=1`; la ruta prioritaria
+> es [Deploy web to Azure PROD](../../.github/workflows/deploy-azure-prod.yml).
+> GitHub Actions se habilita manualmente durante la ventana de despliegue.
+> Con Actions habilitado, un push relevante a `main` o a
+> `integrate/main-azure-prod` dispara el deploy; `workflow_dispatch` permite
+> iniciarlo después si el push ocurrió mientras Actions estaba deshabilitado.
+> El workflow recuperado no ofrece las verificaciones ni el rollback automático
+> descritos abajo para el procedimiento local antiguo.
 
 `app.qavante.com` apunta a Azure Container Apps. Los workflows de Cloudflare y
-Azure no ejecutan mientras GitHub Actions permanezca deshabilitado. Esta ruta
-promueve desde `main` protegido hacia `ca-qavante-web-prod` en la suscripcion
-Qavante, con Docker local y una imagen OCI fijada por digest.
+Azure no ejecutan mientras GitHub Actions permanezca deshabilitado. Los pasos
+de abajo describen la ruta local anterior, ahora inactiva, que promovía desde
+`main` protegido hacia `ca-qavante-web-prod` con Docker local y digest OCI.
 
 ## Precondiciones
 

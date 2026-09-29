@@ -39,7 +39,6 @@ const operationalBypassMarkers = [
     variants: ["Cloudflare Dashboard", "dashboard de Cloudflare"],
   },
   { expression: /save and deploy/i, variants: ["Save and deploy"] },
-  { expression: /\bworkflow_dispatch\b/i, variants: ["workflow_dispatch"] },
 ];
 
 const deploymentMarkers = [
@@ -87,18 +86,16 @@ const deploymentMarkers = [
   },
 ];
 
-test("GitHub Actions no contiene rutas de despliegue", () => {
+test("sólo Deploy web to Azure PROD puede desplegar desde GitHub Actions", () => {
   const names = readdirSync(workflows).filter((name) => /\.ya?ml$/i.test(name));
-  const removed = [
-    "deploy-azure-prod.yml",
-    "deploy-azure-qas.yml",
-    "deploy-cloudflare.yml",
-    "prod-canary.yml",
-  ];
+  const prodWorkflow = "deploy-azure-prod.yml";
+  assert.ok(names.includes(prodWorkflow), "debe existir el workflow Azure PROD recuperado");
+  const removed = ["deploy-azure-qas.yml", "deploy-cloudflare.yml", "prod-canary.yml"];
 
   for (const name of removed) assert.ok(!names.includes(name), `${name} debe permanecer retirado`);
 
   const automation = names
+    .filter((name) => name !== prodWorkflow)
     .map((name) => readFileSync(join(workflows, name), "utf8"))
     .join("\n");
 
@@ -106,11 +103,23 @@ test("GitHub Actions no contiene rutas de despliegue", () => {
     assert.doesNotMatch(automation, marker.expression, `${marker.name} no puede vivir en Actions`);
     for (const variant of marker.variants) assert.match(variant, marker.expression);
   }
+
+  const prod = readFileSync(join(workflows, prodWorkflow), "utf8");
+  assert.match(prod, /^name: Deploy web to Azure PROD$/m);
+  assert.match(prod, /^  push:$/m);
+  assert.match(prod, /^      - main$/m);
+  assert.match(prod, /^  workflow_dispatch:$/m);
+  assert.match(prod, /id-token: write/);
+  assert.match(prod, /uses: azure\/login@v2/);
+  assert.match(prod, /APP: ca-qavante-web-prod/);
+  assert.match(prod, /NEXT_PUBLIC_API_URL: https:\/\/api\.qavante\.com/);
+  assert.doesNotMatch(prod, /wrangler\s+deploy|cloudflare\/wrangler-action@/i);
 });
 
-test("la promociÃ³n Azure permanece en la ruta local con digest inmutable", () => {
+test("la ruta local heredada permanece desactivada por defecto", () => {
   const release = readFileSync(join(repo, "scripts", "local_azure_release.mjs"), "utf8");
 
+  assert.match(release, /QAVANTE_ENABLE_LEGACY_LOCAL_RELEASE !== "1"/);
   assert.match(release, /run\("docker", \[/);
   assert.match(release, /\["containerapp", "update"/);
   assert.match(release, /@sha256:\[0-9a-f\]\{64\}/);

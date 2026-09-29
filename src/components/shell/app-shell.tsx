@@ -108,7 +108,7 @@ export function AppShell({
             />
           )}
 
-          <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
+          <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 overflow-x-hidden">
             <div className="mx-auto max-w-[1440px] space-y-6 p-6 md:p-8">
               <Breadcrumbs />
               {children}

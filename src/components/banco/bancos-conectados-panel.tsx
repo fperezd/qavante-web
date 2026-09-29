@@ -63,17 +63,15 @@ export function BancosConectadosPanel() {
   const { activeCompanyId } = useCompanyScope();
   const [rows, setRows] = useState<BankConnection[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [disconnectError, setDisconnectError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const [deleteConfirmingId, setDeleteConfirmingId] = useState<string | null>(null);
+  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    setDeleteConfirmingId(null);
-    setDeleteError(null);
+    setSelectedBankId(null);
+    setActionError(null);
     if (!activeCompanyId) {
       setRows(null);
       setError(null);
@@ -100,7 +98,7 @@ export function BancosConectadosPanel() {
   const disconnect = async (row: BankConnection) => {
     const connectionId = row.id ?? row.link_id;
     if (!connectionId || !activeCompanyId) return;
-    setDisconnectError(null);
+    setActionError(null);
     setDisconnectingId(connectionId);
     try {
       const updated = await api.post<BankConnection | undefined>(
@@ -121,11 +119,11 @@ export function BancosConectadosPanel() {
             );
           }) ?? null,
       );
-      setConfirmingId(null);
+      setSelectedBankId(null);
       toast.success(`${row.institution_name} quedó desconectado. Tu historial se conserva.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo desconectar este banco";
-      setDisconnectError(message);
+      setActionError(message);
       toast.error(message);
     } finally {
       setDisconnectingId(null);
@@ -134,10 +132,10 @@ export function BancosConectadosPanel() {
 
   const deleteBank = async (row: BankConnection) => {
     if (!row.id || !activeCompanyId) {
-      setDeleteError("Esta conexión antigua no tiene un identificador eliminable.");
+      setActionError("Esta conexión antigua no tiene un identificador eliminable.");
       return;
     }
-    setDeleteError(null);
+    setActionError(null);
     setDeletingId(row.id);
     try {
       const result = await api.delete<{
@@ -147,13 +145,13 @@ export function BancosConectadosPanel() {
         headers: explicitCompanyRequestHeaders(activeCompanyId),
       });
       setRows((current) => current?.filter((item) => item.id !== row.id) ?? null);
-      setDeleteConfirmingId(null);
+      setSelectedBankId(null);
       toast.success(
         `${row.institution_name} eliminado${row.link_id && !row.link_id.startsWith("link_demo_") ? " de Qavante y Fintoc" : " de Qavante"}. ${result.deleted_movements} movimientos borrados.`,
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo eliminar este banco";
-      setDeleteError(message);
+      setActionError(message);
       toast.error(message);
     } finally {
       setDeletingId(null);
@@ -189,12 +187,14 @@ export function BancosConectadosPanel() {
       <QavanteEmpty
         icon={Landmark}
         title="Todavía no hay bancos conectados"
-        description="Usa Conectar banco para asociar una institución a esta empresa. El acceso es de solo lectura."
+        description="Ve a Banco para conectar una institución a esta empresa. El acceso es de solo lectura."
       />
     );
   }
 
-  const bankToDelete = rows.find((row) => row.id === deleteConfirmingId);
+  const selectedBank = rows.find((row) => (row.id ?? row.link_id) === selectedBankId);
+  const isBusy = Boolean(disconnectingId || deletingId);
+  const selectedBankConnected = selectedBank?.status.toLowerCase() === "connected";
 
   return (
     <>
@@ -261,62 +261,28 @@ export function BancosConectadosPanel() {
                 {row.mode ? ` · ${row.mode}` : ""}
               </p>
             </div>
-            <div className="ml-auto flex w-full shrink-0 flex-col items-end gap-2 pt-1 sm:w-56">
+            <div className="ml-auto flex w-full shrink-0 self-stretch flex-col items-center justify-center gap-2 sm:w-56">
               {(row.id ?? row.link_id) && row.status.toLowerCase() === "connected" ? (
-                confirmingId === (row.id ?? row.link_id) ? (
-                  <div className="self-stretch rounded-xl border border-warning-200 bg-warning-50 p-3 text-sm text-neutral-dark">
-                    <p className="font-semibold">¿Desconectar sólo {row.institution_name}?</p>
-                    <p className="mt-1 text-xs">
-                      Se detendrá la sincronización de este banco. Las cuentas y movimientos
-                      históricos se conservan; otras conexiones no se modifican.
-                    </p>
-                    {disconnectError ? (
-                      <p className="mt-2 text-xs text-danger-700">{disconnectError}</p>
-                    ) : null}
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setConfirmingId(null)}
-                        className="rounded-lg px-3 py-1.5 font-semibold"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void disconnect(row)}
-                        disabled={disconnectingId === (row.id ?? row.link_id)}
-                        className="rounded-lg bg-danger-600 px-3 py-1.5 font-semibold text-white disabled:opacity-60"
-                      >
-                        {disconnectingId === (row.id ?? row.link_id)
-                          ? "Desconectando…"
-                          : "Sí, desconectar"}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDisconnectError(null);
-                      setConfirmingId(row.id ?? row.link_id ?? null);
-                    }}
-                    className="w-44 rounded-full bg-neutral-dark px-4 py-2 text-center text-sm font-semibold text-white"
-                  >
-                    Desconectar banco
-                  </button>
-                )
-              ) : null}
-              {row.id ? (
                 <button
                   type="button"
                   onClick={() => {
-                    setDeleteError(null);
-                    setDeleteConfirmingId(row.id!);
+                    setActionError(null);
+                    setSelectedBankId(row.id ?? row.link_id ?? null);
                   }}
-                  className="w-44 px-4 py-2 text-center text-sm font-semibold text-danger-700 underline underline-offset-2"
-                  aria-label="Eliminar banco y su historial"
+                  className="w-44 rounded-full bg-neutral-dark px-4 py-2 text-center text-sm font-semibold text-white"
                 >
-                  Eliminar banco
+                  Desconectar banco
+                </button>
+              ) : row.id ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionError(null);
+                    setSelectedBankId(row.id ?? null);
+                  }}
+                  className="w-44 rounded-full border border-neutral-light px-4 py-2 text-center text-sm font-semibold text-neutral-dark"
+                >
+                  Gestionar historial
                 </button>
               ) : null}
             </div>
@@ -324,11 +290,11 @@ export function BancosConectadosPanel() {
         ))}
       </ul>
       <Dialog.Root
-        open={Boolean(bankToDelete)}
+        open={Boolean(selectedBank)}
         onOpenChange={(open) => {
-          if (!open && !deletingId) {
-            setDeleteConfirmingId(null);
-            setDeleteError(null);
+          if (!open && !isBusy) {
+            setSelectedBankId(null);
+            setActionError(null);
           }
         }}
       >
@@ -337,16 +303,15 @@ export function BancosConectadosPanel() {
           <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-start justify-between gap-3">
               <Dialog.Title className="flex items-center gap-2 text-lg font-semibold text-neutral-dark">
-                <AlertTriangle className="h-5 w-5 shrink-0 text-danger-700" aria-hidden="true" />
-                Eliminar banco y su historial
+                {selectedBankConnected ? "Desconectar banco" : "Gestionar historial del banco"}
               </Dialog.Title>
               <button
                 type="button"
                 onClick={() => {
-                  setDeleteConfirmingId(null);
-                  setDeleteError(null);
+                  setSelectedBankId(null);
+                  setActionError(null);
                 }}
-                disabled={Boolean(deletingId)}
+                disabled={isBusy}
                 aria-label="Cerrar"
                 className="rounded-md p-1 text-neutral-mid hover:bg-neutral-light/40 disabled:opacity-50"
               >
@@ -354,42 +319,85 @@ export function BancosConectadosPanel() {
               </button>
             </div>
             <Dialog.Description className="text-sm leading-relaxed text-neutral-mid">
-              Esta acción eliminará <strong>{bankToDelete?.institution_name}</strong>
-              {bankToDelete?.link_id && !bankToDelete.link_id.startsWith("link_demo_")
-                ? " de Fintoc y "
-                : " y "}
-              borrará permanentemente de Qavante sus cuentas, movimientos y datos de conciliación
-              asociados. No podrás recuperar este historial desde Qavante.
+              {selectedBankConnected ? (
+                <>
+                  ¿Qué quieres hacer con <strong>{selectedBank?.institution_name}</strong> y sus
+                  datos en Qavante?
+                </>
+              ) : (
+                <>
+                  <strong>{selectedBank?.institution_name}</strong> ya está desconectado. Puedes
+                  conservar su historial o eliminarlo definitivamente.
+                </>
+              )}
             </Dialog.Description>
-            {deleteError ? (
+            <div className="mt-5 space-y-3">
+              {selectedBankConnected ? (
+                <div className="rounded-xl border border-neutral-light p-4">
+                  <h3 className="text-sm font-semibold text-neutral-dark">
+                    Desconectar y conservar historial
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-neutral-mid">
+                    El enlace se elimina de Fintoc y se detiene la sincronización. Tus cuentas y
+                    movimientos ya importados permanecen en Qavante.
+                  </p>
+                  <QavanteButton
+                    type="button"
+                    variant="secondary"
+                    className="mt-3"
+                    disabled={isBusy}
+                    loading={Boolean(disconnectingId)}
+                    onClick={() => {
+                      if (selectedBank) void disconnect(selectedBank);
+                    }}
+                  >
+                    Desconectar y conservar
+                  </QavanteButton>
+                </div>
+              ) : null}
+              <div className="rounded-xl border border-danger-200 bg-danger-50/40 p-4">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-danger-700">
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                  Eliminar banco e historial
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-neutral-mid">
+                  El enlace se elimina de Fintoc y se borran permanentemente de Qavante las cuentas,
+                  movimientos y datos de conciliación asociados. No podrás recuperarlos desde
+                  Qavante.
+                </p>
+                <QavanteButton
+                  type="button"
+                  variant="danger"
+                  className="mt-3"
+                  disabled={isBusy || !selectedBank?.id}
+                  loading={Boolean(deletingId)}
+                  onClick={() => {
+                    if (selectedBank) void deleteBank(selectedBank);
+                  }}
+                >
+                  Eliminar definitivamente
+                </QavanteButton>
+              </div>
+            </div>
+            {actionError ? (
               <div
                 role="alert"
                 className="mt-4 rounded-lg bg-danger-50 p-3 text-sm text-danger-700"
               >
-                {deleteError}
+                {actionError}
               </div>
             ) : null}
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <div className="mt-5 flex justify-end">
               <QavanteButton
                 type="button"
                 variant="ghost"
-                disabled={Boolean(deletingId)}
+                disabled={isBusy}
                 onClick={() => {
-                  setDeleteConfirmingId(null);
-                  setDeleteError(null);
+                  setSelectedBankId(null);
+                  setActionError(null);
                 }}
               >
                 Cancelar
-              </QavanteButton>
-              <QavanteButton
-                type="button"
-                variant="danger"
-                loading={Boolean(deletingId)}
-                onClick={() => {
-                  if (bankToDelete) void deleteBank(bankToDelete);
-                }}
-              >
-                Eliminar definitivamente
               </QavanteButton>
             </div>
           </Dialog.Popup>

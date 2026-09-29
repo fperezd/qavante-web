@@ -100,7 +100,14 @@ export default defineConfig({
           // El suite local ejecuta I/O real (CLI guards y round-trips XLSX). 5 s es
           // insuficiente bajo la contención legítima de Docker; conserva un límite finito.
           testTimeout: 30_000,
-          exclude: ["**/node_modules/**", "**/.next/**", "tests/e2e/**", "**/*.stories.tsx"],
+          exclude: [
+            "**/node_modules/**",
+            "**/.next/**",
+            "tests/e2e/**",
+            "**/*.stories.tsx",
+            // Este archivo usa el runner nativo de Node y se ejecuta por separado.
+            "scripts/release-workflow-policy.test.mjs",
+          ],
           setupFiles: ["./src/test/msw/vitest.setup.ts"],
         },
       },

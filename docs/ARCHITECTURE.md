@@ -1,6 +1,6 @@
 # Arquitectura — Qavante (Fase 1)
 
-Vista de alto nivel del sistema. Para decisiones específicas con rationale, ver [docs/adr/](./adr/). La única autoridad de promoción es el release local Docker hacia Azure Container Apps; este documento no certifica que un cutover físico haya terminado.
+Vista de alto nivel del sistema. Para decisiones específicas con rationale, ver [docs/adr/](./adr/). El despliegue web a PROD usa el workflow [Deploy web to Azure PROD](../.github/workflows/deploy-azure-prod.yml); este documento no certifica que un cutover físico haya terminado.
 
 > **Deliverable de C0-18** — diagrama simplificado de cliente → API → DB, sin entrar en detalle de cada módulo de producto (eso vive en el Documento Maestro).
 
@@ -12,9 +12,9 @@ flowchart LR
         UI[Next.js 15 App<br/>React 19 + Tailwind 4 + shadcn]
     end
 
-    subgraph LocalRelease[Autoridad de release local]
-        Docker[Docker local<br/>artefacto OCI por digest]
-        AzureTarget[Azure Container Apps<br/>destino autorizado tras verify]
+    subgraph ProdRelease[Despliegue Azure PROD]
+        Actions[GitHub Actions<br/>Deploy web to Azure PROD]
+        AzureTarget[Azure Container Apps<br/>ca-qavante-web-prod]
     end
 
     subgraph LegacyBuild[Compatibilidad heredada de fuente/build]
@@ -33,9 +33,9 @@ flowchart LR
         Banco[Bancos<br/>Banco Estado, Itau, BCI, etc.]
     end
 
-    UI -->|HTTPS tras verificación runtime| AzureTarget
-    Docker -->|imagen OCI inmutable| AzureTarget
-    Worker -.compatibilidad de build solamente.- Docker
+    UI -->|HTTPS| AzureTarget
+    Actions -->|build, push ACR y actualización| AzureTarget
+    Worker -.compatibilidad de build solamente.- Actions
     AzureTarget -.cookie qavante_session.- UI
     AzureTarget -->|fetch credentials:include<br/>cross-origin Lax via shared parent| API
     API -->|asyncpg + RLS| PG
@@ -52,14 +52,14 @@ flowchart LR
 
 ## Componentes
 
-### Frontend: release local hacia Azure Container Apps
+### Frontend: GitHub Actions hacia Azure Container Apps
 
-- **Hostname:** [app.qavante.com](https://app.qavante.com). La verificación de su destino físico ocurre dentro del [runbook local](./operations/local-release.md); esta arquitectura no afirma que el cutover ya fue completado.
+- **Hostname:** [app.qavante.com](https://app.qavante.com). Verificar el destino físico durante el [runbook de despliegue](./operations/deploy-runbook.md); esta arquitectura no afirma que el cutover ya fue completado.
 - **Stack:** Next.js 15 (App Router) + React 19 + TypeScript strict + Tailwind 4 + shadcn/ui sobre design system Qavante (Anexo B del doc maestro).
-- **Compatibilidad heredada:** [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), `wrangler.toml` y `nodejs_compat` siguen versionados para compatibilidad de fuente/build. No son una ruta de despliegue ni autorizan comandos de Worker, dashboard o GitHub Actions. Ver [ADR-0001](./adr/0001-cloudflare-workers-vs-pages.md).
+- **Compatibilidad heredada:** [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), `wrangler.toml` y `nodejs_compat` siguen versionados para compatibilidad de fuente/build. No autorizan un despliegue a Cloudflare. Ver [ADR-0001](./adr/0001-cloudflare-workers-vs-pages.md).
 - **Auth (cliente):** cookie httpOnly `qavante_session` (Domain=.qavante.com, SameSite=Lax, Secure, ver [ADR-0003](./adr/0003-api-qavante-com-shared-parent.md)). Middleware Next.js en `src/middleware.ts` valida cookie y redirige a `/login` si falta. El interceptor en [`src/lib/api/client.ts:64`](../src/lib/api/client.ts#L64) hace refresh automático en 401.
 - **State management:** TanStack Query (server state) + Zustand (UI state local). React-hook-form + zod para validación.
-- **Release:** GitHub Actions está deshabilitado y no contiene rutas de despliegue. Desde `main` protegido, [el release local verificable](./operations/local-release.md) construye con Docker y puede promover a Azure Container Apps sólo por digest OCI inmutable, conservando procedencia y rollback registrables. No hay deploy por `push`; la verificación runtime decide si el cutover puede declararse completo.
+- **Release:** [Deploy web to Azure PROD](../.github/workflows/deploy-azure-prod.yml) despliega desde `main` o `integrate/main-azure-prod` cuando Actions está habilitado. Actions se activa manualmente durante la ventana de despliegue. El [release local anterior](./operations/local-release.md) está inactivo por defecto. El workflow actual no garantiza por sí solo smoke autenticado ni rollback automático.
 
 ### Backend: FastAPI `tooxs-gestion-api`
 

@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   activeImage,
@@ -17,6 +19,19 @@ const state = (traffic = [{ latestRevision: true, weight: 100 }], mode = "Single
 });
 
 describe("local Azure release", () => {
+  it("blocks the legacy local CLI by default", () => {
+    const result = spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL("./local_azure_release.mjs", import.meta.url)), "prepare"],
+      {
+        encoding: "utf8",
+        env: { ...process.env, QAVANTE_ENABLE_LEGACY_LOCAL_RELEASE: "" },
+      },
+    );
+    expect(result.status).toBe(2);
+    expect(result.stderr).toMatch(/release local desactivado; usar Deploy web to Azure PROD/);
+  });
+
   it("requires a single revision serving all production traffic", () => {
     expect(activeImage(state())).toBe(image);
     expect(() => activeImage(state([{ weight: 80 }, { weight: 20 }]))).toThrow(/single 100%/);

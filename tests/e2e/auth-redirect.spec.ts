@@ -49,8 +49,11 @@ const PROTECTED_SUBPATHS = [
   "/gestion/pulso",
 ];
 
+/** `/` redirige a `/inicio` (307) — no es público ni protegido, es un redirect al
+ *  dashboard real. Se prueba aparte porque no es ni auth-gate ni contenido público. */
+const ROOT_REDIRECT_PATH = "/";
+
 const PUBLIC_PATHS = [
-  "/",
   "/login",
   "/login-correo",
   "/recuperar-clave",
@@ -85,4 +88,12 @@ test.describe("middleware: rutas públicas pasan sin redirect (C0-13)", () => {
       expect(res.status()).toBe(200);
     });
   }
+});
+
+test("GET / sin sesión → 307 a /inicio (raíz redirige al dashboard)", async ({ request }) => {
+  const res = await request.get(ROOT_REDIRECT_PATH, { maxRedirects: 0 });
+  expect(res.status()).toBe(307);
+  const location = res.headers()["location"];
+  expect(location).toBeDefined();
+  expect(location).toContain("/inicio");
 });

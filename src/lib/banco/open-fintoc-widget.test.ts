@@ -47,38 +47,34 @@ describe("openOfficialFintocWidget", () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it.each(["individual", "business"] as const)(
-    "crea un link intent %s y abre su widget",
-    async (holderType) => {
-      vi.mocked(api.post).mockResolvedValueOnce({
-        public_key: "pk_test_example",
-        widget_token: "li_widget_test_123",
-        holder_type: holderType,
-        country: "cl",
-        product: "movements",
-        webhook_url: null,
-        connected: false,
-      });
+  it("crea un link intent Business y abre su widget", async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({
+      public_key: "pk_test_example",
+      widget_token: "li_widget_test_123",
+      holder_type: "business",
+      country: "cl",
+      product: "movements",
+      webhook_url: null,
+      connected: false,
+    });
 
-      await openOfficialFintocWidget({
-        holderType,
-        legalEntityId: "company-1",
-        onSuccess: vi.fn(),
-      });
+    await openOfficialFintocWidget({
+      legalEntityId: "company-1",
+      onSuccess: vi.fn(),
+    });
 
-      expect(api.post).toHaveBeenCalledWith("/api/fintoc/link-intent", {
-        headers: { "X-Qavante-Company-Id": "company-1" },
-        body: { holder_type: holderType },
-      });
-      expect(create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          publicKey: "pk_test_example",
-          widgetToken: "li_widget_test_123",
-        }),
-      );
-      expect(open).toHaveBeenCalledOnce();
-    },
-  );
+    expect(api.post).toHaveBeenCalledWith("/api/fintoc/link-intent", {
+      headers: { "X-Qavante-Company-Id": "company-1" },
+      body: { holder_type: "business" },
+    });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicKey: "pk_test_example",
+        widgetToken: "li_widget_test_123",
+      }),
+    );
+    expect(open).toHaveBeenCalledOnce();
+  });
 
   it("usa Business cuando el llamador no declara titular", async () => {
     vi.mocked(api.post).mockResolvedValueOnce({
@@ -126,30 +122,14 @@ describe("openOfficialFintocWidget", () => {
     });
   });
 
-  it("preserva Business al usar la configuración alternativa", async () => {
+  it("no abre el widget si la API rechaza el link intent", async () => {
     vi.mocked(api.post).mockRejectedValueOnce(new Error("intent unavailable"));
-    vi.mocked(api.get).mockResolvedValueOnce({
-      public_key: "pk_test_example",
-      holder_type: "individual",
-      product: "movements",
-      country: "cl",
-      webhook_url: null,
-      connected: false,
-    });
 
-    await openOfficialFintocWidget({
-      holderType: "business",
-      legalEntityId: "company-fallback",
-      onSuccess: vi.fn(),
-    });
-
-    expect(api.get).toHaveBeenCalledWith("/api/fintoc/widget-config", {
-      headers: { "X-Qavante-Company-Id": "company-fallback" },
-    });
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ holderType: "business", product: "movements" }),
-    );
-    expect(open).toHaveBeenCalledOnce();
+    await expect(
+      openOfficialFintocWidget({ legalEntityId: "company-fallback", onSuccess: vi.fn() }),
+    ).rejects.toThrow("intent unavailable");
+    expect(api.get).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
   });
 
   it("falla cerrado antes de consultar Fintoc si no hay sociedad activa", async () => {

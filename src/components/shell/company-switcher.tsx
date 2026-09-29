@@ -13,6 +13,17 @@ import { useCompanyScope } from "./company-scope";
  */
 export type CompanySwitcherProps = { variant?: "header" | "mobile" };
 
+export function selectCompanyAndReload(
+  currentCompanyId: string | null,
+  nextCompanyId: string,
+  selectCompany: (companyId: string) => void,
+  reload: () => void,
+): void {
+  if (currentCompanyId === nextCompanyId) return;
+  selectCompany(nextCompanyId);
+  reload();
+}
+
 export function CompanySwitcher({ variant = "header" }: CompanySwitcherProps) {
   const isMobile = variant === "mobile";
   const { activeCompany, activeCompanyId, companies, error, isLoading, selectCompany } =
@@ -27,8 +38,10 @@ export function CompanySwitcher({ variant = "header" }: CompanySwitcherProps) {
       : (activeCompany?.legal_name ?? (isLoading ? "Cargando..." : "Elige una empresa"));
 
   function handleSelect(companyId: string) {
-    selectCompany(companyId);
     setOpen(false);
+    selectCompanyAndReload(activeCompanyId, companyId, selectCompany, () =>
+      window.location.reload(),
+    );
   }
 
   return (

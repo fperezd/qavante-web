@@ -1,14 +1,31 @@
-# Runbook — release a producción (app.qavante.com)
+# Runbook — despliegue web a Azure PROD
 
-GitHub Actions está deshabilitado y no contiene workflows de despliegue, canary
-ni promoción. Producción se promueve únicamente mediante el
-[release local verificable hacia Azure Container Apps](./local-release.md).
+La ruta activa para `app.qavante.com` es
+[`Deploy web to Azure PROD`](../../.github/workflows/deploy-azure-prod.yml).
+GitHub Actions suele permanecer deshabilitado; se habilita manualmente sólo
+durante la ventana de despliegue. Con Actions habilitado, un `push` que cambie
+`src/**`, `public/**`, `package.json`, `package-lock.json`, `Dockerfile`,
+`next.config.ts` o el propio workflow dispara el deploy desde `main` **o desde
+`integrate/main-azure-prod`**. Ambas ramas apuntan a la misma Container App de
+PROD. También existe `workflow_dispatch`; si el push ocurrió con Actions
+deshabilitado, iniciar el workflow manualmente después de habilitarlo. No
+suponer que GitHub repetirá el evento anterior.
 
-Ese runbook exige `main` protegido, evidencia local SHA-bound, Docker, Azure CLI
-autenticado, una imagen OCI inmutable y smoke autenticado. También describe la
-verificación de procedencia y el rollback por digest. No usar GitHub Actions,
-Wrangler, el dashboard ni secretos de GitHub como bypass de esa ruta.
+Antes de habilitarlo, confirmar el SHA y los checks de la rama que se va a
+desplegar, los secrets `AZURE_TENANT_ID` y `AZURE_SUBSCRIPTION_ID`, y la
+credencial federada OIDC para esa rama. El workflow construye la imagen con
+`NEXT_PUBLIC_API_URL=https://api.qavante.com`, la sube a
+`acrqavanteprod.azurecr.io/qavante-web`, actualiza `ca-qavante-web-prod` y
+comprueba que `/login` responda. Deshabilitar Actions tras verificar el
+resultado de la ventana.
 
-Para una promoción, seguir los comandos y precondiciones de
-[`local-release.md`](./local-release.md) desde un checkout limpio del tip de
-`origin/main`.
+**Límite del workflow recuperado:** publica también el tag mutable `prod`,
+actualiza por tag, y sólo comprueba `/login`; no ejecuta smoke autenticado,
+verificación de procedencia por digest ni rollback automático. Verificar
+manualmente el flujo crítico y conservar la revisión anterior de Azure para un
+rollback operativo si el despliegue falla. No interpretar un `/login` correcto
+como prueba de compatibilidad con la API o de migraciones de datos.
+
+La antigua [ruta local](./local-release.md) queda inactiva por defecto; su CLI
+exige una reactivación explícita y no debe usarse para este despliegue. No usar
+Cloudflare ni QAS como rutas alternativas de producción.

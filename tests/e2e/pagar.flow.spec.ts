@@ -145,12 +145,20 @@ test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
     context,
   }) => {
     await loginAs(context, "owner");
+    const anomaliesResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/treasury/accounts-payable/anomalies") && response.ok(),
+    );
     await page.goto("/pagar");
 
     /* El ítem de nómina (`source_external_id` payroll-202606) abre su detalle y desde ahí
        enlaza al período en Remuneraciones. */
+    await anomaliesResponse;
     const fila = page.getByRole("row", { name: /Remuneraciones: Junio 2026/ });
     await expect(fila).toBeVisible();
+    /* Pagar carga las anomalías en paralelo. Esperar también a que desaparezca su estado visual
+       garantiza que React terminó de recalcular las filas antes de abrir el <details>. */
+    await expect(page.getByText("Estamos revisando posibles duplicados.")).toHaveCount(0);
     await fila.getByText("detalle ▾").click();
     const link = fila.getByRole("link", { name: "Ver en Remuneraciones" });
     await expect(link).toHaveAttribute("href", "/remuneraciones?period=2026-06");

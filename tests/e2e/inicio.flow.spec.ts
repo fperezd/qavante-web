@@ -16,9 +16,15 @@ test.describe("Flujo: Inicio (/inicio)", () => {
     await page.goto("/inicio");
 
     await expect(page.getByRole("heading", { level: 1, name: "Inicio" })).toBeVisible();
-    await expect(page.getByText("$9.800.000").first()).toBeVisible();
-    await expect(page.getByText("CLP · Resumen financiero")).toBeVisible();
-    await expect(page.getByText(/Banco actualizado hace \d+ días/)).toBeVisible();
+    /* Con `bankBalances` activo, el saldo visible viene de las cuentas bancarias detalladas,
+       no del bloque legacy `cash_today` del summary. El fixture publica una cuenta CLP por
+       $1.931.153 y la tarjeta declara además la cobertura de sus cuentas. */
+    const saldo = page.getByRole("region", { name: "Saldo bancario" });
+    await expect(saldo).toBeVisible();
+    /* La tarjeta se monta antes de que termine la consulta de cuentas. Esperamos una evidencia
+       final de esa consulta, con margen explícito para CI, en vez de dormir un tiempo fijo. */
+    await expect(saldo).toContainText("1 banco · 2 cuentas", { timeout: 20_000 });
+    await expect(saldo.getByText("$1.931.153", { exact: true })).toBeVisible();
 
     const panel = page.locator("[data-projection-run]").first();
     await expect(panel.getByText(/14 días · CLP/)).toBeVisible();

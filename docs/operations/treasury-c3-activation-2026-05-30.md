@@ -2,7 +2,7 @@
 
 > **Nota operacional 2026-09-07:** este documento conserva el resultado
 > histórico de la activación. No contiene pasos operativos vigentes. Toda
-> activación futura sigue el [release local verificable](./local-release.md)
+> activación futura sigue el [despliegue Azure PROD](./deploy-runbook.md)
 > y el procedimiento de [feature flags](./feature-flags-activation.md).
 
 > ### ✅ Resultado de la activación — 4/4 OK (al 2026-05-31)
@@ -48,7 +48,7 @@
 ## Estado del registro
 
 El procedimiento original queda sólo como contexto. Para un cambio futuro,
-usar el documento actual de feature flags y el release local; no inferir una
+usar el documento actual de feature flags y el despliegue Azure; no inferir una
 vía de promoción desde este registro.
 
 **Sugerencia de orden:** activá **`cashFlowReport`** primero (la más simple,
@@ -79,4 +79,4 @@ C1 SII, multimoneda, vistas-gestión).
 ## Kill-switch
 
 El estado histórico no habilita rollback ni cambios actuales. Para un
-kill-switch o rollback, seguir el release local vigente.
+kill-switch o rollback, seguir el runbook de despliegue Azure vigente.

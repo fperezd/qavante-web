@@ -163,6 +163,9 @@ test.describe("Decision Brief canónico en las cuatro superficies financieras", 
       }
 
       await page.goto("/bandeja", { waitUntil: "domcontentloaded" });
+      if (viewport.width < 768) {
+        await page.getByRole("button", { name: "Abrir menú" }).click();
+      }
       await expect(page.getByRole("button", { name: /Empresa activa:/ })).toBeVisible();
       await expect(
         page.getByRole("combobox", { name: "Seleccionar sociedad de la Bandeja" }),

@@ -121,6 +121,8 @@ export interface RedisenoTableProps<TData> {
    *  disponibles — la diferencia entre que el monto entre o no en pantallas chicas. Quien no lo
    *  pide conserva los 18 px en todo ancho. */
   celdasCompactasEnAngosto?: boolean;
+  /** Identidad estable de fila para conservar estado local de controles al cambiar `data`. */
+  rowKey?: (row: TData, index: number) => string;
   /** Hace la fila navegable sin sacrificar teclado. Los controles internos conservan su acción. */
   onRowClick?: (row: TData) => void;
   rowAriaLabel?: (row: TData) => string;
@@ -138,6 +140,7 @@ export function RedisenoTable<TData>({
   countNoun = "registros",
   footer,
   celdasCompactasEnAngosto = false,
+  rowKey,
   onRowClick,
   rowAriaLabel,
 }: RedisenoTableProps<TData>) {
@@ -151,6 +154,7 @@ export function RedisenoTable<TData>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: pagination ? getPaginationRowModel() : undefined,
+    getRowId: rowKey ? (row, index) => rowKey(row, index) : undefined,
     initialState: { pagination: { pageSize } },
   });
 

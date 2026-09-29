@@ -68,9 +68,14 @@ const meTenantsState: Array<{
   },
 ];
 
-const legalEntitiesState = [
-  { id: "e_tooxs", legal_name: "Tooxs Digital SpA", is_default: true },
-  { id: "e_demo", legal_name: "Tooxs Operaciones SpA", is_default: false },
+const legalEntitiesState: Array<{
+  id: string;
+  legal_name: string;
+  is_default: boolean;
+  identifiers: Array<{ scheme: string; value: string }>;
+}> = [
+  { id: "e_tooxs", legal_name: "Tooxs Digital SpA", is_default: true, identifiers: [] },
+  { id: "e_demo", legal_name: "Tooxs Operaciones SpA", is_default: false, identifiers: [] },
 ];
 
 export const authHandlers = [
@@ -167,6 +172,7 @@ export const authHandlers = [
       id: `e_new_${legalEntitiesState.length + 1}`,
       legal_name: body.legal_name.trim(),
       is_default: false,
+      identifiers: [] as Array<{ scheme: string; value: string }>,
     };
     legalEntitiesState.push(entity);
     return HttpResponse.json(entity, { status: 201 });
@@ -3032,6 +3038,7 @@ const AP_ITEMS = [
     criticality: "high" as const,
     source: "SII",
     currency: "CLP",
+    currency_status: "verified" as const,
     amount_clp: null,
     reclamado: false,
   },
@@ -3046,6 +3053,7 @@ const AP_ITEMS = [
     source: "Previred",
     source_external_id: "payroll-202606",
     currency: "CLP",
+    currency_status: "verified" as const,
     amount_clp: null,
     reclamado: false,
   },
@@ -3064,6 +3072,7 @@ const AP_ITEMS = [
     criticality: "medium" as const,
     source: "SII",
     currency: "CLP",
+    currency_status: "verified" as const,
     amount_clp: null,
     reclamado: false,
   },
@@ -3077,6 +3086,7 @@ const AP_ITEMS = [
     criticality: "medium" as const,
     source: "Manual",
     currency: "CLP",
+    currency_status: "verified" as const,
     amount_clp: null,
     reclamado: false,
   },
@@ -3091,6 +3101,7 @@ const AP_ITEMS = [
     criticality: "low" as const,
     source: "Manual",
     currency: "CLP",
+    currency_status: "verified" as const,
     amount_clp: null,
     reclamado: false,
   },
@@ -3115,7 +3126,7 @@ const accountsPayableFixture = {
   has_more: false,
   next_cursor: null,
   total: "9430000",
-  total_by_currency: [{ currency: "CLP", amount: "9430000" }],
+  total_by_currency: [{ currency: "CLP", currency_status: "verified", amount: "9430000" }],
   excluded_from_total_by_currency: [],
   /* Acumulativos desde `as_of` 2026-06-02: 7 días = arriendo (05-jun); 14 días = + F29
      (12-jun); 30 días = todo el registro MENOS la factura con fecha estimada (Telefónica,
@@ -3192,6 +3203,7 @@ const accountsPayableFixture = {
     due_date: "2026-06-30",
     amount: "4200000",
     currency: "CLP",
+    currency_status: "verified",
     amount_clp: null,
     is_overdue: false,
   },
@@ -3208,6 +3220,13 @@ const accountsPayableFixture = {
 };
 
 const pagosHandlers = [
+  /* Los sub-paths van ANTES del handler general para que MSW los resuelva primero. */
+  http.get("*/api/treasury/accounts-payable/anomalies", () =>
+    HttpResponse.json({ items: [] }, { status: 200 }),
+  ),
+  http.get("*/api/treasury/document-actions/deferred/payable", () =>
+    HttpResponse.json({ document_ids: [] }, { status: 200 }),
+  ),
   http.get("*/api/treasury/accounts-payable", () =>
     HttpResponse.json(accountsPayableFixture, { status: 200 }),
   ),

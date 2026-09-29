@@ -9,6 +9,7 @@ export function e2eBuildEnv(port: number, decisionBrief: boolean): Record<string
     NEXT_PUBLIC_TEST_MODE: "playwright",
 
     // Flags de los recorridos existentes que se cubren contra MSW.
+    NEXT_PUBLIC_FF_BANK_BALANCES: "true",
     NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION: "true",
     NEXT_PUBLIC_FF_CLASSIFICATION_RULES: "true",
     NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS: "true",

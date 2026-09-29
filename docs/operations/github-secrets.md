@@ -1,16 +1,16 @@
 # GitHub Secrets — qavante-web
 
-GitHub Actions está deshabilitado y este repositorio no mantiene workflows de
-despliegue, canary ni promoción. Por tanto, no se deben crear, rotar ni usar
-secrets de GitHub para desplegar Qavante Web.
+La ruta de producción es
+[`Deploy web to Azure PROD`](../../.github/workflows/deploy-azure-prod.yml).
+GitHub Actions permanece deshabilitado fuera de las ventanas de despliegue y se
+habilita manualmente para ejecutar este workflow.
 
-La promoción vigente es el [release local verificable](./local-release.md):
-Docker y Azure CLI autenticados se ejecutan localmente, y el smoke limitado se
-recibe sólo mediante `SMOKE_RUT` y `SMOKE_PASSWORD` como variables de entorno
-locales. Esos valores no se escriben en GitHub, artefactos ni comandos
-registrados.
+El workflow requiere los secrets del repositorio `AZURE_TENANT_ID` y
+`AZURE_SUBSCRIPTION_ID` y la credencial federada OIDC de Azure para la rama
+que se vaya a desplegar (`main` o `integrate/main-azure-prod`). Verificar su
+disponibilidad y permisos sin copiar sus valores a archivos, artefactos ni
+salidas de comandos. El client ID del workflow no es un secreto.
 
-Si existe algún secret histórico de Cloudflare, Azure o smoke en GitHub, no es
-una vía autorizada de release. Gestionar su inventario y eventual revocación
-por el proceso de seguridad correspondiente, sin reactivar workflows ni usar
-el dashboard como bypass.
+Los secretos históricos de Cloudflare o QAS no son una ruta alternativa de
+despliegue a PROD. La antigua [ruta local](./local-release.md) está inactiva
+por defecto.

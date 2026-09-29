@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import Script from "next/script";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, Lock, Shield, X } from "lucide-react";
+import { Eye, LoaderCircle, Lock, Shield, X } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -20,18 +20,34 @@ import {
   completeFintocWidget,
   openOfficialFintocWidget,
   type FintocCompletionResult,
-  type FintocHolderType,
 } from "@/lib/banco/open-fintoc-widget";
 import { BANK_SOURCE_CODE } from "@/lib/onboarding/connect-bank";
 import { QavanteButton } from "@/components/qavante";
 import { useCompanyScope } from "@/components/shell/company-scope";
-import {
-  legalEntityKeys,
-  type LegalEntity,
-  useCreateLegalEntity,
-  useDeclareLegalEntityIdentifier,
-} from "@/lib/api/legal-entities";
+import { type LegalEntity } from "@/lib/api/legal-entities";
 import { normalizeRut } from "@/lib/validators/rut";
+
+export function notifyFintocCompletion(
+  result: FintocCompletionResult,
+  onConnected?: () => void,
+): void {
+  const options = {
+    id: "fintoc-connection-result",
+    duration: Infinity,
+    ...(onConnected ? { action: { label: "Continuar", onClick: onConnected } } : {}),
+  };
+  if (result.status === "partial") {
+    toast.warning("Banco conectado, pero la primera actualización falló.", {
+      ...options,
+      description: result.per_account.find((item) => item.sync_error)?.sync_error?.message,
+    });
+    return;
+  }
+  toast.success(
+    `Banco conectado: ${result.accounts} cuentas, ${result.imported} movimientos`,
+    options,
+  );
+}
 
 export function QavanteBankConnectWidget({
   variant = "button",
@@ -44,15 +60,21 @@ export function QavanteBankConnectWidget({
 } = {}) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"intro" | "holder-type">("intro");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const widgetSucceeded = useRef(false);
   const consent = useSourceConsent(BANK_SOURCE_CODE);
   const accept = useAcceptSourceConsent(BANK_SOURCE_CODE);
-  const { activeCompany, companies, selectCompany } = useCompanyScope();
-  const createCompany = useCreateLegalEntity();
-  const declareIdentifier = useDeclareLegalEntityIdentifier();
-  const [holderToCreate, setHolderToCreate] = useState<{ name: string; rut: string } | null>(null);
+  const { activeCompany, selectCompany } = useCompanyScope();
+  const [holderMismatch, setHolderMismatch] = useState<{
+    holder: { name: string; rut: string };
+    company: { id: string; name: string };
+  } | null>(null);
+  const [unregisteredHolder, setUnregisteredHolder] = useState<{
+    name: string;
+    rut: string;
+  } | null>(null);
   const [resolvingMismatch, setResolvingMismatch] = useState(false);
   const companyRut = activeCompany?.identifiers.find(
     (identifier) => identifier.jurisdiction_code === "CL" && identifier.identifier_scheme === "rut",
@@ -62,37 +84,23 @@ export function QavanteBankConnectWidget({
     if (opening) return;
     setOpen(false);
     setAcceptedTerms(false);
-    setStep("intro");
   };
 
   const afterConnected = async (companyId?: string) => {
     if (companyId && companyId !== activeCompany?.id) {
       selectCompany(companyId);
     }
-    await Promise.all([
+    // The bank is already persisted when this runs. A failed UI refetch must
+    // not turn a successful connection into a misleading "save failed" toast.
+    await Promise.allSettled([
       qc.invalidateQueries({ queryKey: sourcesStatusKeys.all }),
       qc.invalidateQueries({ queryKey: onboardingStatusKeys.status }),
       qc.invalidateQueries({ queryKey: treasuryKeys.all }),
     ]);
-    await qc.refetchQueries({ queryKey: onboardingStatusKeys.status });
-    if (onConnected) {
-      onConnected();
-      return;
-    }
-    window.location.reload();
+    await qc.refetchQueries({ queryKey: onboardingStatusKeys.status }).catch(() => undefined);
   };
 
-  const showCompletionResult = (result: FintocCompletionResult) => {
-    if (result.status === "partial") {
-      toast.warning("Banco conectado, pero la primera actualización falló.", {
-        description: result.per_account.find((item) => item.sync_error)?.sync_error?.message,
-      });
-      return;
-    }
-    toast.success(`Banco conectado: ${result.accounts} cuentas, ${result.imported} movimientos`);
-  };
-
-  const continueToHolderType = async () => {
+  const continueToFintoc = async () => {
     if (!companyRut) {
       toast.error("Falta el RUT de la empresa que será titular de las cuentas");
       return;
@@ -114,7 +122,7 @@ export function QavanteBankConnectWidget({
             : undefined,
         );
       }
-      setStep("holder-type");
+      await conectarComo();
     } catch (err) {
       toast.error(
         err instanceof ApiError
@@ -128,25 +136,32 @@ export function QavanteBankConnectWidget({
     }
   };
 
-  const conectarComo = async (holderType: FintocHolderType) => {
+  const conectarComo = async () => {
     const legalEntityId = activeCompany?.id;
     if (!acceptedTerms || !companyRut || !legalEntityId) return;
     setOpening(true);
+    widgetSucceeded.current = false;
     try {
       setOpen(false);
       await openOfficialFintocWidget({
-        holderType,
         legalEntityId,
         onSuccess: (payload) => {
+          widgetSucceeded.current = true;
+          setSyncing(true);
           void (async () => {
             try {
               const result = await completeFintocWidget(payload, legalEntityId);
-              showCompletionResult(result);
               await afterConnected();
+              notifyFintocCompletion(result, onConnected);
             } catch (err) {
-              const holder = holderFromMismatch(err);
-              if (holder) {
-                setHolderToCreate(holder);
+              const mismatch = mismatchFromError(err);
+              if (mismatch) {
+                setHolderMismatch(mismatch);
+                return;
+              }
+              const missing = holderFromError(err, "fintoc_holder_not_registered");
+              if (missing) {
+                setUnregisteredHolder(missing);
                 return;
               }
               toast.error(
@@ -156,14 +171,15 @@ export function QavanteBankConnectWidget({
                     ? err.message
                     : "No se pudo guardar el banco",
               );
+            } finally {
+              setSyncing(false);
             }
           })();
         },
         onExit: () => {
-          toast.message("Cerraste la conexión bancaria");
+          if (!widgetSucceeded.current) toast.message("Cerraste la conexión bancaria");
         },
       });
-      setStep("intro");
       setAcceptedTerms(false);
     } catch (err) {
       setOpen(true);
@@ -179,33 +195,27 @@ export function QavanteBankConnectWidget({
     }
   };
 
-  const content =
-    step === "intro" ? (
-      <IntroStep
-        accepted={acceptedTerms}
-        opening={opening}
-        companyName={activeCompany?.legal_name ?? null}
-        companyRut={companyRut?.normalized_value ?? null}
-        onAcceptedChange={setAcceptedTerms}
-        onContinue={() => void continueToHolderType()}
-      />
-    ) : (
-      <ChooseHolderTypeStep
-        opening={opening}
-        onBack={() => setStep("intro")}
-        onSelect={(holderType) => void conectarComo(holderType)}
-      />
-    );
+  const content = (
+    <IntroStep
+      accepted={acceptedTerms}
+      opening={opening}
+      companyName={activeCompany?.legal_name ?? null}
+      companyRut={companyRut?.normalized_value ?? null}
+      onAcceptedChange={setAcceptedTerms}
+      onContinue={() => void continueToFintoc()}
+    />
+  );
 
   const importForCompany = async (companyId: string) => {
     setResolvingMismatch(true);
+    setSyncing(true);
     try {
       // El servidor conserva el link canjeado para este segundo paso. El
       // exchange_token del callback no se puede canjear por segunda vez.
       const result = await completeFintocWidget(null, companyId);
-      setHolderToCreate(null);
-      showCompletionResult(result);
+      setHolderMismatch(null);
       await afterConnected(companyId);
+      notifyFintocCompletion(result, onConnected);
     } catch (err) {
       toast.error(
         err instanceof ApiError
@@ -216,30 +226,45 @@ export function QavanteBankConnectWidget({
       );
     } finally {
       setResolvingMismatch(false);
+      setSyncing(false);
     }
   };
 
   return (
     <>
       <Script src="https://js.fintoc.com/v1/" strategy="afterInteractive" />
-      {holderToCreate ? (
-        <CreateCompanyFromHolder
-          holder={holderToCreate}
-          matchingCompanies={companiesForHolder(companies, holderToCreate.rut)}
-          pending={createCompany.isPending || declareIdentifier.isPending || resolvingMismatch}
-          onCancel={() => setHolderToCreate(null)}
+      {syncing ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-brand-deep/25 p-4 backdrop-blur-[1px]"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white px-6 py-7 text-center shadow-2xl">
+            <LoaderCircle
+              className="mx-auto h-9 w-9 animate-spin text-brand-primary"
+              aria-hidden="true"
+            />
+            <p className="mt-4 text-lg font-semibold text-neutral-dark">Guardando la conexión</p>
+            <p className="mt-2 text-sm leading-relaxed text-neutral-mid">
+              Estamos importando las cuentas y movimientos del banco. Esto puede tardar unos
+              instantes; no cierres la página.
+            </p>
+          </div>
+        </div>
+      ) : null}
+      {holderMismatch ? (
+        <ExistingCompanyFromHolder
+          holder={holderMismatch.holder}
+          company={holderMismatch.company}
+          pending={resolvingMismatch}
+          onCancel={() => setHolderMismatch(null)}
           onUseExisting={importForCompany}
-          onConfirm={async (legalName) => {
-            const company = await createCompany.mutateAsync({ legal_name: legalName });
-            await declareIdentifier.mutateAsync({
-              id: company.id,
-              jurisdiction_code: "CL",
-              identifier_scheme: "rut",
-              value: holderToCreate.rut,
-            });
-            await qc.refetchQueries({ queryKey: legalEntityKeys.all });
-            await importForCompany(company.id);
-          }}
+        />
+      ) : null}
+      {unregisteredHolder ? (
+        <UnregisteredHolderDialog
+          holder={unregisteredHolder}
+          onClose={() => setUnregisteredHolder(null)}
         />
       ) : null}
       {variant === "embedded" ? (
@@ -312,8 +337,8 @@ export function companiesForHolder(companies: LegalEntity[], holderRut: string):
   );
 }
 
-function holderFromMismatch(error: unknown): { name: string; rut: string } | null {
-  if (!(error instanceof ApiError) || error.code !== "fintoc_holder_mismatch") return null;
+function holderFromError(error: unknown, code: string): { name: string; rut: string } | null {
+  if (!(error instanceof ApiError) || error.code !== code) return null;
   const detail = error.detail;
   if (!detail || typeof detail !== "object") return null;
   const nested = (detail as { detail?: unknown }).detail;
@@ -322,27 +347,36 @@ function holderFromMismatch(error: unknown): { name: string; rut: string } | nul
   if (!holder || typeof holder !== "object") return null;
   const { name, rut } = holder as { name?: unknown; rut?: unknown };
   return typeof rut === "string" && rut
-    ? { rut, name: typeof name === "string" && name ? name : "Nueva empresa" }
+    ? { rut, name: typeof name === "string" && name ? name : "Titular informado por Fintoc" }
     : null;
 }
 
-function CreateCompanyFromHolder({
+function mismatchFromError(
+  error: unknown,
+): { holder: { name: string; rut: string }; company: { id: string; name: string } } | null {
+  const holder = holderFromError(error, "fintoc_holder_mismatch");
+  if (!holder || !(error instanceof ApiError)) return null;
+  const nested = (error.detail as { detail?: { company?: { id?: unknown; name?: unknown } } })
+    ?.detail;
+  const company = nested?.company;
+  return typeof company?.id === "string" && typeof company.name === "string"
+    ? { holder, company: { id: company.id, name: company.name } }
+    : null;
+}
+
+function ExistingCompanyFromHolder({
   holder,
-  matchingCompanies,
+  company,
   pending,
   onCancel,
   onUseExisting,
-  onConfirm,
 }: {
   holder: { name: string; rut: string };
-  matchingCompanies: LegalEntity[];
+  company: { id: string; name: string };
   pending: boolean;
   onCancel: () => void;
   onUseExisting: (companyId: string) => Promise<void>;
-  onConfirm: (legalName: string) => Promise<void>;
 }) {
-  const [name, setName] = useState(holder.name);
-  const existingCompany = matchingCompanies[0];
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-deep/50 p-4">
       <div
@@ -356,69 +390,64 @@ function CreateCompanyFromHolder({
         <p className="mt-2 text-sm text-neutral-mid">
           FinToc informó el RUT {holder.rut}. Las cuentas no se importarán bajo la empresa actual.
         </p>
-        {existingCompany ? (
-          <div className="mt-4 rounded-xl border border-brand-primary/20 bg-brand-primary-50 p-3">
-            <p className="text-sm font-medium text-neutral-dark">
-              Ya existe un titular con este RUT
-            </p>
-            <p className="mt-1 text-sm text-neutral-mid">{existingCompany.legal_name}</p>
-            <p className="mt-1 text-xs text-neutral-mid">
-              Importaremos las cuentas sólo bajo ese titular.
-            </p>
-          </div>
-        ) : (
-          <>
-            <label className="mt-4 block text-sm font-medium text-neutral-dark">
-              Nombre del titular
-              <input
-                className="mt-1 w-full rounded-md border border-neutral-light px-3 py-2"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </label>
-            <p className="mt-2 text-xs text-neutral-mid">
-              Al confirmar, registrarás al titular con ese RUT y reintentaremos la importación.
-            </p>
-          </>
-        )}
+        <div className="mt-4 rounded-xl border border-brand-primary/20 bg-brand-primary-50 p-3">
+          <p className="text-sm font-medium text-neutral-dark">
+            Ya existe una sociedad con este RUT
+          </p>
+          <p className="mt-1 text-sm text-neutral-mid">{company.name}</p>
+          <p className="mt-1 text-xs text-neutral-mid">
+            Importaremos las cuentas sólo bajo esa sociedad.
+          </p>
+        </div>
         <div className="mt-5 flex justify-end gap-2">
           <QavanteButton size="sm" variant="ghost" onClick={onCancel} disabled={pending}>
             Cancelar
           </QavanteButton>
-          {existingCompany ? (
-            <QavanteButton
-              size="sm"
-              onClick={() => {
-                void onUseExisting(existingCompany.id).catch((error: unknown) => {
-                  toast.error(
-                    error instanceof ApiError
-                      ? apiErrorToUserMessage(error)
-                      : "No pudimos importar las cuentas. Intenta nuevamente.",
-                  );
-                });
-              }}
-              loading={pending}
-            >
-              Usar {existingCompany.legal_name}
-            </QavanteButton>
-          ) : (
-            <QavanteButton
-              size="sm"
-              onClick={() => {
-                void onConfirm(name.trim()).catch((error: unknown) => {
-                  toast.error(
-                    error instanceof ApiError
-                      ? apiErrorToUserMessage(error)
-                      : "No pudimos crear la empresa. Intenta nuevamente.",
-                  );
-                });
-              }}
-              loading={pending}
-              disabled={name.trim().length < 2}
-            >
-              Registrar titular e importar
-            </QavanteButton>
-          )}
+          <QavanteButton size="sm" onClick={() => void onUseExisting(company.id)} loading={pending}>
+            Usar {company.name}
+          </QavanteButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UnregisteredHolderDialog({
+  holder,
+  onClose,
+}: {
+  holder: { name: string; rut: string };
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-deep/50 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="unregistered-holder-title"
+        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+      >
+        <h2 id="unregistered-holder-title" className="text-lg font-semibold text-neutral-dark">
+          Sociedad no registrada
+        </h2>
+        <p className="mt-2 text-sm text-neutral-mid">
+          Fintoc informó el RUT {holder.rut}, que no figura en Empresas. Eliminamos el enlace recién
+          creado en Fintoc y no importamos cuentas ni movimientos.
+        </p>
+        <p className="mt-3 text-sm text-neutral-mid">
+          Agrega esa sociedad y declara su RUT en Empresas; después vuelve a conectar el banco.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <QavanteButton size="sm" variant="ghost" onClick={onClose}>
+            Cerrar
+          </QavanteButton>
+          <Link
+            href="/administracion/empresas"
+            onClick={onClose}
+            className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white"
+          >
+            Ir a Empresas
+          </Link>
         </div>
       </div>
     </div>
@@ -526,64 +555,6 @@ function IntroStep({
           loading={opening}
         >
           {companyRut ? "Continuar con Fintoc" : "Declara el RUT para continuar"}
-        </QavanteButton>
-      </footer>
-    </div>
-  );
-}
-
-function ChooseHolderTypeStep({
-  opening,
-  onBack,
-  onSelect,
-}: {
-  opening: boolean;
-  onBack: () => void;
-  onSelect: (holderType: FintocHolderType) => void;
-}) {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="space-y-4 overflow-y-auto px-5 py-5">
-        <div>
-          <h3 className="text-xl font-semibold text-neutral-dark">
-            ¿A nombre de quién está la cuenta?
-          </h3>
-          <p className="mt-2 text-sm leading-relaxed text-neutral-mid">
-            Elige el tipo de titular para abrir el flujo correspondiente en Fintoc. Después
-            verificaremos el RUT real de la cuenta antes de guardarla.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => onSelect("individual")}
-            disabled={opening}
-            className="rounded-xl border border-brand-primary/25 bg-brand-primary-50 p-4 text-left hover:border-brand-primary disabled:opacity-60"
-          >
-            <span className="block font-semibold text-neutral-dark">Individual</span>
-            <span className="mt-1 block text-sm text-neutral-mid">
-              Cuenta bancaria de una persona.
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelect("business")}
-            disabled={opening}
-            className="rounded-xl border border-brand-primary/25 bg-brand-primary-50 p-4 text-left hover:border-brand-primary disabled:opacity-60"
-          >
-            <span className="block font-semibold text-neutral-dark">Business</span>
-            <span className="mt-1 block text-sm text-neutral-mid">
-              Cuenta bancaria de una empresa.
-            </span>
-          </button>
-        </div>
-        <p className="text-xs text-neutral-mid">
-          En sandbox, Fintoc puede mostrar permisos pendientes para algunas cuentas Business.
-        </p>
-      </div>
-      <footer className="border-t border-neutral-light/80 px-5 py-4">
-        <QavanteButton type="button" variant="ghost" onClick={onBack} disabled={opening}>
-          Volver
         </QavanteButton>
       </footer>
     </div>
