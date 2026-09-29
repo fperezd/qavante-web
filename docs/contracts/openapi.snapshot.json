@@ -12661,14 +12661,17 @@
           "amount_unknown_reason": {
             "anyOf": [
               {
-                "const": "reconciliation_quarantine",
+                "enum": [
+                  "reconciliation_quarantine",
+                  "missing_scope"
+                ],
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "`reconciliation_quarantine` si los montos del bloque son desconocidos.",
+            "description": "`reconciliation_quarantine` si los montos del bloque son desconocidos por una cuarentena de conciliación (#687); `missing_scope` si no hay Empresa activa y el bloque se abstiene (nunca '$0').",
             "title": "Amount Unknown Reason"
           },
           "due_14d": {
@@ -30112,14 +30115,17 @@
           "amount_unknown_reason": {
             "anyOf": [
               {
-                "const": "reconciliation_quarantine",
+                "enum": [
+                  "reconciliation_quarantine",
+                  "missing_scope"
+                ],
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "`reconciliation_quarantine` si los montos del bloque son desconocidos.",
+            "description": "`reconciliation_quarantine` si los montos del bloque son desconocidos por una cuarentena de conciliación (#687); `missing_scope` si no hay Empresa activa y el bloque se abstiene (nunca '$0').",
             "title": "Amount Unknown Reason"
           },
           "last_updated": {

@@ -15,7 +15,11 @@ import type { CollectionForecastResponse, CashCycleResponse } from "@/lib/api/tr
 import type { PagosTimelineProps, PagoCritico, Postergabilidad } from "./pagos-timeline";
 import type { ResultadoPreliminarProps, ResultadoExtra } from "./resultado-preliminar";
 import { parseAmount } from "../dashboard-format";
-import { importeDesconocido } from "@/lib/formatters/amount";
+import {
+  importeDesconocido,
+  motivoImporteDesconocido,
+  rotuloImporteDesconocido,
+} from "@/lib/formatters/amount";
 import { describeCashGap14d } from "../cash-gap-14d";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -153,7 +157,8 @@ export function respuestaEstadoBrecha(e: EstadoBrecha): string {
 export function mapCobranza(s: DashboardSummaryV2): CobranzaRealizableProps | null {
   const c = s.overdue_collections;
   if (!c) return null;
-  // #907: `total_receivable: null` + motivo = DESCONOCIDO por cuarentena; nunca $0.
+  // #907/#928: `total_receivable: null` + motivo = DESCONOCIDO (cuarentena o sin Empresa
+  // activa); nunca $0. El texto lo pone el motivo.
   const enRevision = importeDesconocido(c) || c.total_receivable == null;
   const total = c.total_receivable == null ? null : parseAmount(c.total_receivable);
   return {
@@ -162,6 +167,8 @@ export function mapCobranza(s: DashboardSummaryV2): CobranzaRealizableProps | nu
     segmentos: [],
     totalPorCobrar: total,
     enRevision,
+    rotuloDesconocido: rotuloImporteDesconocido(c.amount_unknown_reason),
+    motivoDesconocido: motivoImporteDesconocido(c.amount_unknown_reason),
     // `overdue: null` = el SII no entrega vencimientos → "sin dato", NO $0 (que mentiría "al día").
     // Espeja el fix de la vista v1 (#718). parseAmount(null) daría 0 → hay que preservar el null.
     vencido: c.overdue == null ? null : parseAmount(c.overdue),

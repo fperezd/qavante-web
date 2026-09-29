@@ -68,3 +68,65 @@ export function formatClpOEnRevision(raw: string | null | undefined): string {
   const value = parseAmountOrNull(raw);
   return value == null ? MONTO_EN_REVISION : formatClp(value);
 }
+
+/* ── Importe DESCONOCIDO por falta de Empresa activa (qavante-api#928) ───────────────────────
+   Sin Empresa activa, Cobrar y Pagar se abstienen: el backend publica los montos `null` con
+   `amount_unknown_reason: "missing_scope"`. No es cero ni "al día", y tampoco es un pago en
+   revisión: falta elegir la Empresa. */
+
+/** Motivo que publica Inicio cuando la sesión no tiene Empresa activa. */
+export const AMOUNT_UNKNOWN_MISSING_SCOPE = "missing_scope";
+
+/** Rótulo corto en lugar de la cifra. */
+export const MONTO_SIN_EMPRESA = "Sin dato";
+
+/** Explicación para el usuario. */
+export const MONTO_SIN_EMPRESA_MOTIVO = "Selecciona una Empresa para ver estos montos.";
+
+/** Motivos de importe desconocido que el contrato publica hoy. */
+export type AmountUnknownReason =
+  | typeof AMOUNT_UNKNOWN_QUARANTINE
+  | typeof AMOUNT_UNKNOWN_MISSING_SCOPE;
+
+/** Texto por motivo. Es un `Record` sobre la unión: un motivo nuevo en el contrato no compila
+ *  hasta que tenga sus palabras (el "switch exhaustivo" de este módulo). */
+const TEXTO_IMPORTE_DESCONOCIDO: Record<AmountUnknownReason, { rotulo: string; motivo: string }> = {
+  [AMOUNT_UNKNOWN_QUARANTINE]: { rotulo: MONTO_EN_REVISION, motivo: MONTO_EN_REVISION_MOTIVO },
+  [AMOUNT_UNKNOWN_MISSING_SCOPE]: { rotulo: MONTO_SIN_EMPRESA, motivo: MONTO_SIN_EMPRESA_MOTIVO },
+};
+
+/** Motivo desconocido para el cliente (contrato más nuevo que la web): se dice "sin dato",
+ *  nunca "$0" ni una razón inventada. */
+const TEXTO_SIN_DATO = {
+  rotulo: "Sin dato",
+  motivo: "No tenemos este monto por ahora.",
+};
+
+function textoImporteDesconocido(reason: string | null | undefined) {
+  if (reason == null) return TEXTO_IMPORTE_DESCONOCIDO[AMOUNT_UNKNOWN_QUARANTINE];
+  return (
+    (TEXTO_IMPORTE_DESCONOCIDO as Record<string, { rotulo: string; motivo: string }>)[reason] ??
+    TEXTO_SIN_DATO
+  );
+}
+
+/** Rótulo en lugar de la cifra según el motivo del backend. Sin motivo (`null`) conserva el de
+ *  la cuarentena, que era el único `null` posible antes de #928. */
+export function rotuloImporteDesconocido(reason: string | null | undefined): string {
+  return textoImporteDesconocido(reason).rotulo;
+}
+
+/** Explicación según el motivo del backend (mismo criterio que `rotuloImporteDesconocido`). */
+export function motivoImporteDesconocido(reason: string | null | undefined): string {
+  return textoImporteDesconocido(reason).motivo;
+}
+
+/** Monto CLP formateado, o el rótulo del motivo cuando el backend lo publica `null`. Nunca "$0"
+ *  por un `null`. */
+export function formatClpODesconocido(
+  raw: string | null | undefined,
+  reason: string | null | undefined,
+): string {
+  const value = parseAmountOrNull(raw);
+  return value == null ? rotuloImporteDesconocido(reason) : formatClp(value);
+}

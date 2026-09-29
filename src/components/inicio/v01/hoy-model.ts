@@ -19,8 +19,8 @@
 
 import type { DashboardSummaryV2, DashboardAction } from "@/lib/api/dashboard";
 import {
-  MONTO_EN_REVISION_MOTIVO,
   importeDesconocido,
+  motivoImporteDesconocido,
   parseAmountOrNull,
 } from "@/lib/formatters/amount";
 import { formatClp } from "@/lib/formatters/clp";
@@ -284,7 +284,7 @@ export function indicadoresHoy(s: DashboardSummaryV2 | null | undefined): Indica
          vencimientos). Un "$0" ahí diría "estás al día" sobre documentos cuya fecha no
          conocemos. Se dice qué falta, y el total por cobrar —que sí se sabe— queda a la vista. */
       detalle: importeDesconocido(cobranza)
-        ? MONTO_EN_REVISION_MOTIVO
+        ? motivoImporteDesconocido(cobranza?.amount_unknown_reason)
         : vencido == null
           ? total != null
             ? `De ${formatClp(total)} por cobrar · el SII aún no entrega los vencimientos`

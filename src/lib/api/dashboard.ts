@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
+import type { AmountUnknownReason } from "@/lib/formatters/amount";
 
 /* Capa de datos — Inicio Ejecutivo / Dashboard (Sprint C8, Documento Maestro
    §7.1).
@@ -29,6 +30,17 @@ export type DashboardCriticalPayments = components["schemas"]["CriticalPayments"
 export type DashboardOperationalResult = components["schemas"]["OperationalResult"];
 export type DashboardAction = components["schemas"]["PriorityAction"];
 export type DashboardSummaryResponse = components["schemas"]["DashboardSummaryResponse"];
+
+/** Motivos por los que Inicio publica un bloque de Cobrar/Pagar sin cifra (#907, #928). */
+export type DashboardAmountUnknownReason = NonNullable<
+  | DashboardOverdueCollections["amount_unknown_reason"]
+  | DashboardCriticalPayments["amount_unknown_reason"]
+>;
+
+/* Guarda de compilación: todo motivo que el contrato de Inicio publique tiene que tener sus
+   palabras en `lib/formatters/amount.ts`. Si el backend agrega uno, esto deja de compilar. */
+type _MotivoCubierto<T extends AmountUnknownReason> = T;
+export type DashboardAmountUnknownReasonCubierto = _MotivoCubierto<DashboardAmountUnknownReason>;
 
 /* ── Inicio Ejecutivo v2 (rediseño) — campos EXTENDIDOS, FE-first ──────────────
    El v2 reordena la jerarquía (caja/runway al frente) y agrega las "3 fechas

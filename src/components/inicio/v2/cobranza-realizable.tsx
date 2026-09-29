@@ -35,8 +35,12 @@ export interface CobranzaRealizableProps {
   segmentos: CobranzaSegmento[];
   /** `null` = en revisión de conciliación (qavante-api#907): se dice, nunca $0. */
   totalPorCobrar: number | null;
-  /** Cuarentena de conciliación viva: los montos son desconocidos. */
+  /** Los montos son desconocidos (cuarentena de conciliación #907 o sin Empresa activa #928). */
   enRevision?: boolean;
+  /** Rótulo en lugar de la cifra desconocida. Por omisión, el de la cuarentena. */
+  rotuloDesconocido?: string;
+  /** Explicación de por qué no hay cifra. Por omisión, la de la cuarentena. */
+  motivoDesconocido?: string;
   /** Monto vencido (0 = al día → verde). `null` = SIN DATO (el SII no da vencimientos): NO se
    *  pinta "$0" (mentiría "al día"), se muestra "sin dato de vencido". */
   vencido: number | null;
@@ -55,6 +59,8 @@ export function CobranzaRealizable({
   totalPorCobrar,
   vencido,
   enRevision = false,
+  rotuloDesconocido = MONTO_EN_REVISION,
+  motivoDesconocido = MONTO_EN_REVISION_MOTIVO,
   nota,
   href,
   cta,
@@ -67,7 +73,7 @@ export function CobranzaRealizable({
     >
       <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-mid">Cobranza</p>
       <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-neutral-dark">
-        {esperadoATiempo == null ? MONTO_EN_REVISION : formatClp(esperadoATiempo)}
+        {esperadoATiempo == null ? rotuloDesconocido : formatClp(esperadoATiempo)}
       </p>
       <p className="mt-0.5 text-xs text-neutral-mid">{subtitulo}</p>
 
@@ -88,9 +94,9 @@ export function CobranzaRealizable({
 
       <p className="mt-2.5 text-[11px] leading-relaxed text-neutral-mid">
         Total por cobrar{" "}
-        {totalPorCobrar == null ? MONTO_EN_REVISION.toLowerCase() : formatClp(totalPorCobrar)} ·{" "}
+        {totalPorCobrar == null ? rotuloDesconocido.toLowerCase() : formatClp(totalPorCobrar)} ·{" "}
         {enRevision ? (
-          <span>{MONTO_EN_REVISION_MOTIVO}</span>
+          <span>{motivoDesconocido}</span>
         ) : vencido == null ? (
           <span>sin dato de vencido: el SII aún no entrega los vencimientos</span>
         ) : (

@@ -13474,9 +13474,9 @@ export interface components {
         CriticalPayments: {
             /**
              * Amount Unknown Reason
-             * @description `reconciliation_quarantine` si los montos del bloque son desconocidos.
+             * @description `reconciliation_quarantine` si los montos del bloque son desconocidos por una cuarentena de conciliación (#687); `missing_scope` si no hay Empresa activa y el bloque se abstiene (nunca '$0').
              */
-            amount_unknown_reason?: "reconciliation_quarantine" | null;
+            amount_unknown_reason?: ("reconciliation_quarantine" | "missing_scope") | null;
             /**
              * Due 14D
              * @description Pagos a 14 días. `null` = desconocido por cuarentena de conciliación (#687).
@@ -20844,9 +20844,9 @@ export interface components {
         OverdueCollections: {
             /**
              * Amount Unknown Reason
-             * @description `reconciliation_quarantine` si los montos del bloque son desconocidos.
+             * @description `reconciliation_quarantine` si los montos del bloque son desconocidos por una cuarentena de conciliación (#687); `missing_scope` si no hay Empresa activa y el bloque se abstiene (nunca '$0').
              */
-            amount_unknown_reason?: "reconciliation_quarantine" | null;
+            amount_unknown_reason?: ("reconciliation_quarantine" | "missing_scope") | null;
             /** Last Updated */
             last_updated?: string | null;
             /**

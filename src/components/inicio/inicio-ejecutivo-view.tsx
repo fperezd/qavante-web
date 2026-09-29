@@ -28,15 +28,15 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike, formatDateTimeLike } from "@/lib/formatters/date";
 import { parseAmount, isEmptySummary } from "./dashboard-format";
 import {
-  MONTO_EN_REVISION,
-  MONTO_EN_REVISION_MOTIVO,
   importeDesconocido,
+  motivoImporteDesconocido,
+  rotuloImporteDesconocido,
 } from "@/lib/formatters/amount";
 
-/** Monto del resumen, o "En revisión" cuando el backend lo publica `null` por cuarentena de
- *  conciliación (qavante-api#907). Nunca `$0`. */
-function montoOEnRevision(raw: string | null): string {
-  return raw == null ? MONTO_EN_REVISION : formatClp(parseAmount(raw));
+/** Monto del resumen, o el rótulo del motivo cuando el backend lo publica `null`: "En revisión"
+ *  por cuarentena (qavante-api#907) o "Sin dato" sin Empresa activa (#928). Nunca `$0`. */
+function montoODesconocido(raw: string | null, reason: string | null | undefined): string {
+  return raw == null ? rotuloImporteDesconocido(reason) : formatClp(parseAmount(raw));
 }
 import { describeCashGap14d } from "./cash-gap-14d";
 import type { CashGap14dCifras, CashGap14dInput } from "./cash-gap-14d";
@@ -204,12 +204,17 @@ export function Dashboard({
           {data.overdue_collections ? (
             <>
               {importeDesconocido(data.overdue_collections) ? (
-                /* #907: cuarentena de conciliación viva → montos desconocidos, ni $0 ni "al día". */
+                /* #907 cuarentena de conciliación o #928 sin Empresa activa → montos
+                   desconocidos, ni $0 ni "al día". El texto sale del motivo. */
                 <>
                   <p className="text-sm">
-                    <span className="text-xl font-bold text-neutral-dark">{MONTO_EN_REVISION}</span>
+                    <span className="text-xl font-bold text-neutral-dark">
+                      {rotuloImporteDesconocido(data.overdue_collections.amount_unknown_reason)}
+                    </span>
                   </p>
-                  <p className="mt-0.5 text-xs text-neutral-mid">{MONTO_EN_REVISION_MOTIVO}</p>
+                  <p className="mt-0.5 text-xs text-neutral-mid">
+                    {motivoImporteDesconocido(data.overdue_collections.amount_unknown_reason)}
+                  </p>
                 </>
               ) : data.overdue_collections.overdue == null ? (
                 /* El SII no entrega los vencimientos (data_state parcial) → el backend manda
@@ -223,7 +228,10 @@ export function Dashboard({
                   <p className="mt-0.5 text-xs text-neutral-mid">
                     de{" "}
                     <span className="tabular-nums">
-                      {montoOEnRevision(data.overdue_collections.total_receivable)}
+                      {montoODesconocido(
+                        data.overdue_collections.total_receivable,
+                        data.overdue_collections.amount_unknown_reason,
+                      )}
                     </span>{" "}
                     por cobrar · el SII aún no entrega los vencimientos
                   </p>
@@ -237,7 +245,10 @@ export function Dashboard({
                     <span className="text-neutral-mid">
                       vencido de{" "}
                       <span className="tabular-nums">
-                        {montoOEnRevision(data.overdue_collections.total_receivable)}
+                        {montoODesconocido(
+                          data.overdue_collections.total_receivable,
+                          data.overdue_collections.amount_unknown_reason,
+                        )}
                       </span>
                     </span>
                   </p>
@@ -266,12 +277,26 @@ export function Dashboard({
           {data.critical_payments ? (
             <>
               <dl className="space-y-1.5 text-sm">
-                <Row label="Próx. 7 días" value={montoOEnRevision(data.critical_payments.due_7d)} />
+                <Row
+                  label="Próx. 7 días"
+                  value={montoODesconocido(
+                    data.critical_payments.due_7d,
+                    data.critical_payments.amount_unknown_reason,
+                  )}
+                />
                 <Row
                   label="Próx. 14 días"
-                  value={montoOEnRevision(data.critical_payments.due_14d)}
+                  value={montoODesconocido(
+                    data.critical_payments.due_14d,
+                    data.critical_payments.amount_unknown_reason,
+                  )}
                 />
               </dl>
+              {importeDesconocido(data.critical_payments) && (
+                <p className="mt-1 text-xs text-neutral-mid">
+                  {motivoImporteDesconocido(data.critical_payments.amount_unknown_reason)}
+                </p>
+              )}
               {data.critical_payments.next_critical && (
                 <p className="mt-2 text-xs text-neutral-mid">
                   {etiquetaProximoPago(data.critical_payments.next_critical)}:{" "}
