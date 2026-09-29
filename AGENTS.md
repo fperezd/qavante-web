@@ -37,3 +37,14 @@ No es obligatorio leer toda la política de Factory antes de trabajar. Parte del
 - Diseño general de la Factory: `docs/factory/FACTORY_POLICY.md`.
 
 Proveedor/modelo son reemplazables; ninguna regla crítica puede vivir sólo en un adapter.
+
+## E2E y GitHub Actions
+
+- Antes de cambiar un test E2E, leer el log real del check fallido y confirmar el SHA que ejecutó CI.
+- Mantener los fixtures MSW alineados con los contratos API, tipos y handlers del endpoint.
+- Declarar explícitamente todos los feature flags de Playwright en `playwright.e2e-env.ts`; no depender de `.env.local`, `wrangler.toml` ni variables heredadas.
+- Para asincronía, esperar una respuesta HTTP o una señal funcional visible. No usar `waitForTimeout` como solución.
+- En listas interactivas, usar identificadores estables; no usar el índice como `key` cuando la lista puede actualizarse o reordenarse.
+- Validar primero el test exacto y luego el blast radius mínimo. Ejemplo: `npm run e2e -- --project=flows tests/e2e/<flujo>.flow.spec.ts`.
+- Antes de subir cambios, ejecutar `npm run typecheck`, `git diff --check` y revisar `git status`.
+- Después del push, verificar el PR con `gh pr checks <numero> --watch` y leer el log del check si vuelve a fallar.
