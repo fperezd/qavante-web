@@ -87,6 +87,109 @@ export function activeImage(state) {
   return imageName;
 }
 
+// Mismo contrato que la API (tooxs-digital/qavante-api
+// scripts/local_azure_release.mjs): credenciales de smoke y material Cosign
+// presentes antes de leer o mutar Azure. Sólo se informan nombres faltantes.
+export const releaseCredentialNames = [
+  "SMOKE_RUT",
+  "SMOKE_PASSWORD",
+  "COSIGN_KEY",
+  "COSIGN_PUBLIC_KEY",
+  "COSIGN_PASSWORD",
+];
+
+export function requireReleaseCredentials(environment) {
+  const missing = releaseCredentialNames.filter(
+    (name) => typeof environment?.[name] !== "string" || environment[name].length === 0,
+  );
+  if (missing.length)
+    throw new Error(
+      `smoke credentials and Cosign signing key/public key/password are required: ${missing.join(", ")}`,
+    );
+}
+
+// Cosign `verify` devuelve un arreglo de payloads firmados. Sólo acredita la
+// promoción si alguno firma exactamente el digest que se va a activar.
+export function verifySignatureForDigest(signature, digest) {
+  if (!/^sha256:[a-f0-9]{64}$/.test(digest || "") || !Array.isArray(signature)) {
+    throw new Error("image signature verification returned no usable evidence");
+  }
+  const signed = signature.some(
+    (entry) => entry?.critical?.image?.["docker-manifest-digest"] === digest,
+  );
+  if (!signed) throw new Error("Cosign evidence does not attest the promoted image digest");
+}
+
+function hostOf(value) {
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+// La imagen web hornea NEXT_PUBLIC_* en build: si apunta a otro host, ningún
+// cambio de entorno en Azure lo corrige. Se verifica contra `docker image
+// inspect` antes de firmar y publicar, junto a la identidad de fuente horneada.
+export function assertBakedWebImage(
+  imageEnvironment,
+  { releaseSha, releaseTree, sourceDigest, version },
+) {
+  if (!Array.isArray(imageEnvironment)) throw new Error("Docker image has no environment");
+  const baked = new Map();
+  for (const entry of imageEnvironment) {
+    const index = typeof entry === "string" ? entry.indexOf("=") : -1;
+    if (index > 0) baked.set(entry.slice(0, index), entry.slice(index + 1));
+  }
+  const expected = {
+    NEXT_PUBLIC_API_URL: apiUrl,
+    NEXT_PUBLIC_APP_ENV: "prod",
+    QAVANTE_RELEASE_SHA: releaseSha,
+    QAVANTE_RELEASE_TREE_SHA: releaseTree,
+    QAVANTE_RELEASE_BUNDLE_SHA256: sourceDigest,
+    QAVANTE_RELEASE_VERSION: version,
+  };
+  for (const [name, value] of Object.entries(expected)) {
+    if (baked.get(name) !== value) {
+      const host =
+        name === "NEXT_PUBLIC_API_URL"
+          ? ` (observed host ${hostOf(baked.get(name)) ?? "<none>"})`
+          : "";
+      throw new Error(`Docker image baked ${name} differs from the release manifest${host}`);
+    }
+  }
+  return true;
+}
+
+// Paridad con azureRuntimeIntegrationReadiness de la API: lectura de metadata
+// del Container App antes de cualquier mutación. La web no tiene secretos de
+// integración; lo aplicable es no enviar al navegador ni al servidor un
+// backend que no sea el dominio canónico ni un host *.azurecontainerapps.io.
+export function azureWebRuntimeReadiness(state) {
+  const environment = templateEnvironment(state);
+  for (const [name, value] of environment) {
+    if (typeof value !== "string") continue;
+    const host = hostOf(value);
+    if (host && host.endsWith(".azurecontainerapps.io")) {
+      throw new Error(
+        `Azure web ${name} points at a Container Apps host (${host}); use the canonical domain`,
+      );
+    }
+  }
+  if (environment.has("NEXT_PUBLIC_API_URL") && environment.get("NEXT_PUBLIC_API_URL") !== apiUrl) {
+    throw new Error(`Azure web NEXT_PUBLIC_API_URL must be exactly ${apiUrl}`);
+  }
+  return true;
+}
+
+function imageEnvironment(imageTag) {
+  return JSON.parse(
+    run("docker", ["image", "inspect", "--format", "{{json .Config.Env}}", imageTag], {
+      capture: true,
+    }),
+  );
+}
+
 export function verifyCandidateStatus(statuses, actor, sourceDigest) {
   const latest = statuses
     .filter((item) => item.context === candidateContext)
@@ -320,6 +423,12 @@ async function prepare(directory) {
     capture: true,
   });
   if (!/^sha256:[0-9a-f]{64}$/.test(imageId)) throw new Error("Docker returned no image ID");
+  assertBakedWebImage(imageEnvironment(taggedImage), {
+    releaseSha: gate.release_sha,
+    releaseTree: gate.release_tree,
+    sourceDigest,
+    version,
+  });
   if (github("commits/main").sha !== gate.release_sha)
     throw new Error("main advanced during build");
   const actor = JSON.parse(run("gh", ["api", "user"], { capture: true })).login;
@@ -385,8 +494,13 @@ async function promote(directory) {
   ) {
     throw new Error("release candidate status changed");
   }
-  if (!process.env.SMOKE_RUT || !process.env.SMOKE_PASSWORD)
-    throw new Error("smoke credentials missing");
+  requireReleaseCredentials(process.env);
+  assertBakedWebImage(imageEnvironment(manifest.image_tag), {
+    releaseSha: manifest.release_sha,
+    releaseTree: manifest.release_tree,
+    sourceDigest: manifest.source_sha256,
+    version: manifest.release_version,
+  });
   const account = JSON.parse(
     run("az", ["account", "show", "--subscription", subscription, "-o", "json"], {
       capture: true,
@@ -394,6 +508,7 @@ async function promote(directory) {
   );
   if (account.id !== subscription) throw new Error("Azure CLI is not on the Qavante subscription");
   const before = azureState();
+  azureWebRuntimeReadiness(before);
   const oldImage = activeImage(before);
   const oldTag = oldImage.split(":").at(-1);
   const oldDigest = oldImage.includes("@sha256:") ? oldImage.split("@")[1] : remoteDigest(oldTag);
@@ -421,6 +536,16 @@ async function promote(directory) {
   run("docker", ["push", manifest.image_tag]);
   const digest = remoteDigest(manifest.image_tag.split(":").at(-1));
   const releaseImage = `${image}@${digest}`;
+  // Igual que la API: firmar por digest y verificar con la clave pública antes
+  // de que Azure pueda activar la imagen. COSIGN_PASSWORD viaja por el entorno.
+  run("cosign", ["sign", "--yes", "--key", process.env.COSIGN_KEY, releaseImage]);
+  const signature = JSON.parse(
+    run("cosign", ["verify", "--key", process.env.COSIGN_PUBLIC_KEY, releaseImage], {
+      capture: true,
+    }),
+  );
+  verifySignatureForDigest(signature, digest);
+  save(path.join(attempt, "signature-verification.json"), signature);
   const environment = releaseEnvironment({
     releaseSha: manifest.release_sha,
     releaseTree: manifest.release_tree,
@@ -466,6 +591,7 @@ async function promote(directory) {
       ...manifest,
       attempt,
       image_digest: digest,
+      signature_verification_sha256: sha256(path.join(attempt, "signature-verification.json")),
       rollback_image: rollbackImage,
       observed_at: new Date().toISOString(),
     });
