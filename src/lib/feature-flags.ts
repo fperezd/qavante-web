@@ -86,8 +86,8 @@ export const FEATURE_FLAGS = [
   "financiamientoV13",
   "simuladorV14",
   /* Decisión de caja canónica: un envelope server-owned para Inicio, Caja,
-     Bandeja, Pagar y Cobrar. Default OFF hasta que el contrato R2 esté
-     desplegado y validado con datos reales; no existe fallback de cliente. */
+     Pagar y Cobrar. ON en producción desde #301 (override `NEXT_PUBLIC_FF_DECISION_BRIEF`
+     en `wrangler.toml`); no existe fallback de cliente. */
   "decisionBrief",
 ] as const;
 

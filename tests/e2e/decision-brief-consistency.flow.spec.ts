@@ -148,6 +148,19 @@ test.describe("Decision Brief canónico en las cuatro superficies financieras", 
           await expect(page.getByRole("link", { name: "Clientes" })).toBeVisible();
         }
 
+        /* #310: con el Brief encendido, el header suprime el badge de Pulso (score +
+           semáforo) para no publicar un segundo veredicto que contradiga al Brief (#305).
+           El badge tiene `md:flex`, así que sólo se afirma en viewports >= 768. La ausencia
+           del texto "Pulso" en el header cubre la regresión que #287 reintrodujo; su gemelo
+           positivo vive en `decision-brief-flag-off.flow.spec.ts`. */
+        if (viewport.width >= 768) {
+          const header = page.locator("header");
+          await expect(
+            header.getByText("Pulso", { exact: true }),
+            `${surface.path}: el badge de Pulso no debe aparecer con el Brief encendido`,
+          ).toHaveCount(0);
+        }
+
         expect(
           decisionProducerRequests,
           `${surface.path} no debe pedir un plan local cuando el Brief decide`,
@@ -176,3 +189,4 @@ test.describe("Decision Brief canónico en las cuatro superficies financieras", 
     });
   }
 });
+

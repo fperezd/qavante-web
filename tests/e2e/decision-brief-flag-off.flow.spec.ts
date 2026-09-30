@@ -83,6 +83,17 @@ test("Decision Brief apagado no se monta en las cinco superficies", async ({ pag
     }
   }
 
+  /* #310: gemelo positivo del badge de Pulso — con el Brief apagado, el header SÍ
+     muestra el score y la palabra de estado del Pulso (MSW sirve score 68 / "stable"
+     → "68 · Estable"). Sin esto, la ausencia afirmada en el spec ON pasaría igual si
+     el badge simplemente dejara de existir. El viewport por defecto de Playwright
+     (1280) es >= md, así que el badge con `md:flex` es visible. */
+  const header = page.locator("header");
+  await expect(
+    header.getByText("Pulso", { exact: true }),
+    "el badge de Pulso debe aparecer con el Brief apagado",
+  ).toBeVisible();
+
   for (const prefix of DECISION_PRODUCER_PREFIXES) {
     await expect
       .poll(
