@@ -56,6 +56,12 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
     // la cuenta ni con CLP; el mensaje no invita a reintentar lo mismo.
     return "No se guardó la clasificación: la moneda de este movimiento bancario no está verificada. Revisa el movimiento en Banco o sincroniza la cuenta antes de clasificarlo.";
   }
+  if (err.code === "classification_scope_required") {
+    return "Se necesita un alcance financiero para clasificar. Verifica que la sociedad esté configurada.";
+  }
+  if (err.code === "tenant_wide_classification_rules_unavailable") {
+    return "Las reglas de clasificación no están disponibles para este tenant. Contacta soporte.";
+  }
 
   if (context === "login" && err.status === 401) {
     return "RUT o clave incorrectos. Verifica tus datos.";

@@ -290,6 +290,22 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
   });
 });
 
+describe("CL1 — classification scope errors", () => {
+  it("classification_scope_required → copy de alcance financiero", () => {
+    const err = new ApiError("scope required", 422, "classification_scope_required");
+    expect(apiErrorToUserMessage(err)).toBe(
+      "Se necesita un alcance financiero para clasificar. Verifica que la sociedad esté configurada.",
+    );
+  });
+
+  it("tenant_wide_classification_rules_unavailable → copy de reglas no disponibles", () => {
+    const err = new ApiError("rules unavailable", 422, "tenant_wide_classification_rules_unavailable");
+    expect(apiErrorToUserMessage(err)).toBe(
+      "Las reglas de clasificación no están disponibles para este tenant. Contacta soporte.",
+    );
+  });
+});
+
 describe("#370 — 422 bank_movement_currency_unverified (qavante-api#905)", () => {
   it("explica que no se guardó y por qué, sin reflejar el mensaje técnico del backend", () => {
     const err = new ApiError(
