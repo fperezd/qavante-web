@@ -39,7 +39,8 @@ export interface PayableItem extends Omit<
   /** Saldo del pago. `null` = DESCONOCIDO porque el documento está en cuarentena de
    *  conciliación (qavante-api#907, #687): viene con `amount_unknown_reason`. Nunca es 0. */
   amount: string | null;
-  criticality: "high" | "medium" | "low";
+  /** `unknown`: sin vencimiento confirmado no hay urgencia calculable (qavante-api#566). */
+  criticality: PayableCriticality;
   /** Fuente del dato en lenguaje humano (ej. "SII", "Previred", "Manual"). */
   source: string;
   /** Clave natural (ej. 'payroll-202606' → deriva el período para el detalle). */
@@ -428,6 +429,18 @@ function isEnumBuckets(
   );
 }
 
+/** `by_category` de nivel superior sólo trae las categorías con documentos (qavante-api
+ *  `payables_repo`); a diferencia de las facetas de filtro, no publica ceros. */
+function isPresentCategoryBuckets(value: unknown): value is Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) return false;
+  const names = value.map((entry) => (isRecord(entry) ? entry.category : null));
+  return (
+    new Set(names).size === names.length &&
+    names.every((name) => CATEGORIES.includes(name as (typeof CATEGORIES)[number])) &&
+    value.every((entry) => isRecord(entry) && isCount(entry.count) && isAggregate(entry))
+  );
+}
+
 function isCashProjection(value: Record<string, unknown>): boolean {
   const publicable = value.cash_projection_publicable_14d;
   if (typeof publicable !== "boolean") return false;
@@ -493,6 +506,9 @@ function isPayrollCoverage(value: unknown): boolean {
 
 const CATEGORIES = ["supplier", "tax", "payroll", "rent", "debt", "leasing", "other"] as const;
 const CRITICALITIES = ["high", "medium", "low"] as const;
+/** Los ítems además pueden venir `unknown`; las facetas de filtro sólo filtran por las tres. */
+const ITEM_CRITICALITIES = [...CRITICALITIES, "unknown"] as const;
+export type PayableCriticality = (typeof ITEM_CRITICALITIES)[number];
 const STATES = ["open", "partially_paid"] as const;
 
 function isFilterMetadata(value: unknown, itemsTotal: unknown): boolean {
@@ -518,7 +534,7 @@ function isPayableItem(value: unknown): boolean {
     CATEGORIES.includes(value.category as (typeof CATEGORIES)[number]) &&
     isIsoCalendarDate(value.due_date) &&
     isAmountOrQuarantined(value, value.amount) &&
-    CRITICALITIES.includes(value.criticality as (typeof CRITICALITIES)[number]) &&
+    ITEM_CRITICALITIES.includes(value.criticality as PayableCriticality) &&
     typeof value.source === "string" &&
     value.source.trim().length > 0 &&
     isCurrencyEvidence(value) &&
@@ -645,7 +661,7 @@ export function assertAccountsPayableResponse(value: unknown): D02AccountsPayabl
     isNonNegativeAggregate(value.non_postponable_or_overdue_14d) &&
     isAggregate(value.undated_summary) &&
     isAggregate(value.credits) &&
-    isEnumBuckets(value.by_category, "category", CATEGORIES, true) &&
+    isPresentCategoryBuckets(value.by_category) &&
     hasCoherentTotals(value) &&
     isCount(value.undated_count) &&
     value.undated_summary.count === value.undated_count &&

@@ -73,7 +73,7 @@ describe("pagos-v2-format · subtotalsByCriticality", () => {
       item({ criticality: "high", amount: "500" }),
       item({ criticality: "medium", amount: "200" }),
     ];
-    expect(subtotalsByCriticality(items)).toEqual({ high: 1500, medium: 200, low: 0 });
+    expect(subtotalsByCriticality(items)).toEqual({ high: 1500, medium: 200, low: 0, unknown: 0 });
   });
 });
 

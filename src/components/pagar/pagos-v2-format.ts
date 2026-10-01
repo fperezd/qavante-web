@@ -3,7 +3,7 @@
  * `accounts-payable` existente (due_date + criticality + amount). Testeable.
  * Presentación, no cálculo financiero nuevo. */
 
-import type { PayableItem } from "@/lib/api/pagos";
+import type { PayableCriticality, PayableItem } from "@/lib/api/pagos";
 import { montoCLP } from "./pagos-format";
 
 const MS_PER_DAY = 86_400_000;
@@ -35,10 +35,8 @@ export function overdueTotal(items: PayableItem[], now: Date): number {
 }
 
 /** Subtotales por criticidad (montos en CLP). */
-export function subtotalsByCriticality(
-  items: PayableItem[],
-): Record<"high" | "medium" | "low", number> {
-  const acc = { high: 0, medium: 0, low: 0 };
+export function subtotalsByCriticality(items: PayableItem[]): Record<PayableCriticality, number> {
+  const acc = { high: 0, medium: 0, low: 0, unknown: 0 };
   for (const it of items) acc[it.criticality] += montoCLP(it);
   return acc;
 }
@@ -48,7 +46,7 @@ export function subtotalsByCriticality(
  *  Decora una vez con los días al vencimiento (evita re-parsear la fecha O(n·log n)
  *  veces) y ordena con desempate estable (sin `Infinity - Infinity = NaN`). */
 export function overdueThenCritical(items: PayableItem[], now: Date): PayableItem[] {
-  const rank: Record<"high" | "medium" | "low", number> = { high: 0, medium: 1, low: 2 };
+  const rank: Record<PayableCriticality, number> = { high: 0, medium: 1, low: 2, unknown: 3 };
   const LATE = Number.MAX_SAFE_INTEGER; // sin fecha → al final del desempate
   return items
     .map((it) => ({ it, days: daysUntilDue(it.due_date, now) }))

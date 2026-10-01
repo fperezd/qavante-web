@@ -49,7 +49,7 @@ import {
   shareOfTotal,
   payrollPeriodFromExternalId,
 } from "./pagos-group";
-import type { PayableItem } from "@/lib/api/pagos";
+import type { PayableCriticality, PayableItem } from "@/lib/api/pagos";
 import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
 
 /* Pagar — cuentas por pagar (Sprint C4, Maestro §7.4): resumen (total + 7/14/30
@@ -58,15 +58,17 @@ import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-p
    gestión): bucket "Vencido" al frente, subtotales por criticidad, orden
    vencido→crítico. Container. Contrato FE-first gated por `accountsPayable`. */
 
-const CRIT_VARIANT: Record<"high" | "medium" | "low", "danger" | "warning" | "default"> = {
+const CRIT_VARIANT: Record<PayableCriticality, "danger" | "warning" | "default"> = {
   high: "danger",
   medium: "warning",
   low: "default",
+  unknown: "default",
 };
-const CRIT_LABEL: Record<"high" | "medium" | "low", string> = {
+const CRIT_LABEL: Record<PayableCriticality, string> = {
   high: "Crítico",
   medium: "Medio",
   low: "Bajo",
+  unknown: "Sin fecha confirmada",
 };
 
 export function PagarView({

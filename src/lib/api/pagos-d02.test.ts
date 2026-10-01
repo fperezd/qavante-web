@@ -63,6 +63,28 @@ describe("accounts payable D02 boundary", () => {
     ).toThrow(/contrato completo/);
   });
 
+  it("acepta ítems sin vencimiento confirmado y categorías sólo presentes (contrato API #566)", () => {
+    const base = pagos();
+    const presentes = base.by_category.filter((bucket) => bucket.count > 0);
+    expect(presentes.length).toBeLessThan(base.by_category.length);
+    const sinFecha = { ...base.items![0]!, criticality: "unknown" as const };
+    const parsed = assertAccountsPayableResponse({
+      ...base,
+      by_category: presentes,
+      items: [sinFecha, ...base.items!.slice(1)],
+    });
+    expect(parsed.items![0]!.criticality).toBe("unknown");
+    expect(() =>
+      assertAccountsPayableResponse({ ...base, by_category: [...presentes, presentes[0]!] }),
+    ).toThrow(/contrato completo/);
+    expect(() =>
+      assertAccountsPayableResponse({
+        ...base,
+        items: [{ ...base.items![0]!, criticality: "urgent" }],
+      }),
+    ).toThrow(/contrato completo/);
+  });
+
   it("rechaza invariantes inconsistentes de cursor y facets", () => {
     expect(() =>
       assertAccountsPayableResponse(pagos({ has_more: true, next_cursor: null })),
