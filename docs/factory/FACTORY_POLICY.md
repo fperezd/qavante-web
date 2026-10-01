@@ -44,7 +44,7 @@ La clasificación se valida mecánicamente por paths y labels. No declarar label
 
 ## 5. Evidencia en lugar de reviewer obligatorio
 
-El gate local `local-change-evidence` valida sobre el head del PR:
+El antiguo gate local `local-change-evidence` validaba sobre el head del PR; fue retirado y se conserva aquí sólo como referencia histórica:
 
 - clasificación de riesgo compatible con los paths;
 - secciones de evidencia y rollback para cambios materiales;
@@ -64,13 +64,13 @@ Nunca se relajan para ahorrar tiempo o tokens:
 - smoke, health/runtime verification y rollback de producción;
 - trazabilidad entre PR, SHA, árbol y artefacto.
 
-Un gate omitido por routing sólo es válido si el manifest local confirma que no aplicaba, no si falló o fue cancelado.
+Un job omitido por routing sólo es válido si el workflow vigente confirma que no aplicaba, no si falló o fue cancelado.
 
 ## 7. Producción
 
 Deploy exitoso no cierra el ciclo: `deploy → smoke → health/telemetry → PASS`. Ante fallo, rollback automático sólo cuando sea seguro; si no, escalamiento.
 
-Producción no se debilita para ganar autonomía. El release local vuelve a adquirir evidencia del SHA/árbol/digest exactos, conserva protección de secretos y credenciales, observa runtime y revierte automáticamente cuando sea seguro.
+Producción no se debilita para ganar autonomía. La ruta vigente de GitHub Actions conserva evidencia del SHA/árbol/digest exactos, protección de secretos y credenciales, observación de runtime y rollback cuando sea seguro.
 
 ## 8. Escalamiento humano
 
@@ -81,13 +81,13 @@ Escalar únicamente cuando se necesita una decisión o autoridad que el sistema 
 3. definición ambigua de una cifra o comportamiento material;
 4. cambio incompatible de contrato;
 5. gasto, credencial o acción externa no autorizada;
-Una operación R2 reversible, un cambio declarativo de branch protection o un deploy con rollback no son por sí solos causales de escalamiento.
+   Una operación R2 reversible, un cambio declarativo de branch protection o un deploy con rollback no son por sí solos causales de escalamiento.
 
 CI local rojo, deuda de tests o documentación desalineada se corrigen; no son escalamiento por sí solos.
 
 ## 9. Eficiencia
 
-Usar el modelo y contexto mínimos suficientes. No comprar capacidad incremental ni crear loops de agentes sin autorización. GitHub Actions permanece deshabilitado; se reutilizan imágenes y dependencias locales y se consolidan gates determinísticos.
+Usar el modelo y contexto mínimos suficientes. No comprar capacidad incremental ni crear loops de agentes sin autorización. GitHub Actions es la ruta vigente de CI y release; la validación local sólo aporta feedback.
 
 ## 10. Enforcement
 

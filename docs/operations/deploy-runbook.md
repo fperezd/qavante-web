@@ -2,21 +2,19 @@
 
 La ruta activa para `app.qavante.com` es
 [`Deploy web to Azure PROD`](../../.github/workflows/deploy-azure-prod.yml).
-GitHub Actions suele permanecer deshabilitado; se habilita manualmente sólo
-durante la ventana de despliegue. Con Actions habilitado, un `push` que cambie
+GitHub Actions permanece habilitado como ruta vigente. Un `push` que cambie
 `src/**`, `public/**`, `package.json`, `package-lock.json`, `Dockerfile`,
 `next.config.ts` o el propio workflow dispara el deploy desde `main` **o desde
 `integrate/main-azure-prod`**. Ambas ramas apuntan a la misma Container App de
-PROD. También existe `workflow_dispatch`; si el push ocurrió con Actions
-deshabilitado, iniciar el workflow manualmente después de habilitarlo. No
-suponer que GitHub repetirá el evento anterior.
+PROD. También existe `workflow_dispatch`. No suponer que GitHub repetirá un
+evento anterior.
 
-Antes de habilitarlo, confirmar el SHA y los checks de la rama que se va a
+Antes de ejecutarlo, confirmar el SHA y los checks de la rama que se va a
 desplegar, los secrets `AZURE_TENANT_ID` y `AZURE_SUBSCRIPTION_ID`, y la
 credencial federada OIDC para esa rama. El workflow construye la imagen con
 `NEXT_PUBLIC_API_URL=https://api.qavante.com`, la sube a
 `acrqavanteprod.azurecr.io/qavante-web`, actualiza `ca-qavante-web-prod` y
-comprueba que `/login` responda. Deshabilitar Actions tras verificar el
+comprueba que `/login` responda. Mantener Actions habilitado tras verificar el
 resultado de la ventana.
 
 **Límite del workflow recuperado:** publica también el tag mutable `prod`,

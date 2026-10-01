@@ -59,7 +59,7 @@ flowchart LR
 - **Compatibilidad heredada:** [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), `wrangler.toml` y `nodejs_compat` siguen versionados para compatibilidad de fuente/build. No autorizan un despliegue a Cloudflare. Ver [ADR-0001](./adr/0001-cloudflare-workers-vs-pages.md).
 - **Auth (cliente):** cookie httpOnly `qavante_session` (Domain=.qavante.com, SameSite=Lax, Secure, ver [ADR-0003](./adr/0003-api-qavante-com-shared-parent.md)). Middleware Next.js en `src/middleware.ts` valida cookie y redirige a `/login` si falta. El interceptor en [`src/lib/api/client.ts:64`](../src/lib/api/client.ts#L64) hace refresh automático en 401.
 - **State management:** TanStack Query (server state) + Zustand (UI state local). React-hook-form + zod para validación.
-- **Release:** [Deploy web to Azure PROD](../.github/workflows/deploy-azure-prod.yml) despliega desde `main` o `integrate/main-azure-prod` cuando Actions está habilitado. Actions se activa manualmente durante la ventana de despliegue. El [release local anterior](./operations/local-release.md) está inactivo por defecto. El workflow actual no garantiza por sí solo smoke autenticado ni rollback automático.
+- **Release:** [Deploy web to Azure PROD](../.github/workflows/deploy-azure-prod.yml) despliega desde `main` o `integrate/main-azure-prod` con GitHub Actions habilitado. El [release local anterior](./operations/local-release.md) está retirado. El workflow actual no garantiza por sí solo smoke autenticado ni rollback automático.
 
 ### Backend: FastAPI `tooxs-gestion-api`
 

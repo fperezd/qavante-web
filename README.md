@@ -63,7 +63,7 @@ Sin `.env.local`, el API client lanza `ApiError("NEXT_PUBLIC_API_URL no configur
 
 ## Stack y deploy
 
-La ruta activa es [Deploy web to Azure PROD](./.github/workflows/deploy-azure-prod.yml), descrita en el [runbook](./docs/operations/deploy-runbook.md). GitHub Actions suele estar deshabilitado y se habilita manualmente para el despliegue. Con Actions habilitado, un push relevante a `main` o `integrate/main-azure-prod` despliega a PROD; también puede iniciarse manualmente si el push ocurrió mientras estaba apagado. El [release local anterior](./docs/operations/local-release.md) está desactivado por defecto.
+La ruta activa es [Deploy web to Azure PROD](./.github/workflows/deploy-azure-prod.yml), descrita en el [runbook](./docs/operations/deploy-runbook.md). GitHub Actions está habilitado y controla CI/release. Un push relevante a `main` o `integrate/main-azure-prod` despliega a PROD; también puede iniciarse manualmente. El [release local anterior](./docs/operations/local-release.md) está retirado.
 
 - Compatibilidad de build heredada: [wrangler.toml](./wrangler.toml), `@opennextjs/cloudflare` y `build:cloudflare` se conservan para compatibilidad de fuente/build; están prohibidos como ruta de despliegue o bypass.
 - El workflow recuperado sólo comprueba `/login`; consultar el runbook para verificación adicional y rollback operativo.

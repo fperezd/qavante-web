@@ -2,8 +2,7 @@
 
 La ruta de producción es
 [`Deploy web to Azure PROD`](../../.github/workflows/deploy-azure-prod.yml).
-GitHub Actions permanece deshabilitado fuera de las ventanas de despliegue y se
-habilita manualmente para ejecutar este workflow.
+GitHub Actions es la ruta vigente para ejecutar este workflow.
 
 El workflow requiere los secrets del repositorio `AZURE_TENANT_ID` y
 `AZURE_SUBSCRIPTION_ID` y la credencial federada OIDC de Azure para la rama

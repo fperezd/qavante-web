@@ -118,14 +118,4 @@ assert.match(chromatic, /paths:/);
 assert.match(chromatic, /\.storybook\/\*\*/);
 assert.equal(REQUIRED_RELEASE_CHECKS.includes("chromatic"), false);
 
-const localRelease = fs.readFileSync(
-  new URL("../scripts/local_azure_release.mjs", import.meta.url),
-  "utf8",
-);
-assert.match(localRelease, /scripts\/local_release_preflight\.py/);
-assert.match(localRelease, /run\("docker", \["push"/);
-assert.match(localRelease, /\["containerapp", "update"/);
-assert.match(localRelease, /@sha256:\[0-9a-f\]\{64\}/);
-assert.match(localRelease, /SMOKE_RUT/);
-
 console.log("release-gate: escenarios positivos y negativos OK");

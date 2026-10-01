@@ -17,7 +17,7 @@ No es obligatorio leer toda la política de Factory antes de trabajar. Parte del
 ## Flujo por defecto
 
 - Un agente implementador. Paraleliza sólo tareas independientes y aisladas.
-- Mantén el scope mínimo y corre tests focalizados; Docker local ejecuta las suites adicionales y publica estados `local-*` sobre el SHA exacto.
+- Mantén el scope mínimo y corre tests focalizados; Docker local aporta feedback y GitHub Actions publica los checks obligatorios del PR.
 - Deja en el PR evidencia reproducible, blast radius y rollback.
 - No exijas reviewer IA ni una segunda sesión por rutina.
 - Un fallo repetido una vez exige cambiar de estrategia o escalar; no entrar en loops.

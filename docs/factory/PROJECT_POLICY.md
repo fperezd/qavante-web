@@ -22,7 +22,7 @@ Puede endurecer el estándar corporativo, pero no debilitarlo sin excepción/ADR
 - Datos faltantes/partial/stale/error se muestran honestamente; nunca como cero o éxito implícito.
 - INV-FX-001 aplica también al frontend: no sumar monedas distintas ni rotular una mezcla como CLP.
 - No force-push a `main` ni a ramas compartidas/protegidas.
-- R0/R1/R2 reversibles siguen el camino autónomo cuando los gates locales aplicables están verdes. Producción conserva SHA/árbol/digest, smoke, observación y rollback sin checkpoint humano.
+- R0/R1/R2 reversibles siguen el camino autónomo cuando los checks requeridos de GitHub Actions están verdes. Producción conserva SHA/árbol/digest, smoke, observación y rollback sin checkpoint humano.
 - Un PR debe cerrar o referenciar una unidad de trabajo explícita y mantener un propósito único.
 
 ## Cross-repo
@@ -38,7 +38,7 @@ R1 para feature/bug/UI normal. R0 para docs/tests/tooling/refactor sin comportam
 
 ## Validación
 
-La suite y umbrales vigentes se definen por los scripts/configuración real del repo. Docker local enruta lint, typecheck, contrato, coverage, Storybook, build + size budget, E2E, Lighthouse, auditoría y gitleaks según los paths; `local-ci` no se publica si un gate aplicable falla o se cancela.
+La suite y umbrales vigentes se definen por los scripts/configuración real del repo. Docker local puede ejecutar lint, typecheck, contrato, coverage, Storybook, build + size budget, E2E, Lighthouse, auditoría y gitleaks como feedback; los checks requeridos se publican mediante GitHub Actions. Los estados `local-*` están retirados.
 
 El implementador corre validación focalizada; Docker local ejecuta la validación completa requerida.
 

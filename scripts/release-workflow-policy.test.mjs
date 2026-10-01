@@ -116,15 +116,6 @@ test("sólo Deploy web to Azure PROD puede desplegar desde GitHub Actions", () =
   assert.doesNotMatch(prod, /wrangler\s+deploy|cloudflare\/wrangler-action@/i);
 });
 
-test("la ruta local heredada permanece desactivada por defecto", () => {
-  const release = readFileSync(join(repo, "scripts", "local_azure_release.mjs"), "utf8");
-
-  assert.match(release, /QAVANTE_ENABLE_LEGACY_LOCAL_RELEASE !== "1"/);
-  assert.match(release, /run\("docker", \[/);
-  assert.match(release, /\["containerapp", "update"/);
-  assert.match(release, /@sha256:\[0-9a-f\]\{64\}/);
-});
-
 test("la documentacion operativa no ofrece bypass de despliegue", () => {
   const operationalText = activeReleaseDocs
     .map((relative) => readFileSync(join(repo, relative), "utf8"))

@@ -15,8 +15,6 @@ on:
       - ".github/workflows/change-evidence.yml"
       - ".github/release/verify-runtime.mjs"
       - ".github/release/verify-runtime.check.mjs"
-      - "scripts/local_azure_release.mjs"
-      - "scripts/local_release_preflight.py"
       - "scripts/release-workflow-policy.test.mjs"
       - "docs/operations/local-release.md"
   push:
@@ -33,8 +31,6 @@ on:
       - ".github/workflows/change-evidence.yml"
       - ".github/release/verify-runtime.mjs"
       - ".github/release/verify-runtime.check.mjs"
-      - "scripts/local_azure_release.mjs"
-      - "scripts/local_release_preflight.py"
       - "scripts/release-workflow-policy.test.mjs"
       - "docs/operations/local-release.md"
 
