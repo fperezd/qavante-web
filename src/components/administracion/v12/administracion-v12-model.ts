@@ -155,7 +155,7 @@ export interface HubInputsV12 {
   mcpVisible: boolean;
 }
 
-/** Las 8 (o 9, con MCP) filas del hub, en el mismo orden que la grilla de tarjetas actual —
+/** Las 9 (o 10, con MCP) filas del hub, en el mismo orden que la grilla de tarjetas actual —
  *  cambiar el orden sin avisar sería mover algo que el dueño ya memorizó. PURO: no decide nada
  *  sobre loading/error de las filas SIN estado calculado (esas siempre muestran su descripción). */
 export function filasHubV12(inputs: HubInputsV12): FilaHubV12[] {
@@ -202,6 +202,16 @@ export function filasHubV12(inputs: HubInputsV12): FilaHubV12[] {
       titulo: "Monedas",
       descripcion: "Moneda principal de tu empresa y monedas en que quieres ver tus reportes.",
       href: "/administracion/monedas",
+      estado: null,
+    },
+    {
+      /* CC-API ADR-0122: con qué sistema paga sueldos ESTA empresa. `estado: null` a
+         propósito — el estado declarado es por empresa y el hub es de la cuenta, así
+         que mostrar acá el de una sola mentiría sobre las demás. */
+      id: "remuneraciones",
+      titulo: "Sistema de remuneraciones",
+      descripcion: "Con qué sistema pagas tus sueldos: BUK, Talana o carga manual.",
+      href: "/administracion/remuneraciones",
       estado: null,
     },
     {

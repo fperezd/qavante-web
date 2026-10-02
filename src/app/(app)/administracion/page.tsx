@@ -9,6 +9,7 @@ import {
   Briefcase,
   Building2,
   Bot,
+  Wallet,
   ArrowRight,
 } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
@@ -111,6 +112,12 @@ export default function AdministracionPage() {
           icon={Coins}
           title="Monedas"
           description="Moneda principal de tu empresa y monedas en que quieres ver tus reportes."
+        />
+        <SubModuleCard
+          href="/administracion/remuneraciones"
+          icon={Wallet}
+          title="Sistema de remuneraciones"
+          description="Con qué sistema pagas tus sueldos: BUK, Talana o carga manual."
         />
         <SubModuleCard
           href="/administracion/reglas-clasificacion"

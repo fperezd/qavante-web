@@ -17,8 +17,8 @@ import {
 } from "./onboarding-steps";
 
 describe("onboarding-steps — modelo del wizard", () => {
-  it("tiene 9 pasos en orden, ids únicos", () => {
-    expect(TOTAL_ONBOARDING_STEPS).toBe(9);
+  it("tiene 10 pasos en orden, ids únicos", () => {
+    expect(TOTAL_ONBOARDING_STEPS).toBe(10);
     const ids = ONBOARDING_STEPS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual([
@@ -28,6 +28,7 @@ describe("onboarding-steps — modelo del wizard", () => {
       "connect-sii",
       "connect-bank",
       "industry",
+      "payroll-system",
       "opening-balance",
       "import",
       "ready",
@@ -49,11 +50,11 @@ describe("onboarding-steps — modelo del wizard", () => {
 
   it("stepIndex / stepNumber", () => {
     expect(stepIndex("signup")).toBe(0);
-    expect(stepIndex("import")).toBe(7);
-    expect(stepIndex("ready")).toBe(8);
+    expect(stepIndex("import")).toBe(8);
+    expect(stepIndex("ready")).toBe(9);
     expect(stepNumber("signup")).toBe(1);
-    expect(stepNumber("import")).toBe(8);
-    expect(stepNumber("ready")).toBe(9);
+    expect(stepNumber("import")).toBe(9);
+    expect(stepNumber("ready")).toBe(10);
   });
 
   it("stepByRoute matchea por ruta exacta y por prefijo", () => {
@@ -63,8 +64,8 @@ describe("onboarding-steps — modelo del wizard", () => {
     expect(stepByRoute("/otra-cosa")).toBeUndefined();
   });
 
-  it("progressPct: 1/9 = 11, último = 100", () => {
-    expect(progressPct("signup")).toBe(11);
+  it("progressPct: 1/10 = 10, último = 100", () => {
+    expect(progressPct("signup")).toBe(10);
     expect(progressPct("ready")).toBe(100);
   });
 
@@ -78,6 +79,8 @@ describe("onboarding-steps — modelo del wizard", () => {
 
   it("routeAfter: paso intermedio → siguiente; último → dashboard", () => {
     expect(routeAfter("signup")).toBe("/verificar");
+    expect(routeAfter("industry")).toBe("/onboarding/remuneraciones");
+    expect(routeAfter("payroll-system")).toBe("/onboarding/saldo-apertura");
     /* `import` ya NO es el último: cierra en la primera decisión, no en el panel. Si
        alguien revierte el paso `ready`, este assert cae y no pasa en silencio. */
     expect(routeAfter("import")).toBe("/onboarding/listo");
@@ -88,6 +91,9 @@ describe("onboarding-steps — modelo del wizard", () => {
     expect(stepById("connect-sii")?.source).toBe("sii");
     expect(stepById("connect-bank")?.source).toBe("bank");
     expect(stepById("industry")?.source).toBeUndefined();
+    /* El sistema de remuneraciones se DECLARA, no se conecta: no es una fuente
+       diferible al hub de conexiones (CC-API ADR-0122). */
+    expect(stepById("payroll-system")?.source).toBeUndefined();
     expect(stepById("import")?.source).toBeUndefined();
     expect(stepById("ready")?.source).toBeUndefined();
   });

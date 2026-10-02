@@ -24,6 +24,7 @@ export type OnboardingStepId =
   | "connect-sii"
   | "connect-bank"
   | "industry"
+  | "payroll-system"
   | "opening-balance"
   | "import"
   | "ready";
@@ -86,6 +87,16 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     label: "Elegir rubro",
     title: "Elige tu rubro",
     route: "/onboarding/rubro",
+    phase: "post-auth",
+  },
+  {
+    /* CC-API ADR-0122: la empresa DECLARA su sistema de remuneraciones. No es un paso
+       `source` (no conecta nada: declara una decisión, como el rubro), así que no es
+       diferible al hub de conexiones; igual se puede omitir y dejarlo pendiente. */
+    id: "payroll-system",
+    label: "Remuneraciones",
+    title: "¿Con qué pagas tus sueldos?",
+    route: "/onboarding/remuneraciones",
     phase: "post-auth",
   },
   {

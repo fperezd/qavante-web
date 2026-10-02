@@ -3481,6 +3481,9 @@ export interface paths {
          *
          *     Las fuentes primarias (sociedad, banco, SII) determinan `ready`. Las fuentes
          *     diferidas (BUK, Previred) se reportan pero no bloquean.
+         *
+         *     `financial` agrega la readiness FINANCIERA: hasta qué decisión alcanza lo que ya hay,
+         *     con su cifra. Nunca 409 ni cifra ausente — es lo que lee el último paso del wizard.
          */
         get: operations["onboarding_readiness"];
         put?: never;
@@ -5452,6 +5455,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/card-statements/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lee un estado de cuenta de tarjeta (PDF, cualquier emisor) con IA → vista previa
+         * @description Lee el PDF con un modelo de visión y devuelve lo extraído **ya validado**
+         *     determinísticamente (cuadre de totales, `n ≤ N`, signos, fechas coherentes, moneda
+         *     ISO). Sirve para cualquier emisor, no sólo BICE.
+         *
+         *     **No escribe nada**: `requires_confirmation` + `issues[]` indican exactamente qué
+         *     campo debe confirmar la persona. Un dato que el PDF no trae sale `null`; el lector
+         *     nunca lo rellena ni asume una moneda. Requiere owner/admin.
+         */
+        post: operations["treasury_card_statements_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/cash-cycle": {
         parameters: {
             query?: never;
@@ -6763,6 +6792,24 @@ export interface paths {
         get: operations["treasury_payroll_payday_get"];
         /** Setea/limpia el día de pago de remuneraciones (owner/admin) */
         put: operations["treasury_payroll_payday_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/payroll-system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sistema de remuneraciones de la Empresa activa (null = no declarado) */
+        get: operations["treasury_payroll_system_get"];
+        /** Declara el sistema de remuneraciones de la Empresa activa (owner/admin) */
+        put: operations["treasury_payroll_system_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -9226,8 +9273,21 @@ export interface components {
         /** Body_treasury_card_statements_import */
         Body_treasury_card_statements_import: {
             /**
+             * Card Account Id
+             * @description Tarjeta de la sociedad a la que pertenece esta cartola: una cuenta `credit_card` de `GET /api/treasury/bank-accounts?account_type=credit_card`. Sin ella las obligaciones quedan sin tarjeta declarada (ADR-0051).
+             */
+            card_account_id?: string | null;
+            /**
              * File
              * @description PDF de la cartola BICE (nacional o internacional).
+             */
+            file: string;
+        };
+        /** Body_treasury_card_statements_preview */
+        Body_treasury_card_statements_preview: {
+            /**
+             * File
+             * @description PDF del estado de cuenta de tarjeta.
              */
             file: string;
         };
@@ -9980,6 +10040,22 @@ export interface components {
             provider: string;
         };
         /**
+         * CardStatementFinanceCharge
+         * @description Un cargo financiero del período (interés, mora, impuesto, seguro, comisión).
+         */
+        CardStatementFinanceCharge: {
+            amount: components["schemas"]["CardStatementMoney"];
+            /** Charge Date */
+            charge_date?: string | null;
+            /** Description */
+            description: string;
+            /**
+             * Kind
+             * @description 'interest' | 'late_fee' | 'tax' | 'insurance' | 'commission' | 'other'.
+             */
+            kind: string;
+        };
+        /**
          * CardStatementImportResponse
          * @description Respuesta de `POST /api/treasury/card-statements/import` (ADR-0052 F4).
          */
@@ -10025,6 +10101,123 @@ export interface components {
              * @description 'nacional' (CLP) | 'internacional' (USD).
              */
             type: string;
+        };
+        /**
+         * CardStatementInstallmentPurchase
+         * @description Una compra en cuotas leída del estado de cuenta.
+         */
+        CardStatementInstallmentPurchase: {
+            /**
+             * Annual Rate
+             * @description Tasa impresa en el documento; `null` si no aparece.
+             */
+            annual_rate?: string | null;
+            installment_amount?: components["schemas"]["CardStatementMoney"] | null;
+            /**
+             * Installment Number
+             * @description Cuota vigente (n).
+             */
+            installment_number?: number | null;
+            /**
+             * Installments Total
+             * @description Cuotas pactadas (N).
+             */
+            installments_total?: number | null;
+            /** Merchant */
+            merchant: string;
+            original_amount?: components["schemas"]["CardStatementMoney"] | null;
+            /** Purchase Date */
+            purchase_date?: string | null;
+        };
+        /**
+         * CardStatementMoney
+         * @description Monto + su moneda. `currency = null` es el "no sé" explícito del documento:
+         *     no existe un default (asumir CLP está prohibido por el contrato de moneda).
+         */
+        CardStatementMoney: {
+            /**
+             * Amount
+             * @description Monto como decimal en texto (sin separador de miles).
+             */
+            amount: string;
+            /**
+             * Currency
+             * @description ISO-4217 leído del documento, o `null` si no lo declara.
+             */
+            currency?: string | null;
+        };
+        /**
+         * CardStatementPreviewResponse
+         * @description Respuesta de `POST /api/treasury/card-statements/preview`.
+         *
+         *     **Read-only**: nada de esto se persiste. `requires_confirmation = true` cuando hay
+         *     al menos un hallazgo en `issues`.
+         */
+        CardStatementPreviewResponse: {
+            billed_amount?: components["schemas"]["CardStatementMoney"] | null;
+            /** Card Last4 */
+            card_last4?: string | null;
+            credit_limit_total?: components["schemas"]["CardStatementMoney"] | null;
+            credit_limit_used?: components["schemas"]["CardStatementMoney"] | null;
+            /** Due Date */
+            due_date?: string | null;
+            /** Finance Charges */
+            finance_charges: components["schemas"]["CardStatementFinanceCharge"][];
+            /** Holder Tax Id */
+            holder_tax_id?: string | null;
+            /** Installment Purchases */
+            installment_purchases: components["schemas"]["CardStatementInstallmentPurchase"][];
+            /** Issuer */
+            issuer?: string | null;
+            /** Issues */
+            issues: components["schemas"]["CardStatementValidationIssue"][];
+            minimum_payment?: components["schemas"]["CardStatementMoney"] | null;
+            /** Period */
+            period?: string | null;
+            /**
+             * Provenance
+             * @description provider / model_id / prompt_version de la lectura (reproducibilidad).
+             */
+            provenance?: {
+                [key: string]: string;
+            };
+            /** Received Payments */
+            received_payments: components["schemas"]["CardStatementReceivedPayment"][];
+            /** Requires Confirmation */
+            requires_confirmation: boolean;
+            /** Statement Date */
+            statement_date?: string | null;
+        };
+        /**
+         * CardStatementReceivedPayment
+         * @description Un pago/abono del titular reconocido en el período.
+         */
+        CardStatementReceivedPayment: {
+            amount: components["schemas"]["CardStatementMoney"];
+            /** Description */
+            description: string;
+            /** Payment Date */
+            payment_date?: string | null;
+        };
+        /**
+         * CardStatementValidationIssue
+         * @description Hallazgo de las validaciones deterministas posteriores a la IA.
+         *
+         *     `field` es la ruta exacta del dato a confirmar (`installment_purchases[2]
+         *     .installment_number`). Un hallazgo NO descarta ni corrige la extracción: marca la
+         *     vista previa como "requiere confirmación".
+         */
+        CardStatementValidationIssue: {
+            /** Code */
+            code: string;
+            /** Expected */
+            expected?: string | null;
+            /** Field */
+            field: string;
+            /** Message */
+            message: string;
+            /** Observed */
+            observed?: string | null;
         };
         /** CartolaData */
         CartolaData: {
@@ -15464,6 +15657,12 @@ export interface components {
             total_recuperado: string;
         };
         /**
+         * EssentialOutflowRung
+         * @description Peldaños de la escalera, de la base más observada a la más conservadora.
+         * @enum {string}
+         */
+        EssentialOutflowRung: "egresos_conciliados" | "obligaciones_comprometidas" | "compras_devengadas" | "saldo_declarado" | "sin_base";
+        /**
          * EstimateSourcePeriod
          * @description Cobertura y frescura de las fuentes que sostienen un período estimado.
          */
@@ -17031,6 +17230,77 @@ export interface components {
              * @enum {string}
              */
             status: "eligible" | "abstained" | "partial";
+        };
+        /**
+         * FinancialReadiness
+         * @description Readiness financiera: el nivel alcanzado, la cifra, y la decisión ya posible.
+         *
+         *     Invariantes del contrato (verificadas en `test_financial_readiness`):
+         *
+         *     - `minimum_cash` y `days_covered` SIEMPRE vienen con valor. Nunca null, nunca ausentes.
+         *     - `statement` siempre contiene un número y siempre dice qué cubre.
+         *     - Ningún texto publicado acá contiene las palabras de `FORBIDDEN_UI_WORDS`.
+         */
+        FinancialReadiness: {
+            basis: components["schemas"]["ReadinessBasis"];
+            /**
+             * Cash Today
+             * @description Saldo en caja de la sociedad activa, o null si no hay cuenta.
+             */
+            cash_today?: string | null;
+            /**
+             * Covers
+             * @description Qué cubre la cifra, en palabras del dueño.
+             */
+            covers: string;
+            /**
+             * Currency
+             * @description Moneda funcional de la sociedad activa; null mientras no haya sociedad activa con moneda declarada (no se asume CLP, ADR-0117).
+             */
+            currency?: string | null;
+            /**
+             * Days Covered
+             * @description Días de gasto esencial que cubre la caja de hoy. Siempre un entero.
+             */
+            days_covered: number;
+            /** @description Nivel alcanzado, nombrado por la decisión que habilita. */
+            level: components["schemas"]["ReadinessLevel"];
+            /**
+             * Level Index
+             * @description Índice 0-based del nivel en la escalera.
+             */
+            level_index: number;
+            /**
+             * Levels Total
+             * @description Cantidad de niveles de la escalera.
+             */
+            levels_total: number;
+            /**
+             * Minimum Cash
+             * @description Caja mínima: SIEMPRE un número (monto decimal).
+             */
+            minimum_cash: string;
+            /**
+             * Missing
+             * @description Requisitos pendientes, en orden de la escalera.
+             */
+            missing: string[];
+            next_action: components["schemas"]["ReadinessNextAction"];
+            /**
+             * Satisfied
+             * @description Requisitos ya cumplidos.
+             */
+            satisfied: string[];
+            /**
+             * Statement
+             * @description La frase que el dueño lee: siempre con un número.
+             */
+            statement: string;
+            /**
+             * Unlocked Decision
+             * @description Qué decide Qavante con lo que ya hay.
+             */
+            unlocked_decision: string;
         };
         /**
          * FinancialScopeResponse
@@ -19461,6 +19731,26 @@ export interface components {
              * @description Tasa anual nominal (mensual x 12).
              */
             annual_rate?: string | null;
+            /**
+             * Card Account Id
+             * @description Cuenta `credit_card` de la sociedad que emitió la compra en cuotas. NULL en préstamos/leasing y en la historia sin tarjeta declarada.
+             */
+            card_account_id?: string | null;
+            /**
+             * Card Account Name
+             * @description Alias de la tarjeta, el mismo que muestra la pantalla Banco.
+             */
+            card_account_name?: string | null;
+            /**
+             * Card Bank Name
+             * @description Banco emisor de la tarjeta.
+             */
+            card_bank_name?: string | null;
+            /**
+             * Card Last Four
+             * @description Últimos 4 dígitos de la tarjeta; NULL si el banco no los enmascaró.
+             */
+            card_last_four?: string | null;
             /** Counterparty */
             counterparty?: string | null;
             /** Currency Code */
@@ -19526,6 +19816,26 @@ export interface components {
         ObligationListItem: {
             /** Annual Rate */
             annual_rate?: string | null;
+            /**
+             * Card Account Id
+             * @description Cuenta `credit_card` de la sociedad que emitió la compra en cuotas. NULL en préstamos/leasing y en la historia sin tarjeta declarada.
+             */
+            card_account_id?: string | null;
+            /**
+             * Card Account Name
+             * @description Alias de la tarjeta, el mismo que muestra la pantalla Banco.
+             */
+            card_account_name?: string | null;
+            /**
+             * Card Bank Name
+             * @description Banco emisor de la tarjeta.
+             */
+            card_bank_name?: string | null;
+            /**
+             * Card Last Four
+             * @description Últimos 4 dígitos de la tarjeta; NULL si el banco no los enmascaró.
+             */
+            card_last_four?: string | null;
             /** Counterparty */
             counterparty?: string | null;
             /** Currency Code */
@@ -19679,6 +19989,8 @@ export interface components {
              * @description Códigos de fuentes conocidas pero no conectadas (no bloquean).
              */
             deferred_sources: string[];
+            /** @description Readiness FINANCIERA: hasta dónde llega la decisión que Qavante ya puede dar, con su cifra. `ready` de arriba mide fuentes; esto mide decisiones. */
+            financial: components["schemas"]["FinancialReadiness"];
             /**
              * Ready
              * @description True si todos los chequeos primarios (sociedad, banco, SII) pasan.
@@ -21951,6 +22263,75 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * PayrollSystemEra
+         * @description Una era de vigencia. `effective_to_period` es el primer período que ya NO le pertenece.
+         */
+        PayrollSystemEra: {
+            /**
+             * Effective From Period
+             * @description Período 'YYYYMM' desde el cual rige.
+             */
+            effective_from_period: string;
+            /**
+             * Effective To Period
+             * @description Primer período 'YYYYMM' en que deja de regir; null = vigente.
+             */
+            effective_to_period?: string | null;
+            /**
+             * Label
+             * @description Etiqueta legible del sistema.
+             */
+            label: string;
+            /**
+             * Payroll System
+             * @description Sistema declarado: 'buk' | 'talana' | 'manual'.
+             */
+            payroll_system: string;
+        };
+        /** PayrollSystemResponse */
+        PayrollSystemResponse: {
+            /**
+             * Adapter State
+             * @description Estado del canal de datos: 'undeclared' | 'active' (adaptador alimentando) | 'pending_adapter' (declarado sin adaptador todavía) | 'manual_upload' (la empresa sube su nómina por archivo).
+             */
+            adapter_state: string;
+            /**
+             * Declared
+             * @description false = la empresa todavía no eligió. NO significa 'eligió BUK': el sistema nunca se infiere desde qué credencial existe.
+             */
+            declared: boolean;
+            /**
+             * Effective From Period
+             * @description Período 'YYYYMM' desde el cual rige el sistema vigente.
+             */
+            effective_from_period?: string | null;
+            /**
+             * History
+             * @description Eras de vigencia, de la más reciente a la más antigua.
+             */
+            history: components["schemas"]["PayrollSystemEra"][];
+            /**
+             * Label
+             * @description Etiqueta legible del sistema vigente.
+             */
+            label?: string | null;
+            /**
+             * Legal Entity Id
+             * @description Sociedad (Empresa activa) a la que aplica.
+             */
+            legal_entity_id: string;
+            /**
+             * Options
+             * @description Las opciones exactas elegibles.
+             */
+            options: string[];
+            /**
+             * Payroll System
+             * @description Sistema vigente, o null si no hay declaración.
+             */
+            payroll_system?: string | null;
+        };
         /** PayrollTotales */
         PayrollTotales: {
             /**
@@ -23015,6 +23396,29 @@ export interface components {
             payday_day?: number | null;
         };
         /**
+         * PutPayrollSystemRequest
+         * @description `legal_entity_id` NO es un campo: la sociedad la elige el scope del request, nunca el
+         *     body (`extra="forbid"` lo rechaza explícitamente). Así un body no puede configurar otra
+         *     Empresa del tenant.
+         */
+        PutPayrollSystemRequest: {
+            /**
+             * Effective From Period
+             * @description Período 'YYYYMM' desde el cual rige. Los períodos anteriores conservan su fuente original.
+             */
+            effective_from_period: string;
+            /**
+             * Note
+             * @description Nota libre del cambio.
+             */
+            note?: string | null;
+            /**
+             * Payroll System
+             * @description 'buk' | 'talana' | 'manual'.
+             */
+            payroll_system: string;
+        };
+        /**
          * PutSiiCompanyRequest
          * @description Body de `PUT /api/credentials/sii/company`.
          */
@@ -23398,6 +23802,42 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * ReadinessBasis
+         * @description Peldaño de la escalera con que se calculó la caja mínima. **Material de auditoría.**
+         *
+         *     No es copy: la interfaz nunca imprime el peldaño ni `conservative`. El dueño lee el
+         *     número y qué cubre; el nivel de confianza vive acá y en la auditoría.
+         */
+        ReadinessBasis: {
+            /**
+             * Buffer Days
+             * @description Días de gasto esencial que el piso cubre.
+             */
+            buffer_days: number;
+            /**
+             * Conservative
+             * @description True cuando la base no es la mejor observada y el colchón se amplió.
+             */
+            conservative: boolean;
+            /**
+             * Daily Essential Outflow
+             * @description Gasto esencial diario con que se derivó el piso (monto decimal).
+             */
+            daily_essential_outflow: string;
+            /**
+             * Label
+             * @description Qué se midió para derivar el gasto esencial.
+             */
+            label: string;
+            /**
+             * Months Observed
+             * @description Meses completos con observación.
+             */
+            months_observed: number;
+            /** @description Peldaño elegido, de la base mejor observada a la más conservadora. */
+            rung: components["schemas"]["EssentialOutflowRung"];
+        };
         /** ReadinessChecks */
         ReadinessChecks: {
             bank_connection: components["schemas"]["BankConnectionCheck"];
@@ -23420,6 +23860,36 @@ export interface components {
              * @description Mes de inicio de cobertura (YYYY-MM), o null si no configurado.
              */
             start?: string | null;
+        };
+        /**
+         * ReadinessLevel
+         * @description Niveles de readiness, nombrados por la decisión que habilitan.
+         * @enum {string}
+         */
+        ReadinessLevel: "arranque" | "piso" | "horizonte" | "palancas" | "nomina_protegida";
+        /**
+         * ReadinessNextAction
+         * @description La ÚNICA acción que mueve al tenant al nivel siguiente.
+         *
+         *     Una, no una lista: un listado de pendientes es un porcentaje disfrazado y no cambia lo
+         *     que esta persona hace mañana.
+         */
+        ReadinessNextAction: {
+            /**
+             * Code
+             * @description Identificador estable de la acción (la UI rutea con esto).
+             */
+            code: string;
+            /**
+             * Label
+             * @description La acción, en imperativo.
+             */
+            label: string;
+            /**
+             * Reason
+             * @description Qué gana el dueño al hacerla.
+             */
+            reason: string;
         };
         /**
          * ReanalyzeResponse
@@ -31257,6 +31727,13 @@ export interface operations {
                     "application/json": components["schemas"]["PayrollSyncResponse"];
                 };
             };
+            /** @description La sociedad no configuró BUK, o declaró otro sistema de remuneraciones (`payroll_system_manual` / `payroll_system_adapter_unavailable`): el adaptador se abstiene en vez de intentar la integración. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -37905,6 +38382,8 @@ export interface operations {
             query?: {
                 /** @description Solo cuentas activas (default). `false` incluye las desactivadas. */
                 active?: boolean;
+                /** @description Filtra por tipo de cuenta. `credit_card` lista las TARJETAS de la sociedad, que es como se agrupan las compras en cuotas (ADR-0051). */
+                account_type?: ("checking" | "savings" | "credit_card" | "loan" | "investment") | null;
             };
             header?: never;
             path?: never;
@@ -38811,8 +39290,76 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Cartola no reconocida o evidencia de pago ambigua/inválida. */
+            /** @description Cartola no reconocida, evidencia de pago ambigua, o `card_account_id` que no es una tarjeta de esta sociedad. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_card_statements_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_treasury_card_statements_preview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardStatementPreviewResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe una sociedad financiera verificable para la cartola. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El archivo excede el máximo. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El archivo no es un PDF. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El lector no pudo obtener datos utilizables del PDF. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La lectura con IA no está configurada en este entorno. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -41959,6 +42506,93 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    treasury_payroll_system_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollSystemResponse"];
+                };
+            };
+            /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`). El sistema de remuneraciones es por sociedad y no existe versión tenant-wide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_payroll_system_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutPayrollSystemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollSystemResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sin Empresa activa (`missing_scope:legal_entity`), o la vigencia pedida empieza antes de la ya declarada (`payroll_system_effective_from_in_the_past`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sistema fuera de las tres opciones, o período mal formado. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -3169,6 +3169,19 @@
       },
       "Body_treasury_card_statements_import": {
         "properties": {
+          "card_account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tarjeta de la sociedad a la que pertenece esta cartola: una cuenta `credit_card` de `GET /api/treasury/bank-accounts?account_type=credit_card`. Sin ella las obligaciones quedan sin tarjeta declarada (ADR-0051).",
+            "title": "Card Account Id"
+          },
           "file": {
             "contentMediaType": "application/octet-stream",
             "description": "PDF de la cartola BICE (nacional o internacional).",
@@ -3180,6 +3193,21 @@
           "file"
         ],
         "title": "Body_treasury_card_statements_import",
+        "type": "object"
+      },
+      "Body_treasury_card_statements_preview": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "PDF del estado de cuenta de tarjeta.",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_treasury_card_statements_preview",
         "type": "object"
       },
       "BreakdownRow": {
@@ -4624,6 +4652,43 @@
         "title": "CardIngestResult",
         "type": "object"
       },
+      "CardStatementFinanceCharge": {
+        "additionalProperties": false,
+        "description": "Un cargo financiero del período (interés, mora, impuesto, seguro, comisión).",
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/CardStatementMoney"
+          },
+          "charge_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charge Date"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "description": "'interest' | 'late_fee' | 'tax' | 'insurance' | 'commission' | 'other'.",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "description",
+          "amount"
+        ],
+        "title": "CardStatementFinanceCharge",
+        "type": "object"
+      },
       "CardStatementImportResponse": {
         "additionalProperties": false,
         "description": "Respuesta de `POST /api/treasury/card-statements/import` (ADR-0052 F4).",
@@ -4737,6 +4802,358 @@
           "needs_review"
         ],
         "title": "CardStatementImportResponse",
+        "type": "object"
+      },
+      "CardStatementInstallmentPurchase": {
+        "additionalProperties": false,
+        "description": "Una compra en cuotas leída del estado de cuenta.",
+        "properties": {
+          "annual_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tasa impresa en el documento; `null` si no aparece.",
+            "title": "Annual Rate"
+          },
+          "installment_amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardStatementMoney"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installment_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuota vigente (n).",
+            "title": "Installment Number"
+          },
+          "installments_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuotas pactadas (N).",
+            "title": "Installments Total"
+          },
+          "merchant": {
+            "title": "Merchant",
+            "type": "string"
+          },
+          "original_amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardStatementMoney"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purchase_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Date"
+          }
+        },
+        "required": [
+          "merchant"
+        ],
+        "title": "CardStatementInstallmentPurchase",
+        "type": "object"
+      },
+      "CardStatementMoney": {
+        "additionalProperties": false,
+        "description": "Monto + su moneda. `currency = null` es el \"no sé\" explícito del documento:\nno existe un default (asumir CLP está prohibido por el contrato de moneda).",
+        "properties": {
+          "amount": {
+            "description": "Monto como decimal en texto (sin separador de miles).",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ISO-4217 leído del documento, o `null` si no lo declara.",
+            "title": "Currency"
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "title": "CardStatementMoney",
+        "type": "object"
+      },
+      "CardStatementPreviewResponse": {
+        "additionalProperties": false,
+        "description": "Respuesta de `POST /api/treasury/card-statements/preview`.\n\n**Read-only**: nada de esto se persiste. `requires_confirmation = true` cuando hay\nal menos un hallazgo en `issues`.",
+        "properties": {
+          "billed_amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardStatementMoney"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "card_last4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Last4"
+          },
+          "credit_limit_total": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardStatementMoney"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "credit_limit_used": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardStatementMoney"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "finance_charges": {
+            "items": {
+              "$ref": "#/components/schemas/CardStatementFinanceCharge"
+            },
+            "title": "Finance Charges",
+            "type": "array"
+          },
+          "holder_tax_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Tax Id"
+          },
+          "installment_purchases": {
+            "items": {
+              "$ref": "#/components/schemas/CardStatementInstallmentPurchase"
+            },
+            "title": "Installment Purchases",
+            "type": "array"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/CardStatementValidationIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "minimum_payment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardStatementMoney"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "provenance": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "provider / model_id / prompt_version de la lectura (reproducibilidad).",
+            "title": "Provenance",
+            "type": "object"
+          },
+          "received_payments": {
+            "items": {
+              "$ref": "#/components/schemas/CardStatementReceivedPayment"
+            },
+            "title": "Received Payments",
+            "type": "array"
+          },
+          "requires_confirmation": {
+            "title": "Requires Confirmation",
+            "type": "boolean"
+          },
+          "statement_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statement Date"
+          }
+        },
+        "required": [
+          "requires_confirmation",
+          "issues",
+          "installment_purchases",
+          "finance_charges",
+          "received_payments"
+        ],
+        "title": "CardStatementPreviewResponse",
+        "type": "object"
+      },
+      "CardStatementReceivedPayment": {
+        "additionalProperties": false,
+        "description": "Un pago/abono del titular reconocido en el período.",
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/CardStatementMoney"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "payment_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Date"
+          }
+        },
+        "required": [
+          "description",
+          "amount"
+        ],
+        "title": "CardStatementReceivedPayment",
+        "type": "object"
+      },
+      "CardStatementValidationIssue": {
+        "additionalProperties": false,
+        "description": "Hallazgo de las validaciones deterministas posteriores a la IA.\n\n`field` es la ruta exacta del dato a confirmar (`installment_purchases[2]\n.installment_number`). Un hallazgo NO descarta ni corrige la extracción: marca la\nvista previa como \"requiere confirmación\".",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "expected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "observed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed"
+          }
+        },
+        "required": [
+          "code",
+          "field",
+          "message"
+        ],
+        "title": "CardStatementValidationIssue",
         "type": "object"
       },
       "CartolaData": {
@@ -17260,6 +17677,18 @@
         "title": "EsperadoConRecuperacion",
         "type": "object"
       },
+      "EssentialOutflowRung": {
+        "description": "Peldaños de la escalera, de la base más observada a la más conservadora.",
+        "enum": [
+          "egresos_conciliados",
+          "obligaciones_comprometidas",
+          "compras_devengadas",
+          "saldo_declarado",
+          "sin_base"
+        ],
+        "title": "EssentialOutflowRung",
+        "type": "string"
+      },
       "EstimateSourcePeriod": {
         "additionalProperties": false,
         "description": "Cobertura y frescura de las fuentes que sostienen un período estimado.",
@@ -21140,6 +21569,116 @@
           "status"
         ],
         "title": "FinancialPositionResponse",
+        "type": "object"
+      },
+      "FinancialReadiness": {
+        "additionalProperties": false,
+        "description": "Readiness financiera: el nivel alcanzado, la cifra, y la decisión ya posible.\n\nInvariantes del contrato (verificadas en `test_financial_readiness`):\n\n- `minimum_cash` y `days_covered` SIEMPRE vienen con valor. Nunca null, nunca ausentes.\n- `statement` siempre contiene un número y siempre dice qué cubre.\n- Ningún texto publicado acá contiene las palabras de `FORBIDDEN_UI_WORDS`.",
+        "properties": {
+          "basis": {
+            "$ref": "#/components/schemas/ReadinessBasis"
+          },
+          "cash_today": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo en caja de la sociedad activa, o null si no hay cuenta.",
+            "title": "Cash Today"
+          },
+          "covers": {
+            "description": "Qué cubre la cifra, en palabras del dueño.",
+            "title": "Covers",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda funcional de la sociedad activa; null mientras no haya sociedad activa con moneda declarada (no se asume CLP, ADR-0117).",
+            "title": "Currency"
+          },
+          "days_covered": {
+            "description": "Días de gasto esencial que cubre la caja de hoy. Siempre un entero.",
+            "minimum": 0.0,
+            "title": "Days Covered",
+            "type": "integer"
+          },
+          "level": {
+            "$ref": "#/components/schemas/ReadinessLevel",
+            "description": "Nivel alcanzado, nombrado por la decisión que habilita."
+          },
+          "level_index": {
+            "description": "Índice 0-based del nivel en la escalera.",
+            "minimum": 0.0,
+            "title": "Level Index",
+            "type": "integer"
+          },
+          "levels_total": {
+            "description": "Cantidad de niveles de la escalera.",
+            "exclusiveMinimum": 0.0,
+            "title": "Levels Total",
+            "type": "integer"
+          },
+          "minimum_cash": {
+            "description": "Caja mínima: SIEMPRE un número (monto decimal).",
+            "title": "Minimum Cash",
+            "type": "string"
+          },
+          "missing": {
+            "description": "Requisitos pendientes, en orden de la escalera.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "next_action": {
+            "$ref": "#/components/schemas/ReadinessNextAction"
+          },
+          "satisfied": {
+            "description": "Requisitos ya cumplidos.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Satisfied",
+            "type": "array"
+          },
+          "statement": {
+            "description": "La frase que el dueño lee: siempre con un número.",
+            "title": "Statement",
+            "type": "string"
+          },
+          "unlocked_decision": {
+            "description": "Qué decide Qavante con lo que ya hay.",
+            "title": "Unlocked Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "level_index",
+          "levels_total",
+          "unlocked_decision",
+          "statement",
+          "covers",
+          "minimum_cash",
+          "days_covered",
+          "basis",
+          "next_action",
+          "missing",
+          "satisfied"
+        ],
+        "title": "FinancialReadiness",
         "type": "object"
       },
       "FinancialScopeResponse": {
@@ -26714,6 +27253,54 @@
             "description": "Tasa anual nominal (mensual x 12).",
             "title": "Annual Rate"
           },
+          "card_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuenta `credit_card` de la sociedad que emitió la compra en cuotas. NULL en préstamos/leasing y en la historia sin tarjeta declarada.",
+            "title": "Card Account Id"
+          },
+          "card_account_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alias de la tarjeta, el mismo que muestra la pantalla Banco.",
+            "title": "Card Account Name"
+          },
+          "card_bank_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Banco emisor de la tarjeta.",
+            "title": "Card Bank Name"
+          },
+          "card_last_four": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Últimos 4 dígitos de la tarjeta; NULL si el banco no los enmascaró.",
+            "title": "Card Last Four"
+          },
           "counterparty": {
             "anyOf": [
               {
@@ -26840,6 +27427,54 @@
               }
             ],
             "title": "Annual Rate"
+          },
+          "card_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuenta `credit_card` de la sociedad que emitió la compra en cuotas. NULL en préstamos/leasing y en la historia sin tarjeta declarada.",
+            "title": "Card Account Id"
+          },
+          "card_account_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alias de la tarjeta, el mismo que muestra la pantalla Banco.",
+            "title": "Card Account Name"
+          },
+          "card_bank_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Banco emisor de la tarjeta.",
+            "title": "Card Bank Name"
+          },
+          "card_last_four": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Últimos 4 dígitos de la tarjeta; NULL si el banco no los enmascaró.",
+            "title": "Card Last Four"
           },
           "counterparty": {
             "anyOf": [
@@ -27164,6 +27799,10 @@
             "title": "Deferred Sources",
             "type": "array"
           },
+          "financial": {
+            "$ref": "#/components/schemas/FinancialReadiness",
+            "description": "Readiness FINANCIERA: hasta dónde llega la decisión que Qavante ya puede dar, con su cifra. `ready` de arriba mide fuentes; esto mide decisiones."
+          },
           "ready": {
             "description": "True si todos los chequeos primarios (sociedad, banco, SII) pasan.",
             "title": "Ready",
@@ -27174,7 +27813,8 @@
           "ready",
           "checks",
           "coverage_window",
-          "deferred_sources"
+          "deferred_sources",
+          "financial"
         ],
         "title": "OnboardingReadinessResponse",
         "type": "object"
@@ -32249,6 +32889,127 @@
         "title": "PayrollSyncResponse",
         "type": "object"
       },
+      "PayrollSystemEra": {
+        "additionalProperties": false,
+        "description": "Una era de vigencia. `effective_to_period` es el primer período que ya NO le pertenece.",
+        "properties": {
+          "effective_from_period": {
+            "description": "Período 'YYYYMM' desde el cual rige.",
+            "title": "Effective From Period",
+            "type": "string"
+          },
+          "effective_to_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Primer período 'YYYYMM' en que deja de regir; null = vigente.",
+            "title": "Effective To Period"
+          },
+          "label": {
+            "description": "Etiqueta legible del sistema.",
+            "title": "Label",
+            "type": "string"
+          },
+          "payroll_system": {
+            "description": "Sistema declarado: 'buk' | 'talana' | 'manual'.",
+            "title": "Payroll System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payroll_system",
+          "label",
+          "effective_from_period"
+        ],
+        "title": "PayrollSystemEra",
+        "type": "object"
+      },
+      "PayrollSystemResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_state": {
+            "description": "Estado del canal de datos: 'undeclared' | 'active' (adaptador alimentando) | 'pending_adapter' (declarado sin adaptador todavía) | 'manual_upload' (la empresa sube su nómina por archivo).",
+            "title": "Adapter State",
+            "type": "string"
+          },
+          "declared": {
+            "description": "false = la empresa todavía no eligió. NO significa 'eligió BUK': el sistema nunca se infiere desde qué credencial existe.",
+            "title": "Declared",
+            "type": "boolean"
+          },
+          "effective_from_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Período 'YYYYMM' desde el cual rige el sistema vigente.",
+            "title": "Effective From Period"
+          },
+          "history": {
+            "description": "Eras de vigencia, de la más reciente a la más antigua.",
+            "items": {
+              "$ref": "#/components/schemas/PayrollSystemEra"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Etiqueta legible del sistema vigente.",
+            "title": "Label"
+          },
+          "legal_entity_id": {
+            "description": "Sociedad (Empresa activa) a la que aplica.",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
+          "options": {
+            "description": "Las opciones exactas elegibles.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "payroll_system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sistema vigente, o null si no hay declaración.",
+            "title": "Payroll System"
+          }
+        },
+        "required": [
+          "legal_entity_id",
+          "declared",
+          "adapter_state",
+          "options",
+          "history"
+        ],
+        "title": "PayrollSystemResponse",
+        "type": "object"
+      },
       "PayrollTotales": {
         "properties": {
           "empleados_contados": {
@@ -34505,6 +35266,41 @@
         "title": "PutPayrollPaydayRequest",
         "type": "object"
       },
+      "PutPayrollSystemRequest": {
+        "additionalProperties": false,
+        "description": "`legal_entity_id` NO es un campo: la sociedad la elige el scope del request, nunca el\nbody (`extra=\"forbid\"` lo rechaza explícitamente). Así un body no puede configurar otra\nEmpresa del tenant.",
+        "properties": {
+          "effective_from_period": {
+            "description": "Período 'YYYYMM' desde el cual rige. Los períodos anteriores conservan su fuente original.",
+            "title": "Effective From Period",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nota libre del cambio.",
+            "title": "Note"
+          },
+          "payroll_system": {
+            "description": "'buk' | 'talana' | 'manual'.",
+            "title": "Payroll System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payroll_system",
+          "effective_from_period"
+        ],
+        "title": "PutPayrollSystemRequest",
+        "type": "object"
+      },
       "PutSiiCompanyRequest": {
         "additionalProperties": false,
         "description": "Body de `PUT /api/credentials/sii/company`.",
@@ -35334,6 +36130,53 @@
         "title": "RcvVentasResponse",
         "type": "object"
       },
+      "ReadinessBasis": {
+        "additionalProperties": false,
+        "description": "Peldaño de la escalera con que se calculó la caja mínima. **Material de auditoría.**\n\nNo es copy: la interfaz nunca imprime el peldaño ni `conservative`. El dueño lee el\nnúmero y qué cubre; el nivel de confianza vive acá y en la auditoría.",
+        "properties": {
+          "buffer_days": {
+            "description": "Días de gasto esencial que el piso cubre.",
+            "minimum": 0.0,
+            "title": "Buffer Days",
+            "type": "integer"
+          },
+          "conservative": {
+            "description": "True cuando la base no es la mejor observada y el colchón se amplió.",
+            "title": "Conservative",
+            "type": "boolean"
+          },
+          "daily_essential_outflow": {
+            "description": "Gasto esencial diario con que se derivó el piso (monto decimal).",
+            "title": "Daily Essential Outflow",
+            "type": "string"
+          },
+          "label": {
+            "description": "Qué se midió para derivar el gasto esencial.",
+            "title": "Label",
+            "type": "string"
+          },
+          "months_observed": {
+            "description": "Meses completos con observación.",
+            "minimum": 0.0,
+            "title": "Months Observed",
+            "type": "integer"
+          },
+          "rung": {
+            "$ref": "#/components/schemas/EssentialOutflowRung",
+            "description": "Peldaño elegido, de la base mejor observada a la más conservadora."
+          }
+        },
+        "required": [
+          "rung",
+          "label",
+          "buffer_days",
+          "months_observed",
+          "conservative",
+          "daily_essential_outflow"
+        ],
+        "title": "ReadinessBasis",
+        "type": "object"
+      },
       "ReadinessChecks": {
         "additionalProperties": false,
         "properties": {
@@ -35389,6 +36232,46 @@
           }
         },
         "title": "ReadinessCoverageWindow",
+        "type": "object"
+      },
+      "ReadinessLevel": {
+        "description": "Niveles de readiness, nombrados por la decisión que habilitan.",
+        "enum": [
+          "arranque",
+          "piso",
+          "horizonte",
+          "palancas",
+          "nomina_protegida"
+        ],
+        "title": "ReadinessLevel",
+        "type": "string"
+      },
+      "ReadinessNextAction": {
+        "additionalProperties": false,
+        "description": "La ÚNICA acción que mueve al tenant al nivel siguiente.\n\nUna, no una lista: un listado de pendientes es un porcentaje disfrazado y no cambia lo\nque esta persona hace mañana.",
+        "properties": {
+          "code": {
+            "description": "Identificador estable de la acción (la UI rutea con esto).",
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "description": "La acción, en imperativo.",
+            "title": "Label",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Qué gana el dueño al hacerla.",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "reason"
+        ],
+        "title": "ReadinessNextAction",
         "type": "object"
       },
       "ReanalyzeResponse": {
@@ -52038,6 +52921,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "La sociedad no configuró BUK, o declaró otro sistema de remuneraciones (`payroll_system_manual` / `payroll_system_adapter_unavailable`): el adaptador se abstiene en vez de intentar la integración."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -57579,7 +58465,7 @@
     },
     "/api/onboarding/readiness": {
       "get": {
-        "description": "Read-only: evalúa sociedad, banco (Fintoc), SII, nómina y ventana de cobertura.\n\nLas fuentes primarias (sociedad, banco, SII) determinan `ready`. Las fuentes\ndiferidas (BUK, Previred) se reportan pero no bloquean.",
+        "description": "Read-only: evalúa sociedad, banco (Fintoc), SII, nómina y ventana de cobertura.\n\nLas fuentes primarias (sociedad, banco, SII) determinan `ready`. Las fuentes\ndiferidas (BUK, Previred) se reportan pero no bloquean.\n\n`financial` agrega la readiness FINANCIERA: hasta qué decisión alcanza lo que ya hay,\ncon su cifra. Nunca 409 ni cifra ausente — es lo que lee el último paso del wizard.",
         "operationId": "onboarding_readiness",
         "parameters": [
           {
@@ -63594,6 +64480,31 @@
             }
           },
           {
+            "description": "Filtra por tipo de cuenta. `credit_card` lista las TARJETAS de la sociedad, que es como se agrupan las compras en cuotas (ADR-0051).",
+            "in": "query",
+            "name": "account_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "checking",
+                    "savings",
+                    "credit_card",
+                    "loan",
+                    "investment"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por tipo de cuenta. `credit_card` lista las TARJETAS de la sociedad, que es como se agrupan las compras en cuotas (ADR-0051).",
+              "title": "Account Type"
+            }
+          },
+          {
             "in": "cookie",
             "name": "qavante_session",
             "required": false,
@@ -65061,7 +65972,7 @@
             "description": "El archivo no es un PDF."
           },
           "422": {
-            "description": "Cartola no reconocida o evidencia de pago ambigua/inválida."
+            "description": "Cartola no reconocida, evidencia de pago ambigua, o `card_account_id` que no es una tarjeta de esta sociedad."
           }
         },
         "security": [
@@ -65070,6 +65981,79 @@
           }
         ],
         "summary": "Importa una cartola de tarjeta (PDF) → obligaciones / compras extranjeras",
+        "tags": [
+          "card-statements"
+        ]
+      }
+    },
+    "/api/treasury/card-statements/preview": {
+      "post": {
+        "description": "Lee el PDF con un modelo de visión y devuelve lo extraído **ya validado**\ndeterminísticamente (cuadre de totales, `n ≤ N`, signos, fechas coherentes, moneda\nISO). Sirve para cualquier emisor, no sólo BICE.\n\n**No escribe nada**: `requires_confirmation` + `issues[]` indican exactamente qué\ncampo debe confirmar la persona. Un dato que el PDF no trae sale `null`; el lector\nnunca lo rellena ni asume una moneda. Requiere owner/admin.",
+        "operationId": "treasury_card_statements_preview",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_treasury_card_statements_preview"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardStatementPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Rol sin permiso (owner/admin)."
+          },
+          "409": {
+            "description": "No existe una sociedad financiera verificable para la cartola."
+          },
+          "413": {
+            "description": "El archivo excede el máximo."
+          },
+          "415": {
+            "description": "El archivo no es un PDF."
+          },
+          "422": {
+            "description": "El lector no pudo obtener datos utilizables del PDF."
+          },
+          "503": {
+            "description": "La lectura con IA no está configurada en este entorno."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Lee un estado de cuenta de tarjeta (PDF, cualquier emisor) con IA → vista previa",
         "tags": [
           "card-statements"
         ]
@@ -70734,6 +71718,140 @@
         "summary": "Setea/limpia el día de pago de remuneraciones (owner/admin)",
         "tags": [
           "payroll-payday"
+        ]
+      }
+    },
+    "/api/treasury/payroll-system": {
+      "get": {
+        "operationId": "treasury_payroll_system_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollSystemResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Sin Empresa activa demostrable (`missing_scope:legal_entity`). El sistema de remuneraciones es por sociedad y no existe versión tenant-wide."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Sistema de remuneraciones de la Empresa activa (null = no declarado)",
+        "tags": [
+          "payroll-system"
+        ]
+      },
+      "put": {
+        "operationId": "treasury_payroll_system_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutPayrollSystemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollSystemResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Rol sin permiso (owner/admin)."
+          },
+          "409": {
+            "description": "Sin Empresa activa (`missing_scope:legal_entity`), o la vigencia pedida empieza antes de la ya declarada (`payroll_system_effective_from_in_the_past`)."
+          },
+          "422": {
+            "description": "Sistema fuera de las tres opciones, o período mal formado."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Declara el sistema de remuneraciones de la Empresa activa (owner/admin)",
+        "tags": [
+          "payroll-system"
         ]
       }
     },

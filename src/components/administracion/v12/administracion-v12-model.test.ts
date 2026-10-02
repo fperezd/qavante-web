@@ -208,7 +208,7 @@ describe("filasHubV12", () => {
     mcpVisible: false,
   };
 
-  it("sin mcp: 8 filas, en el orden de la grilla actual", () => {
+  it("sin mcp: 9 filas, en el orden de la grilla actual", () => {
     const filas = filasHubV12(inputsBase);
     expect(filas.map((f) => f.id)).toEqual([
       "empresas",
@@ -217,14 +217,15 @@ describe("filasHubV12", () => {
       "estructura-gestion",
       "vistas-gestion",
       "monedas",
+      "remuneraciones",
       "reglas-clasificacion",
       "plantillas",
     ]);
   });
 
-  it("con mcpVisible: agrega la 9ª fila 'mcp' AL FINAL", () => {
+  it("con mcpVisible: agrega la fila 'mcp' AL FINAL", () => {
     const filas = filasHubV12({ ...inputsBase, mcpVisible: true });
-    expect(filas).toHaveLength(9);
+    expect(filas).toHaveLength(10);
     expect(filas.at(-1)!.id).toBe("mcp");
   });
 
