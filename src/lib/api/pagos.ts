@@ -471,22 +471,27 @@ function isPayrollCoverage(value: unknown): boolean {
   if (!isRecord(value) || typeof value.complete !== "boolean" || !Array.isArray(value.sources)) {
     return false;
   }
-  if (value.sources.length !== 2) return false;
-
+  // El contrato NO fija QUÉ proveedor alimenta la nómina: puede ser Buk, Talana o una carga
+  // manual, y el set cambia por tenant y por sociedad (ADR-0072 D1). Esta guarda exigía
+  // exactamente dos fuentes y que fueran `buk` y `previred`, así que una sociedad con otro
+  // proveedor —o con uno solo— hacía fallar TODA la respuesta de Pagar con
+  // `incompatible_accounts_payable_contract`: la pantalla entera en error por una lista de
+  // proveedores, no por un dato de plata malo.
+  //
+  // Lo que sí se exige es la FORMA: al menos una fuente, códigos no vacíos y sin repetir, y
+  // los campos del gate de cobertura bien tipados. Eso es lo que la pantalla lee.
   const sources = value.sources;
-  const sourceNames = sources.map((source) => (isRecord(source) ? source.source : null));
-  if (
-    new Set(sourceNames).size !== 2 ||
-    !sourceNames.includes("buk") ||
-    !sourceNames.includes("previred")
-  ) {
-    return false;
-  }
+  if (sources.length === 0) return false;
+
+  const sourceNames = sources.map((source) =>
+    isRecord(source) && typeof source.source === "string" ? source.source.trim() : null,
+  );
+  if (sourceNames.some((name) => name === null || name.length === 0)) return false;
+  if (new Set(sourceNames).size !== sourceNames.length) return false;
 
   const validSources = sources.every(
     (source) =>
       isRecord(source) &&
-      (source.source === "buk" || source.source === "previred") &&
       typeof source.status === "string" &&
       source.status.trim().length > 0 &&
       (source.last_success_at === null || isRfc3339DateTime(source.last_success_at)) &&

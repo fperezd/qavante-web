@@ -6,6 +6,9 @@ import {
   assertAccountsPayableResponse,
   pagosKeys,
 } from "./pagos";
+import type { components } from "./types";
+
+type PayrollCoverageSource = components["schemas"]["PayablePayrollSourceCoverage"];
 
 describe("accounts payable D02 boundary", () => {
   it("serializa filtros y cursor en orden estable, con búsqueda normalizada", () => {
@@ -96,13 +99,47 @@ describe("accounts payable D02 boundary", () => {
     ).toThrow();
   });
 
-  it("exige exactamente buk y previred únicos en cobertura de nómina", () => {
+  // `types.ts` se genera del snapshot OpenAPI, donde `source` todavía es el literal
+  // `"buk" | "previred"`. Estos casos construyen a propósito payloads que ese tipo NO describe:
+  // la guarda de runtime es justamente lo que tiene que dejar de depender de esa lista para que
+  // la API pueda ensanchar el contrato sin dejar la pantalla de Pagar en 502. El cast es el
+  // punto del test, no un atajo para callar al compilador.
+  const conCodigo = (base: PayrollCoverageSource, source: string): PayrollCoverageSource =>
+    ({ ...base, source }) as unknown as PayrollCoverageSource;
+
+  it("rechaza fuentes de nómina repetidas, con código vacío o lista vacía", () => {
     const source = pagos().payroll_coverage.sources[0]!;
     expect(() =>
       assertAccountsPayableResponse(
         pagos({ payroll_coverage: { complete: false, sources: [source, { ...source }] } }),
       ),
     ).toThrow(/contrato completo/);
+    expect(() =>
+      assertAccountsPayableResponse(
+        pagos({ payroll_coverage: { complete: false, sources: [conCodigo(source, "  ")] } }),
+      ),
+    ).toThrow(/contrato completo/);
+    expect(() =>
+      assertAccountsPayableResponse(pagos({ payroll_coverage: { complete: false, sources: [] } })),
+    ).toThrow(/contrato completo/);
+  });
+
+  it("acepta cualquier set de proveedores de nómina, no sólo buk + previred", () => {
+    // ADR-0072 D1: el proveedor es un detalle del alimentador y cambia por tenant y sociedad.
+    // Exigir el par literal `buk` + `previred` hacía fallar TODA la respuesta de Pagar —no sólo
+    // el banner de nómina— para una sociedad con otro sistema de remuneraciones o con uno solo.
+    const [buk, previred] = pagos().payroll_coverage.sources;
+    const casos: PayrollCoverageSource[][] = [
+      [conCodigo(buk!, "talana"), previred!],
+      [conCodigo(buk!, "manual")],
+      [previred!],
+      [buk!, previred!, conCodigo(buk!, "talana")],
+    ];
+    for (const sources of casos) {
+      expect(() =>
+        assertAccountsPayableResponse(pagos({ payroll_coverage: { complete: true, sources } })),
+      ).not.toThrow();
+    }
   });
 
   it("rechaza complete cuando ambas fuentes no están cubiertas y frescas", () => {

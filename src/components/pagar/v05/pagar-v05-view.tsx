@@ -691,6 +691,41 @@ function fechaEstadoLabel(certeza: PagoV05["certeza"]): string {
 /** Exportar (§5.5): descarga Excel con celdas tipadas en el navegador. Sólo corre en cliente. */
 const descargarExcel = downloadXlsx;
 
+/**
+ * Etiqueta de lo que la fuente APORTA, no de quién lo aporta.
+ *
+ * El banner imprimía el código crudo de la API: un CFO leía «buk: frescura no confirmada».
+ * El proveedor es un detalle de integración (Buk hoy, Talana mañana, o carga manual) y el
+ * usuario necesita saber QUÉ le falta: las remuneraciones o las cotizaciones. Un código que
+ * no está en el mapa cae a «Nómina» en vez de filtrarse crudo a la pantalla.
+ */
+const CONCEPTO_NOMINA: Record<string, string> = {
+  buk: "Remuneraciones",
+  talana: "Remuneraciones",
+  previred: "Cotizaciones previsionales",
+};
+
+function etiquetaFuenteNomina(source: string): string {
+  return CONCEPTO_NOMINA[source.trim().toLowerCase()] ?? "Nómina";
+}
+
+/** Estados de `core.connection_status` que significan «nunca se configuró». */
+const NOMINA_SIN_CONFIGURAR = new Set(["unconfigured", "credentials_missing"]);
+
+/**
+ * Por qué esa fuente no cubre el período.
+ *
+ * Antes decía siempre «frescura no confirmada», aunque el filtro es por `covered`: una fuente
+ * que nunca se conectó salía como un problema de frescura, y el usuario se iba a actualizar algo
+ * que no existe. Son dos acciones distintas —declarar el sistema o cargar el mes— y el mensaje
+ * tiene que distinguirlas.
+ */
+function motivoSinCobertura(source: { status: string }): string {
+  return NOMINA_SIN_CONFIGURAR.has(source.status.trim().toLowerCase())
+    ? "sin sistema declarado ni carga manual"
+    : "datos del período sin confirmar";
+}
+
 function EstadoNomina({ ap }: { ap: AccountsPayableResponse }) {
   const next = ap.next_payroll;
   const cobertura = ap.payroll_coverage;
@@ -728,12 +763,12 @@ function EstadoNomina({ ap }: { ap: AccountsPayableResponse }) {
   }
   const pendientes = cobertura.sources
     .filter((source) => !source.covered)
-    .map((source) => `${source.source}: frescura no confirmada`)
+    .map((source) => `${etiquetaFuenteNomina(source.source)}: ${motivoSinCobertura(source)}`)
     .join(" · ");
   return (
     <Banner role="status">
       <span>
-        Próxima nómina: no determinada; la cobertura del período está incompleta
+        Próxima nómina: no determinada; falta confirmar la carga del período
         {pendientes ? ` (${pendientes})` : ""}.
       </span>
     </Banner>

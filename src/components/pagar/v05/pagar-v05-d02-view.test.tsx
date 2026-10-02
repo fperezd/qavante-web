@@ -6,6 +6,7 @@ import { PagarV05View } from "./pagar-v05-view";
 import { montoCLP, montoCLPFaltante } from "@/components/pagar/pagos-format";
 import { parseAmount } from "@/lib/formatters/amount";
 import { formatClp } from "@/lib/formatters/clp";
+import type { components } from "@/lib/api/types";
 
 describe("Pagar V05 D02 view", () => {
   it("declara abstención de nómina cuando la frescura no está confirmada", () => {
@@ -34,6 +35,45 @@ describe("Pagar V05 D02 view", () => {
     const html = renderToStaticMarkup(<PagarV05View pagos={ap} hoy={new Date("2026-08-30")} />);
     expect(html).toContain("Próxima nómina: no determinada");
     expect(html).not.toContain("No hay obligaciones vivas de nómina");
+  });
+
+  it("nombra el concepto que falta, nunca el proveedor que lo alimenta", () => {
+    // El banner imprimía el código crudo de la API: «buk: frescura no confirmada». El proveedor
+    // es un detalle de integración (Buk hoy, Talana mañana, o carga manual) y el usuario necesita
+    // saber QUÉ le falta. Y distingue «nunca se declaró un sistema» de «los datos del período no
+    // están confirmados»: son dos acciones distintas, y antes las dos decían lo segundo.
+    const ap = pagos({
+      next_payroll: null,
+      payroll_coverage: {
+        complete: false,
+        sources: [
+          // `types.ts` se genera del snapshot OpenAPI, donde `source` todavía es el literal
+          // `"buk" | "previred"`. Un proveedor que ese tipo no describe es justo el caso que la
+          // pantalla tiene que saber rotular, así que el cast es el punto del test.
+          {
+            source: "talana",
+            status: "unconfigured",
+            last_success_at: null,
+            freshness_confirmed: false,
+            covered: false,
+          } as unknown as components["schemas"]["PayablePayrollSourceCoverage"],
+          {
+            source: "previred",
+            status: "ready",
+            last_success_at: null,
+            freshness_confirmed: false,
+            covered: false,
+          },
+        ],
+      },
+    });
+    const html = renderToStaticMarkup(<PagarV05View pagos={ap} hoy={new Date("2026-08-30")} />);
+    expect(html).toContain("Remuneraciones: sin sistema declarado ni carga manual");
+    expect(html).toContain("Cotizaciones previsionales: datos del período sin confirmar");
+    // El código del proveedor que alimentamos no llega al DOM por ninguna vía.
+    expect(html.toLowerCase()).not.toContain("talana");
+    // Y desaparece el motivo único que trataba «nunca se conectó» como un problema de frescura.
+    expect(html).not.toContain("frescura no confirmada");
   });
 
   it("rotula la exportación y navegación como página, no como universo", () => {
