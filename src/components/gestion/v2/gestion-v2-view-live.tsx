@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Info, CalendarClock } from "lucide-react";
 import { useOperationalResultBreakdown, type OperationalResultResponse } from "@/lib/api/gestion";
 import { useDashboardSummary } from "@/lib/api/dashboard";
@@ -24,6 +25,7 @@ import {
   separarMesEnCurso,
   margenOperacionalPct,
   resultadoConfiable,
+  resultAbstained,
   tendenciaConfiable,
   type Comparativo,
 } from "./gestion-v2-map";
@@ -84,6 +86,12 @@ export function GestionV2ViewLive({
   // MES EN CURSO: los costos ya están devengados pero las ventas recién empiezan → el resultado NO
   // se puede leer aún (daría un "perdió $X" falso). No mostramos veredicto ganó/perdió.
   if (enCurso) return <MesEnCurso mes={mes} period={period} />;
+
+  // ABSTENCIÓN: el productor publica `result: null` + `abstention_reason` (qavante-api#888) porque
+  // una fuente requerida no cubre el mes. `parseAmount(null)` daría `0` y el hero afirmaría "ganó
+  // $0" con la variación medida contra ese cero. No se muestra veredicto ni variación; se muestran
+  // las líneas que SÍ acreditan el mes y qué fuente falta (#318).
+  if (resultAbstained(mes)) return <ResultadoAbstenido mes={mes} period={period} />;
 
   // El backend está mandando costos en $0 / un resultado > ingresos (margen imposible). NO
   // mostramos la cascada confiada con números absurdos — degradamos honesto y lo dejamos visible.
@@ -326,6 +334,99 @@ function MesEnCurso({ mes, period }: { mes: OperationalResultResponse; period: s
         </div>
       </div>
     </section>
+  );
+}
+
+/** Nombre legible de las fuentes que todavía no cubren el mes, para decir QUÉ falta en vez de
+ *  cuán seguros estamos. `missing_sources` ya viene en es-CL y legible desde el productor. */
+function fuentesPendientes(mes: OperationalResultResponse): string | null {
+  const fuentes = (mes.missing_sources ?? []).filter(Boolean);
+  if (fuentes.length === 0) return null;
+  if (fuentes.length === 1) return fuentes[0] ?? null;
+  return `${fuentes.slice(0, -1).join(", ")} y ${fuentes[fuentes.length - 1]}`;
+}
+
+/** ABSTENCIÓN del productor (`result: null` + `abstention_reason`, qavante-api#888): una fuente
+ *  requerida no cubre el período, así que el RESULTADO del mes no es publicable.
+ *
+ *  Dos reglas se cruzan acá y las dos se respetan (web#318 + decisión de copy de Fernando
+ *  2026-10-01):
+ *
+ *  1. No fabricar. `parseAmount(null)` da `0`, y mostrar ese cero como resultado afirmaba "El
+ *     negocio ganó este mes · $0" y comparaba el mes anterior contra él. Ese veredicto y esa
+ *     variación NO se renderizan — es el defecto que abrió el issue.
+ *  2. No dejar al dueño sin número. Tampoco corresponde un cartel de "no disponible": las
+ *     palabras de incertidumbre ensucian cifras que sí están medidas y dejan al lector sin nada
+ *     para decidir. Así que mostramos las líneas que SÍ acreditan el mes (ventas, costos directos
+ *     y margen bruto, todas publicadas por el contrato).
+ *  3. El encabezado es la ACCIÓN, no el estado: qué tiene que hacer el dueño mañana para cerrar el
+ *     mes, con el botón que lleva a hacerlo. Las `integrity.reasons` son causas técnicas ("rcv
+ *     purchases sin sincronizar para 2026-08") y NO se pintan: viven en la API y la auditoría. Lo
+ *     que llega a pantalla es la fuente a conectar, que es lo único accionable. */
+export function ResultadoAbstenido({
+  mes,
+  period,
+}: {
+  mes: OperationalResultResponse;
+  period: string;
+}) {
+  const nombreMes = mesLargo(period);
+  const pendientes = fuentesPendientes(mes);
+  const ventas = parseAmount(mes.revenue);
+  const costosDirectos = parseAmount(mes.direct_cost);
+  const bruto = parseAmount(mes.gross_margin);
+  const brutoPct = parseAmount(mes.gross_margin_pct);
+  const row = (k: string, v: React.ReactNode) => (
+    <div className="flex items-baseline justify-between gap-3 border-t border-dashed border-border py-1.5">
+      <dt className="text-neutral-mid">{k}</dt>
+      <dd className="font-bold tabular-nums text-neutral-dark">{v}</dd>
+    </div>
+  );
+  return (
+    <div className="space-y-4">
+      <section className="rounded-xl border border-brand-primary/25 bg-brand-primary/[.05] p-6">
+        <div className="flex items-start gap-3">
+          <CalendarClock
+            className="mt-0.5 h-5 w-5 shrink-0 text-brand-primary"
+            aria-hidden="true"
+          />
+          <div className="w-full space-y-3">
+            <h2 className="text-base font-bold text-neutral-dark">
+              {pendientes
+                ? `Conecta ${pendientes} para cerrar el resultado de ${nombreMes}`
+                : `Sincroniza ${nombreMes} para cerrar el resultado del mes`}
+            </h2>
+            <p className="text-sm text-neutral-mid">
+              Esto es lo que ya está acreditado de {nombreMes}. Falta plata que resta, así que el
+              resultado del mes y la comparación con el mes anterior se publican cuando{" "}
+              {pendientes ?? "la fuente pendiente"} cubra el período.
+            </p>
+            <dl className="flex flex-col text-[13px]">
+              {row("Ventas del mes", formatClp(ventas))}
+              {row("Costos directos", `−${formatClp(Math.abs(costosDirectos))}`)}
+              {row(
+                "Margen bruto",
+                <>
+                  {formatClp(bruto)} ·{" "}
+                  <span className="text-neutral-mid">{formatPct(brutoPct)}</span>
+                </>,
+              )}
+            </dl>
+            <p className="text-[13px] text-neutral-mid">
+              Cubre las ventas emitidas y los costos directos de {nombreMes}. El resultado final
+              resta además las remuneraciones, los honorarios y los gastos recurrentes del mes.
+            </p>
+            <Link
+              href="/conexiones"
+              className="inline-flex items-center rounded-lg bg-brand-primary px-3 py-2 text-[13px] font-bold text-white hover:opacity-90"
+            >
+              Ir a Conexiones
+            </Link>
+          </div>
+        </div>
+      </section>
+      <ConfianzaPie mes={mes} />
+    </div>
   );
 }
 

@@ -2445,6 +2445,46 @@
         "title": "BankAccountRef",
         "type": "object"
       },
+      "BankConnectionCheck": {
+        "additionalProperties": false,
+        "description": "Chequeo de conexión bancaria (Fintoc).",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descripción legible del estado; null cuando 'ok' y el contexto basta.",
+            "title": "Detail"
+          },
+          "provider": {
+            "default": "fintoc",
+            "description": "Proveedor de agregación bancaria.",
+            "title": "Provider",
+            "type": "string"
+          },
+          "status": {
+            "description": "'ok' (cumplido), 'missing' (falta y bloquea), 'pending' (configurado pero incompleto), 'deferred' (conocido, no conectado todavía — no bloquea).",
+            "enum": [
+              "ok",
+              "missing",
+              "pending",
+              "deferred"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "BankConnectionCheck",
+        "type": "object"
+      },
       "BankCredentialStatus": {
         "additionalProperties": false,
         "description": "Estado de la conexión de banco (sin password).",
@@ -14321,6 +14361,52 @@
         "title": "DeferredDocuments",
         "type": "object"
       },
+      "DeferredSourceCheck": {
+        "additionalProperties": false,
+        "description": "Fuente conocida pero no conectada todavía (no bloquea el onboarding).",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descripción legible del estado; null cuando 'ok' y el contexto basta.",
+            "title": "Detail"
+          },
+          "label": {
+            "description": "Nombre legible de la fuente.",
+            "title": "Label",
+            "type": "string"
+          },
+          "source": {
+            "description": "Código canónico de la fuente (e.g. 'buk').",
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "description": "'ok' (cumplido), 'missing' (falta y bloquea), 'pending' (configurado pero incompleto), 'deferred' (conocido, no conectado todavía — no bloquea).",
+            "enum": [
+              "ok",
+              "missing",
+              "pending",
+              "deferred"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "source",
+          "label"
+        ],
+        "title": "DeferredSourceCheck",
+        "type": "object"
+      },
       "DimensionAssignment": {
         "additionalProperties": false,
         "description": "Asignación de un valor de dimensión a una entidad.",
@@ -17582,6 +17668,219 @@
         "title": "F29AnualResponse",
         "type": "object"
       },
+      "F29BridgeComponentsSchema": {
+        "additionalProperties": true,
+        "description": "Componentes oficiales compuestos desde las observaciones del PDF F29.",
+        "properties": {
+          "code_537": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "IVA crédito fiscal",
+            "title": "Code 537"
+          },
+          "code_538": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "IVA débito fiscal",
+            "title": "Code 538"
+          },
+          "code_62": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PPM neto determinado",
+            "title": "Code 62"
+          },
+          "code_755": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Postergación IVA",
+            "title": "Code 755"
+          },
+          "code_77": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Remanente CF",
+            "title": "Code 77"
+          },
+          "other_codes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Códigos no canónicos observados en el PDF.",
+            "title": "Other Codes"
+          }
+        },
+        "title": "F29BridgeComponentsSchema",
+        "type": "object"
+      },
+      "F29BridgePeriodResponse": {
+        "additionalProperties": true,
+        "description": "Bridges de todas las declaraciones F29 de un período.",
+        "properties": {
+          "bridges": {
+            "items": {
+              "$ref": "#/components/schemas/F29BridgeResponse"
+            },
+            "title": "Bridges",
+            "type": "array"
+          },
+          "period_month": {
+            "title": "Period Month",
+            "type": "integer"
+          },
+          "period_year": {
+            "title": "Period Year",
+            "type": "integer"
+          },
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "period_year",
+          "period_month"
+        ],
+        "title": "F29BridgePeriodResponse",
+        "type": "object"
+      },
+      "F29BridgeResponse": {
+        "additionalProperties": true,
+        "description": "Bridge oficial de una declaración F29: componentes, residual y estado de pago.",
+        "properties": {
+          "comparators": {
+            "additionalProperties": true,
+            "title": "Comparators",
+            "type": "object"
+          },
+          "data_state": {
+            "description": "complete | partial | observations_only | no_observations",
+            "title": "Data State",
+            "type": "string"
+          },
+          "declaration_id": {
+            "title": "Declaration Id",
+            "type": "string"
+          },
+          "declaration_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Código 91 — total a pagar en plazo legal.",
+            "title": "Declaration Total"
+          },
+          "folio": {
+            "title": "Folio",
+            "type": "integer"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "official_components": {
+            "$ref": "#/components/schemas/F29BridgeComponentsSchema"
+          },
+          "payment_evidence": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Evidence"
+          },
+          "payment_state": {
+            "default": "unknown",
+            "description": "paid | pending | deferred | unknown",
+            "title": "Payment State",
+            "type": "string"
+          },
+          "period_month": {
+            "title": "Period Month",
+            "type": "integer"
+          },
+          "period_year": {
+            "title": "Period Year",
+            "type": "integer"
+          },
+          "reconciled": {
+            "default": false,
+            "title": "Reconciled",
+            "type": "boolean"
+          },
+          "unexplained_delta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "composed_total - declaration_total. Cero = reconciliado. None = no computable (faltan componentes).",
+            "title": "Unexplained Delta"
+          }
+        },
+        "required": [
+          "declaration_id",
+          "folio",
+          "period_year",
+          "period_month",
+          "official_components",
+          "data_state",
+          "observed_at"
+        ],
+        "title": "F29BridgeResponse",
+        "type": "object"
+      },
       "F29CoverageInfo": {
         "additionalProperties": false,
         "description": "Cobertura de la historia F29 sin sociedad para los períodos que la respuesta consultó.\n\n`incomplete` = hay F29 histórico persistido sin `legal_entity_id` (pre-#685) para algún\nperíodo consultado y la sociedad pedida NO tiene fila propia de ese período. Ese F29 existe\npero no puede atribuirse sin evidencia: los montos afectados van null (nunca $0) hasta\nre-materializarlo bajo la sociedad (`POST /api/sii/f29/sync?anio=`).",
@@ -20568,7 +20867,7 @@
       },
       "FinancialIntegrityAssessment": {
         "additionalProperties": false,
-        "description": "Resumen reusable para resultados y futuras recomendaciones.\n\n`decision_support=\"abstain\"` no invalida el resultado histórico: solo\nprohíbe presentarlo como una base suficiente para recomendar una acción.",
+        "description": "Resumen reusable para resultados y futuras recomendaciones.\n\n`decision_support=\"abstain\"` significa que el resultado del período NO se\npublica como cifra (ni signo ni variación contra él) ni se usa para\nrecomendar: el contrato público entrega `result: null` + `abstention_reason`\n(web#318). Los motores internos pueden seguir leyendo las líneas, pero no\npresentarlas como un resultado medido.",
         "properties": {
           "decision_support": {
             "default": "abstain",
@@ -20878,6 +21177,12 @@
         "additionalProperties": false,
         "description": "Integridad de una fuente requerida para un período financiero.",
         "properties": {
+          "applicable": {
+            "default": true,
+            "description": "`false` = la fuente no corresponde a la sociedad (p. ej. nómina sin fuente de remuneraciones conectada): `not_applicable`, no provoca abstención.",
+            "title": "Applicable",
+            "type": "boolean"
+          },
           "code": {
             "title": "Code",
             "type": "string"
@@ -20887,6 +21192,7 @@
             "type": "string"
           },
           "present": {
+            "description": "La fuente cubre el período: con datos o con sincronización confirmada vacía.",
             "title": "Present",
             "type": "boolean"
           },
@@ -21960,11 +22266,8 @@
       "FintocLinkIntentRequest": {
         "properties": {
           "holder_type": {
+            "const": "business",
             "default": "business",
-            "enum": [
-              "individual",
-              "business"
-            ],
             "title": "Holder Type",
             "type": "string"
           }
@@ -24394,6 +24697,54 @@
         "title": "LegalEntitiesResponse",
         "type": "object"
       },
+      "LegalEntityCheck": {
+        "additionalProperties": false,
+        "description": "Chequeo de sociedades: ¿hay al menos una y todas tienen identificador?",
+        "properties": {
+          "count": {
+            "description": "Número de sociedades del tenant.",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descripción legible del estado; null cuando 'ok' y el contexto basta.",
+            "title": "Detail"
+          },
+          "pending_identification": {
+            "description": "Sociedades sin identificador tributario declarado.",
+            "minimum": 0.0,
+            "title": "Pending Identification",
+            "type": "integer"
+          },
+          "status": {
+            "description": "'ok' (cumplido), 'missing' (falta y bloquea), 'pending' (configurado pero incompleto), 'deferred' (conocido, no conectado todavía — no bloquea).",
+            "enum": [
+              "ok",
+              "missing",
+              "pending",
+              "deferred"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "count",
+          "pending_identification"
+        ],
+        "title": "LegalEntityCheck",
+        "type": "object"
+      },
       "LegalEntityFunctionalCurrencySettings": {
         "additionalProperties": false,
         "description": "Moneda funcional explícita de una sociedad, no un default de tenant.",
@@ -25915,6 +26266,53 @@
         "title": "MeUser",
         "type": "object"
       },
+      "MonthIntegrity": {
+        "description": "Integridad POR MES del rango, de la MISMA regla que `/operational-result`\n(`assess_financial_integrity` vía `operational_result_range`). web#318: si un mes no es\n`eligible`, su resultado no es publicable y la suma del rango tampoco.",
+        "properties": {
+          "abstention_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` si el mes es publicable; si no, `financial_integrity_<state>`.",
+            "title": "Abstention Reason"
+          },
+          "decision_support": {
+            "enum": [
+              "eligible",
+              "abstain"
+            ],
+            "title": "Decision Support",
+            "type": "string"
+          },
+          "month": {
+            "description": "Mes 'YYYY-MM'.",
+            "title": "Month",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "complete",
+              "partial",
+              "stale",
+              "unknown"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "state",
+          "decision_support"
+        ],
+        "title": "MonthIntegrity",
+        "type": "object"
+      },
       "MoveDimensionValueRequest": {
         "additionalProperties": false,
         "description": "Body de `POST /api/management/dimension-values/{value_id}/move`.\n\n`new_parent_id = null` mueve el valor a la raíz de su dimensión.",
@@ -26746,6 +27144,39 @@
           "latest_start_date"
         ],
         "title": "OnboardingImportWindowResponse",
+        "type": "object"
+      },
+      "OnboardingReadinessResponse": {
+        "additionalProperties": false,
+        "description": "¿Está este tenant preparado para usar Qavante?\n\n`ready` es true cuando las tres fuentes primarias (sociedad, banco, SII) están en 'ok'.\nLas fuentes diferidas (BUK, Previred) no bloquean el readiness.",
+        "properties": {
+          "checks": {
+            "$ref": "#/components/schemas/ReadinessChecks"
+          },
+          "coverage_window": {
+            "$ref": "#/components/schemas/ReadinessCoverageWindow"
+          },
+          "deferred_sources": {
+            "description": "Códigos de fuentes conocidas pero no conectadas (no bloquean).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Deferred Sources",
+            "type": "array"
+          },
+          "ready": {
+            "description": "True si todos los chequeos primarios (sociedad, banco, SII) pasan.",
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ready",
+          "checks",
+          "coverage_window",
+          "deferred_sources"
+        ],
+        "title": "OnboardingReadinessResponse",
         "type": "object"
       },
       "OnboardingStatusResponse": {
@@ -28477,6 +28908,14 @@
             "title": "Mode",
             "type": "string"
           },
+          "month_integrity": {
+            "description": "Integridad por mes (alineada a `months`) de la misma regla que `/operational-result` (`integrity.decision_support`). Un mes `abstain` no tiene resultado publicable: la web no afirma ganó/perdió ni el acumulado del rango, y el export escribe `sin dato` en su Resultado Operacional (web#318).",
+            "items": {
+              "$ref": "#/components/schemas/MonthIntegrity"
+            },
+            "title": "Month Integrity",
+            "type": "array"
+          },
           "months": {
             "description": "Meses 'YYYY-MM' del rango (columnas).",
             "items": {
@@ -28817,6 +29256,18 @@
         "additionalProperties": false,
         "description": "Respuesta de `GET /api/management/operational-result?period=YYYY-MM`.",
         "properties": {
+          "abstention_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` si `result` es publicable. Si no, código estable `financial_integrity_<state>` (`partial` | `stale` | `unknown`), derivado de `integrity.state`; el detalle legible está en `integrity.reasons`.",
+            "title": "Abstention Reason"
+          },
           "confidence": {
             "enum": [
               "high",
@@ -28907,10 +29358,17 @@
             "type": "string"
           },
           "result": {
-            "description": "Resultado neto = EBITDA menos gasto financiero.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Result",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resultado neto = EBITDA menos gasto financiero. **`null` = abstención**: la integridad del período no es `eligible` (`integrity.decision_support`), así que no se publica una cifra — ni un 0 — ni se deriva signo o variación (web#318). El motivo viaja en `abstention_reason`.",
+            "title": "Result"
           },
           "revenue": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -34876,6 +35334,63 @@
         "title": "RcvVentasResponse",
         "type": "object"
       },
+      "ReadinessChecks": {
+        "additionalProperties": false,
+        "properties": {
+          "bank_connection": {
+            "$ref": "#/components/schemas/BankConnectionCheck"
+          },
+          "legal_entity": {
+            "$ref": "#/components/schemas/LegalEntityCheck"
+          },
+          "payroll": {
+            "$ref": "#/components/schemas/DeferredSourceCheck"
+          },
+          "sii_credentials": {
+            "$ref": "#/components/schemas/SiiCredentialsCheck"
+          }
+        },
+        "required": [
+          "legal_entity",
+          "bank_connection",
+          "sii_credentials",
+          "payroll"
+        ],
+        "title": "ReadinessChecks",
+        "type": "object"
+      },
+      "ReadinessCoverageWindow": {
+        "additionalProperties": false,
+        "description": "Ventana de cobertura histórica derivada del import-window del onboarding.",
+        "properties": {
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mes de fin de cobertura (YYYY-MM), o null.",
+            "title": "End"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mes de inicio de cobertura (YYYY-MM), o null si no configurado.",
+            "title": "Start"
+          }
+        },
+        "title": "ReadinessCoverageWindow",
+        "type": "object"
+      },
       "ReanalyzeResponse": {
         "additionalProperties": false,
         "description": "Igual que `/reconcile` + cuántas sugerencias viejas se resetearon antes de re-analizar.",
@@ -34965,6 +35480,18 @@
             "default": 0,
             "description": "Movimientos que estaban en cola y se volvieron a evaluar desde cero.",
             "title": "Review Reseteadas",
+            "type": "integer"
+          },
+          "v2_equivalence_diverged": {
+            "default": 0,
+            "description": "Movimientos cuyo caso canónico v2 diverge de la resolución legacy.",
+            "title": "V2 Equivalence Diverged",
+            "type": "integer"
+          },
+          "v2_equivalence_ok": {
+            "default": 0,
+            "description": "Movimientos cuyo caso canónico v2 coincide con la resolución legacy.",
+            "title": "V2 Equivalence Ok",
             "type": "integer"
           }
         },
@@ -36022,6 +36549,18 @@
           "review": {
             "default": 0,
             "title": "Review",
+            "type": "integer"
+          },
+          "v2_equivalence_diverged": {
+            "default": 0,
+            "description": "Movimientos cuyo caso canónico v2 diverge de la resolución legacy.",
+            "title": "V2 Equivalence Diverged",
+            "type": "integer"
+          },
+          "v2_equivalence_ok": {
+            "default": 0,
+            "description": "Movimientos cuyo caso canónico v2 coincide con la resolución legacy.",
+            "title": "V2 Equivalence Ok",
             "type": "integer"
           }
         },
@@ -37145,18 +37684,49 @@
       },
       "ResultVariation": {
         "additionalProperties": false,
-        "description": "Variación del resultado vs un período de referencia.",
+        "description": "Variación del resultado vs un período de referencia.\n\n`amount`/`pct` son `null` (con `abstention_reason`) cuando el resultado actual o el de\nreferencia se abstiene: no se calcula un delta contra una cifra no publicable (web#318).",
         "properties": {
+          "abstention_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "current_period_abstained",
+                  "reference_period_abstained"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Presente sólo cuando `amount`/`pct` son `null`: `current_period_abstained` (el resultado del período no es publicable) o `reference_period_abstained` (el del período de comparación no lo es).",
+            "title": "Abstention Reason"
+          },
           "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resultado actual - resultado de referencia. `null` si alguno se abstiene.",
+            "title": "Amount"
           },
           "pct": {
-            "description": "Variación % sobre |resultado| base (string-decimal).",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Pct",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Variación % sobre |resultado| base (string-decimal). `null` si se abstiene.",
+            "title": "Pct"
           }
         },
         "required": [
@@ -39432,6 +40002,52 @@
         "title": "SiiCompanyStatus",
         "type": "object"
       },
+      "SiiCredentialsCheck": {
+        "additionalProperties": false,
+        "description": "Chequeo de credenciales SII (RCV).",
+        "properties": {
+          "coverage_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mes más antiguo de la ventana de importación (YYYY-MM), o null si no hay.",
+            "title": "Coverage From"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descripción legible del estado; null cuando 'ok' y el contexto basta.",
+            "title": "Detail"
+          },
+          "status": {
+            "description": "'ok' (cumplido), 'missing' (falta y bloquea), 'pending' (configurado pero incompleto), 'deferred' (conocido, no conectado todavía — no bloquea).",
+            "enum": [
+              "ok",
+              "missing",
+              "pending",
+              "deferred"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SiiCredentialsCheck",
+        "type": "object"
+      },
       "SiiCredentialsResponse": {
         "additionalProperties": false,
         "description": "Respuesta de `GET /api/credentials/sii`.",
@@ -40255,6 +40871,12 @@
         "additionalProperties": false,
         "description": "Frescura de una fuente de datos del P&L (RCV, nómina, honorarios).\n\nHace observable que un `status=ready` puede estar sirviendo data VIEJA: `synced_at`\ndice cuándo se refrescó la fuente para el período, y `stale=True` marca un período EN\nCURSO con data demasiado antigua (viejo ≠ verdad; feedback de frescura de fuentes).",
         "properties": {
+          "applicable": {
+            "default": true,
+            "description": "`false` = la fuente no corresponde a la sociedad (nómina sin BUK ni otra fuente de remuneraciones configurada): `not_applicable`, no provoca abstención.",
+            "title": "Applicable",
+            "type": "boolean"
+          },
           "code": {
             "description": "Identificador de la fuente: rcv | payroll | fees.",
             "title": "Code",
@@ -52792,7 +53414,7 @@
     },
     "/api/fintoc/connections/{connection_id}/disconnect": {
       "post": {
-        "description": "Detiene sólo este link localmente; no borra cuentas, movimientos ni historia.",
+        "description": "Retira el link en Fintoc y detiene el pull, conservando el historial local.",
         "operationId": "disconnect_connection_api_fintoc_connections__connection_id__disconnect_post",
         "parameters": [
           {
@@ -54952,7 +55574,7 @@
                 }
               }
             },
-            "description": "Resultado operacional del período (0 si no hay documentos)."
+            "description": "Resultado operacional del período. `result: null` + `abstention_reason` cuando la integridad de fuentes no es `eligible` (incluye el período sin documentos)."
           },
           "409": {
             "description": "Scope financiero incompleto o P&L compuesto no atribuible por sociedad."
@@ -56950,6 +57572,61 @@
           }
         ],
         "summary": "Guarda el mes inicial de la primera importación (owner/admin)",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/readiness": {
+      "get": {
+        "description": "Read-only: evalúa sociedad, banco (Fintoc), SII, nómina y ventana de cobertura.\n\nLas fuentes primarias (sociedad, banco, SII) determinan `ready`. Las fuentes\ndiferidas (BUK, Previred) se reportan pero no bloquean.",
+        "operationId": "onboarding_readiness",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingReadinessResponse"
+                }
+              }
+            },
+            "description": "Estado estructurado de preparación del tenant."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Chequeo de preparación: ¿el tenant puede operar en Qavante?",
         "tags": [
           "onboarding"
         ]
@@ -60838,6 +61515,90 @@
           }
         ],
         "summary": "SII F29: resumen del AÑO (12 meses persistidos) para el panel de gestión",
+        "tags": [
+          "sii"
+        ]
+      }
+    },
+    "/api/sii/f29/bridge": {
+      "get": {
+        "description": "Bridges compuestos desde evidencia durable de fase A (``f29_declarations`` +\n``f29_code_observations``) para todas las declaraciones del período, incluyendo\nrectificatorias.\n\nCada bridge lleva: componentes oficiales (códigos canónicos 538/537/62/77/755),\ndeclaration_total (código 91), unexplained_delta, reconciled, data_state y\npayment_state. El bridge se compone al vuelo si no existe; si ya existe se lee\nde la tabla ``f29_declaration_bridges``.",
+        "operationId": "sii_f29_bridge",
+        "parameters": [
+          {
+            "description": "Año del período.",
+            "in": "query",
+            "name": "anio",
+            "required": true,
+            "schema": {
+              "description": "Año del período.",
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Anio",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Mes del período (1-12).",
+            "in": "query",
+            "name": "mes",
+            "required": true,
+            "schema": {
+              "description": "Mes del período (1-12).",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Mes",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/F29BridgePeriodResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "FinancialScope no verificable."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "F29 bridge: componentes oficiales, residual y estado de pago del período",
         "tags": [
           "sii"
         ]

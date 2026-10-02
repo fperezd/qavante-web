@@ -20,6 +20,8 @@ const cero = {
   previred: 0,
   fx: 0,
   incomplete_currency: 0,
+  v2_equivalence_ok: 0,
+  v2_equivalence_diverged: 0,
 };
 
 const meta = {

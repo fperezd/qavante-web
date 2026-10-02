@@ -3,6 +3,7 @@ import {
   mesCorto,
   margenOperacionalPct,
   resultadoConfiable,
+  resultAbstained,
   deCada100Confiable,
   mapHero,
   mapComparativos,
@@ -125,6 +126,63 @@ describe("deCada100Confiable", () => {
       deCada100Confiable({ ...RESP, revenue: "1000", gross_margin: "500", result: "600" }),
     ).toBe(false);
     expect(deCada100Confiable({ ...RESP, revenue: "0" })).toBe(false);
+  });
+});
+
+describe("resultAbstained", () => {
+  /** Abstención tal como la publica el productor desde qavante-api#888: `result: null` +
+   *  `abstention_reason`, con `integrity.decision_support: "abstain"` coherente (el response model
+   *  de la API valida que los tres se muevan juntos). */
+  const ABSTENIDO = {
+    ...RESP,
+    result: null,
+    abstention_reason: "financial_integrity_partial",
+    integrity: {
+      period: "2026-08",
+      state: "partial" as const,
+      decision_support: "abstain" as const,
+    },
+  };
+
+  it("SÍ abstenido con result null + abstention_reason (contrato vigente)", () => {
+    expect(resultAbstained(ABSTENIDO)).toBe(true);
+  });
+
+  it("NO abstenido cuando el productor publica una cifra", () => {
+    expect(
+      resultAbstained({
+        ...RESP,
+        result: "4200000",
+        abstention_reason: null,
+        integrity: { period: "2026-08", state: "complete", decision_support: "eligible" },
+      }),
+    ).toBe(false);
+  });
+
+  it("un resultado MEDIDO de exactamente $0 NO es abstención", () => {
+    // El cero verificado se conserva como cero: confundirlo con "no sé" miente igual que al revés.
+    expect(resultAbstained({ ...RESP, result: "0", abstention_reason: null })).toBe(false);
+  });
+
+  it("abstenido si llega abstention_reason aunque result traiga string (contrato roto)", () => {
+    // Defensivo: la API valida la exclusividad, pero si alguna vez se filtrara una cifra junto al
+    // motivo, la abstención manda — nunca publicamos la cifra de un período abstenido.
+    expect(
+      resultAbstained({ ...RESP, result: "0", abstention_reason: "financial_integrity_stale" }),
+    ).toBe(true);
+  });
+
+  it("mapHero LANZA sobre un período abstenido en vez de fabricar 'ganó $0' (#318)", () => {
+    // Defecto original en prod: `parseAmount(null)` → 0, y el hero afirmaba "El negocio ganó este
+    // mes · $0" con "$2.110.198 peor que el mes pasado" medido contra ese cero fabricado.
+    // Gemelo positivo: la guarda detecta la abstención...
+    expect(resultAbstained(ABSTENIDO)).toBe(true);
+    // ...y mapHero se niega a producir un veredicto, en vez de devolver uno falso.
+    expect(() => mapHero(ABSTENIDO)).toThrow(/abstenido/);
+    // Gemelo positivo del camino feliz: con cifra publicable, mapHero SÍ responde.
+    const hero = mapHero({ ...RESP, result: "4200000", abstention_reason: null });
+    expect(hero.titulo).toBe("El negocio ganó este mes");
+    expect(hero.resultado).toBe(4200000);
   });
 });
 

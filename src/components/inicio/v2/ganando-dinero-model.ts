@@ -4,7 +4,11 @@
 
 import type { OperationalResultResponse } from "@/lib/api/gestion";
 import { parseAmount } from "@/components/gestion/gestion-format";
-import { mesCorto, resultadoConfiable } from "@/components/gestion/v2/gestion-v2-map";
+import {
+  mesCorto,
+  resultAbstained,
+  resultadoConfiable,
+} from "@/components/gestion/v2/gestion-v2-map";
 
 export interface GanandoDinero {
   /** `true` = ganó (resultado ≥ 0). */
@@ -20,11 +24,17 @@ export interface GanandoDinero {
 }
 
 /** Deriva el "ganó/perdió" del mes cerrado desde el operational-result de ese período. `null` si no hay
- *  respuesta (el contenedor degrada). */
+ *  respuesta (el contenedor degrada).
+ *
+ *  También `null` cuando el productor se ABSTUVO (`result: null`, qavante-api#888): el veredicto de
+ *  este widget ES el signo del resultado, así que sin resultado publicable no hay widget. Sin esta
+ *  guarda, `parseAmount(null)` daba `0` y el Inicio afirmaba "ganó" con un margen de 0% sobre un
+ *  resultado que nadie midió — el mismo defecto que web#318 en /gestion, en la pantalla de entrada. */
 export function resultadoMesAnterior(
   resp: OperationalResultResponse | undefined,
 ): GanandoDinero | null {
   if (!resp) return null;
+  if (resultAbstained(resp)) return null;
   const resultado = parseAmount(resp.result);
   const ingresos = parseAmount(resp.revenue);
   /* CRUDO, sin redondear: el redondeo lo hace `formatPct` en la vista. Redondeado acá, este

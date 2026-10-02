@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -31,6 +32,7 @@ import {
   margenOperacionalPct,
   mesCorto,
   resultadoConfiable,
+  resultAbstained,
   deCada100Confiable,
   tendenciaConfiable,
 } from "./gestion-v2-map";
@@ -178,6 +180,10 @@ function SeccionBody({
   if (enCurso && (seccion === "margenes" || seccion === "costos")) {
     return <SeccionEnCurso seccion={seccion} period={period ?? ""} />;
   }
+  // Abstención: el productor no publica resultado (`result: null`) → nada derivado de él, pero sí
+  // las líneas acreditadas del mes y la fuente que falta (#318).
+  if (seccion !== "tendencia" && mes && resultAbstained(mes))
+    return <ResultadoPendiente mes={mes} />;
   // Guarda honesta para las que derivan del mes.
   if (seccion !== "tendencia" && mes && !resultadoConfiable(mes)) return <NoConfiable />;
 
@@ -582,6 +588,56 @@ function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
         <span>Faltan fuentes: {(mes.missing_sources ?? []).join(", ")} (no se asumen en cero)</span>
       )}
     </div>
+  );
+}
+
+/** ABSTENCIÓN del productor (`result: null`, qavante-api#888): el resultado del mes no es
+ *  publicable, así que los derivados (margen neto, comparativos) tampoco. Mostramos las líneas
+ *  que SÍ acreditan el mes y nombramos la fuente que falta — sin cartel de "no disponible" y sin
+ *  un cero fabricado (web#318 + copy de Fernando 2026-10-01: siempre un número y qué cubre). */
+export function ResultadoPendiente({ mes }: { mes: OperationalResultResponse }) {
+  const fuentes = (mes.missing_sources ?? []).filter(Boolean);
+  const pendientes =
+    fuentes.length === 0
+      ? null
+      : fuentes.length === 1
+        ? fuentes[0]
+        : `${fuentes.slice(0, -1).join(", ")} y ${fuentes[fuentes.length - 1]}`;
+  return (
+    <section className="rounded-xl border border-brand-primary/25 bg-brand-primary/[.05] p-5">
+      <p className="inline-flex items-center gap-2 text-[13px] font-bold text-neutral-dark">
+        <AlertTriangle className="size-[18px] shrink-0" aria-hidden="true" />
+        {pendientes
+          ? `Conecta ${pendientes} para cerrar el mes`
+          : "Sincroniza el período para cerrar el mes"}
+      </p>
+      <dl className="mt-3 flex flex-col text-[13px]">
+        <div className="flex items-baseline justify-between gap-3 py-1.5">
+          <dt className="text-neutral-mid">Ventas del mes</dt>
+          <dd className="font-bold tabular-nums text-neutral-dark">
+            {formatClp(parseAmount(mes.revenue))}
+          </dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3 border-t border-dashed border-border py-1.5">
+          <dt className="text-neutral-mid">Margen bruto</dt>
+          <dd className="font-bold tabular-nums text-neutral-dark">
+            {formatClp(parseAmount(mes.gross_margin))} ·{" "}
+            <span className="text-neutral-mid">{formatPct(parseAmount(mes.gross_margin_pct))}</span>
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-2 text-[13px] text-neutral-mid">
+        Cubre las ventas emitidas y los costos directos del mes. El margen neto y los comparativos
+        se publican cuando entre {pendientes ?? "la fuente pendiente"}, porque falta plata que
+        resta.
+      </p>
+      <Link
+        href="/conexiones"
+        className="mt-3 inline-flex items-center rounded-lg bg-brand-primary px-3 py-2 text-[13px] font-bold text-white hover:opacity-90"
+      >
+        Ir a Conexiones
+      </Link>
+    </section>
   );
 }
 

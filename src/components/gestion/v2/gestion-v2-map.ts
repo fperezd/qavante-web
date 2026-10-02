@@ -67,6 +67,22 @@ export function margenOperacionalPct(resp: OperationalResultResponse): number {
   return (parseAmount(resp.result) / rev) * 100;
 }
 
+/** ¿El productor se ABSTUVO de publicar el resultado del período? (web#318)
+ *
+ *  La fuente de verdad es el CONTRATO, no una rederivación local: desde qavante-api#888 el
+ *  endpoint publica `result: null` + `abstention_reason` cuando la integridad de fuentes no es
+ *  `eligible`, y el response model valida la equivalencia
+ *  `result === null ⟺ abstention_reason != null ⟺ integrity.decision_support !== "eligible"`.
+ *  Por eso basta mirar `result`: es el campo que decide si hay cifra publicable.
+ *
+ *  Antes esta guarda leía `integrity.decision_support`. No está mal, pero rederivaba una
+ *  conclusión que el productor ya publica, y dejaba pasar el caso peligroso: `parseAmount(null)`
+ *  devuelve `0`, así que un `result` ausente se vuelve indistinguible de un cero MEDIDO y el hero
+ *  afirmaba "El negocio ganó este mes · $0" con la variación calculada contra ese cero. */
+export function resultAbstained(resp: OperationalResultResponse): boolean {
+  return resp.result == null || resp.abstention_reason != null;
+}
+
 export interface HeroData {
   titulo: string;
   resultado: number;
@@ -74,8 +90,20 @@ export interface HeroData {
   respuestaTono: ResultadoTono;
 }
 
-/** Hero "respuesta de dueño": ganó/perdió + cuánto mejor/peor que el mes pasado. */
+/** Hero "respuesta de dueño": ganó/perdió + cuánto mejor/peor que el mes pasado.
+ *
+ *  PRECONDICIÓN DURA: el llamador ya verificó `!resultAbstained(resp)`. Si no, LANZA en vez de
+ *  devolver un veredicto: con `result: null`, `parseAmount` da `0` y el hero afirmaría "El negocio
+ *  ganó este mes · $0" sobre un resultado que nadie midió (web#318). Es la misma postura que el
+ *  productor toma con `unclassified_purchases` — ante la ausencia de una cifra obligatoria se
+ *  rompe, no se sirve un 0 fabricado. Romper se ve en tests y en CI; mentir le llega al dueño. */
 export function mapHero(resp: OperationalResultResponse): HeroData {
+  if (resultAbstained(resp)) {
+    throw new Error(
+      `mapHero: el resultado de ${resp.period} está abstenido (${resp.abstention_reason ?? "result: null"}); ` +
+        "el llamador debe chequear resultAbstained() y renderizar las líneas acreditadas",
+    );
+  }
   const resultado = parseAmount(resp.result);
   const gano = resultado >= 0;
   // `variation` puede faltar en respuestas parciales/estimadas → guard (no crashear la vista).

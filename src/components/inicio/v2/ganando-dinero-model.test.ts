@@ -43,4 +43,29 @@ describe("resultadoMesAnterior", () => {
   it("sin respuesta → null", () => {
     expect(resultadoMesAnterior(undefined)).toBeNull();
   });
+
+  it("período abstenido (result null) → null, nunca 'ganó' con 0% (web#318)", () => {
+    // Sin la guarda, `parseAmount(null)` daba 0 y el Inicio afirmaba "ganó" sobre un resultado que
+    // nadie midió, con margen 0% — el mismo defecto de /gestion, en la pantalla de entrada.
+    const abstenido = {
+      period: "2026-08",
+      revenue: "39443831",
+      result: null,
+      abstention_reason: "financial_integrity_partial",
+    } as unknown as OperationalResultResponse;
+    expect(resultadoMesAnterior(abstenido)).toBeNull();
+    // Gemelo positivo: el MISMO payload con cifra publicable sí rinde veredicto.
+    const publicable = {
+      ...abstenido,
+      result: "3600000",
+      abstention_reason: null,
+    } as unknown as OperationalResultResponse;
+    expect(resultadoMesAnterior(publicable)?.gano).toBe(true);
+  });
+
+  it("resultado medido de $0 sigue dando veredicto (el cero verificado no es abstención)", () => {
+    const r = resultadoMesAnterior(resp("2026-07", 40_000_000, 0))!;
+    expect(r.gano).toBe(true);
+    expect(r.resultado).toBe(0);
+  });
 });

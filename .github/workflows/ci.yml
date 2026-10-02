@@ -95,6 +95,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # `contract:check` compara los whitespace del PR contra la base (`origin/main...HEAD`), y
+          # con el checkout por defecto (profundidad 1) esa revisión no existe: el gate moría con
+          # `fatal: bad revision 'origin/main...HEAD'`. El paso sólo corre cuando cambia el
+          # snapshot del contrato, así que el defecto quedó latente hasta el primer PR que lo
+          # tocara (web#318). Con el historial completo, `origin/main` sí resuelve.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
