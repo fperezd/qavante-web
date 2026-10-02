@@ -17,8 +17,8 @@ import {
 } from "./onboarding-steps";
 
 describe("onboarding-steps — modelo del wizard", () => {
-  it("tiene 8 pasos en orden, ids únicos", () => {
-    expect(TOTAL_ONBOARDING_STEPS).toBe(8);
+  it("tiene 9 pasos en orden, ids únicos", () => {
+    expect(TOTAL_ONBOARDING_STEPS).toBe(9);
     const ids = ONBOARDING_STEPS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual([
@@ -30,6 +30,7 @@ describe("onboarding-steps — modelo del wizard", () => {
       "industry",
       "opening-balance",
       "import",
+      "ready",
     ]);
   });
 
@@ -49,8 +50,10 @@ describe("onboarding-steps — modelo del wizard", () => {
   it("stepIndex / stepNumber", () => {
     expect(stepIndex("signup")).toBe(0);
     expect(stepIndex("import")).toBe(7);
+    expect(stepIndex("ready")).toBe(8);
     expect(stepNumber("signup")).toBe(1);
     expect(stepNumber("import")).toBe(8);
+    expect(stepNumber("ready")).toBe(9);
   });
 
   it("stepByRoute matchea por ruta exacta y por prefijo", () => {
@@ -60,21 +63,25 @@ describe("onboarding-steps — modelo del wizard", () => {
     expect(stepByRoute("/otra-cosa")).toBeUndefined();
   });
 
-  it("progressPct: 1/8 = 13, último = 100", () => {
-    expect(progressPct("signup")).toBe(13);
-    expect(progressPct("import")).toBe(100);
+  it("progressPct: 1/9 = 11, último = 100", () => {
+    expect(progressPct("signup")).toBe(11);
+    expect(progressPct("ready")).toBe(100);
   });
 
   it("nextStep / prevStep en los bordes", () => {
     expect(prevStep("signup")).toBeNull();
     expect(nextStep("signup")?.id).toBe("verify-email");
-    expect(nextStep("import")).toBeNull();
+    expect(nextStep("import")?.id).toBe("ready");
+    expect(nextStep("ready")).toBeNull();
     expect(prevStep("import")?.id).toBe("opening-balance");
   });
 
   it("routeAfter: paso intermedio → siguiente; último → dashboard", () => {
     expect(routeAfter("signup")).toBe("/verificar");
-    expect(routeAfter("import")).toBe(ONBOARDING_DONE_ROUTE);
+    /* `import` ya NO es el último: cierra en la primera decisión, no en el panel. Si
+       alguien revierte el paso `ready`, este assert cae y no pasa en silencio. */
+    expect(routeAfter("import")).toBe("/onboarding/listo");
+    expect(routeAfter("ready")).toBe(ONBOARDING_DONE_ROUTE);
   });
 
   it("los pasos de conexión declaran su fuente (son los diferibles)", () => {
@@ -82,6 +89,7 @@ describe("onboarding-steps — modelo del wizard", () => {
     expect(stepById("connect-bank")?.source).toBe("bank");
     expect(stepById("industry")?.source).toBeUndefined();
     expect(stepById("import")?.source).toBeUndefined();
+    expect(stepById("ready")?.source).toBeUndefined();
   });
 
   it("routeForSource apunta al paso de cada fuente", () => {

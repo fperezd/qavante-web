@@ -25,7 +25,8 @@ export type OnboardingStepId =
   | "connect-bank"
   | "industry"
   | "opening-balance"
-  | "import";
+  | "import"
+  | "ready";
 
 export interface OnboardingStep {
   id: OnboardingStepId;
@@ -99,6 +100,17 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     label: "Traer datos",
     title: "Traemos tus datos",
     route: "/onboarding/sincronizar",
+    phase: "post-auth",
+  },
+  /* El paso que cierra el hueco: conectar fuentes no es una decisión, y el wizard
+     terminaba ahí. Acá el usuario ve su PRIMERA cifra accionable —cuánto mantener en
+     caja y cuántos días cubre— con la única acción que la mejora. No es un resumen de
+     lo que hizo; es lo que puede hacer mañana. */
+  {
+    id: "ready",
+    label: "Tu primera decisión",
+    title: "Tu primera decisión",
+    route: "/onboarding/listo",
     phase: "post-auth",
   },
 ] as const;

@@ -9,12 +9,14 @@ import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useTriggerOnboardingSync, useCompleteOnboarding } from "@/lib/api/onboarding-status";
 import { ONBOARDING_SOURCE_IDS, useOnboardingSources } from "@/lib/api/onboarding-sources";
 import { OnboardingShell } from "./onboarding-shell";
-import { ONBOARDING_CONNECTIONS_ROUTE, ONBOARDING_DONE_ROUTE } from "./onboarding-steps";
+import { ONBOARDING_CONNECTIONS_ROUTE, routeAfter } from "./onboarding-steps";
 import { ONBOARDING_SOURCE_META } from "./onboarding-source-meta";
 import { syncStatusText } from "./sync-status-text";
 
-/* Paso 7 (final) — Traer datos. Dispara la sincronización inicial (SII + banco)
-   y, al finalizar, marca el onboarding completado y lleva al dashboard. La sync
+/* Paso 8 — Traer datos. Dispara la sincronización inicial (SII + banco) y, al
+   finalizar, marca el onboarding completado y pasa al paso que SÍ cierra el wizard:
+   la primera decisión (`/onboarding/listo`). Completar acá y mostrar la cifra después
+   es deliberado — la última pantalla es el premio, no una compuerta más. La sync
    puede ser asíncrona: no bloquea: "lo seguimos trayendo en segundo plano".
    Respuesta per-source partial-success (`sources.{sii,bank}.status`).
 
@@ -23,6 +25,9 @@ import { syncStatusText } from "./sync-status-text";
    pendientes con su acceso directo al hub de conexiones. */
 
 const SOURCE_LABEL = { sii: "SII", bank: "Banco" } as const;
+
+/* Nunca una ruta literal: el modelo de pasos es el que sabe qué viene después. */
+const NEXT = routeAfter("import");
 
 export function ImportView() {
   const router = useRouter();
@@ -44,7 +49,7 @@ export function ImportView() {
        incompleto y el guard lo rebota de vuelta al wizard, sin decirle nada.
        Con el complete OK, `useCompleteOnboarding` deja el status nuevo en la
        cache compartida → el guard ya lo lee completado y no redirige. */
-    complete.mutate(undefined, { onSuccess: () => router.push(ONBOARDING_DONE_ROUTE) });
+    complete.mutate(undefined, { onSuccess: () => router.push(NEXT) });
   }
 
   const synced = sync.isSuccess;
@@ -151,7 +156,7 @@ export function ImportView() {
         )}
 
         <QavanteButton size="lg" loading={complete.isPending} onClick={finish}>
-          {complete.isError ? "Reintentar" : "Ir a mi panel"}
+          {complete.isError ? "Reintentar" : "Ver mi primera decisión"}
         </QavanteButton>
       </div>
     </OnboardingShell>
