@@ -391,15 +391,6 @@ export function BancoV03View({
             </p>
           </>
         )}
-
-        {/* (2) Conectar otro banco */}
-        <Banner>
-          ¿Tienes cuentas en otro banco? Conéctalo y las vas a ver acá, junto a estas, con sus
-          movimientos y su estado.
-          <Link href="/conexiones" className={cn(PILL_OSCURA, "mt-2 sm:mt-0 sm:ml-3")}>
-            Conectar otro banco
-          </Link>
-        </Banner>
       </section>
 
       {/* (3) Filtros + (4) Movimientos */}

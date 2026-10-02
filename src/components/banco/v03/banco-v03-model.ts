@@ -290,6 +290,15 @@ function conPendientes(frescura: string, porConciliar: number | null): string {
   return `${frescura} · ${porConciliar} ${porConciliar === 1 ? "movimiento" : "movimientos"} por conciliar`;
 }
 
+/** Las cuentas se piden con las desactivadas para conservar la moneda de movimientos antiguos,
+ *  pero una cuenta desactivada (p. ej. la histórica del conector anterior) no es un producto
+ *  vigente: listarla mostraría su último saldo como si existiera hoy. */
+function cuentasVigentes(
+  cuentas: readonly BankAccountItem[] | null | undefined,
+): readonly BankAccountItem[] {
+  return (cuentas ?? []).filter((a) => a.active !== false);
+}
+
 export interface CuentasInput {
   banco: string;
   saldo: SaldoResponse | null | undefined;
@@ -338,7 +347,7 @@ export function cuentasV03(input: CuentasInput): CuentaV03[] {
       : conexion.estado === "actualizando"
         ? textoActualizando(conexion, hoy)
         : "El banco no informó el saldo de esta cuenta.";
-  return (cuentasQavante ?? [])
+  return cuentasVigentes(cuentasQavante)
     .filter((a) => a.account_type !== "credit_card")
     .map((a) => {
       const porConciliar = pendientes ? (pendientes.get(a.id) ?? 0) : null;
@@ -415,7 +424,7 @@ export function tarjetasV03(
     }
   }
   if (out.length > 0) return out;
-  return (cuentasQavante ?? [])
+  return cuentasVigentes(cuentasQavante)
     .filter((a) => a.account_type === "credit_card")
     .map((a) => {
       const monto = parseAmountOrNull(a.balance);

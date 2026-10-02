@@ -248,6 +248,22 @@ describe("cuentasV03 — la tabla de cuentas", () => {
     expect(filas[0]!.sub).toBe("actualizada hoy");
   });
 
+  it("sin conector de saldo, una cuenta desactivada no aparece con su último saldo", () => {
+    const [vigente, ...resto] = cuentasQavante();
+    const historica = { ...vigente!, id: "cuenta-historica", balance: "-2788872", active: false };
+    const filas = cuentasV03({
+      banco: BANCO,
+      saldo: null,
+      cuentasQavante: [vigente!, historica, ...resto],
+      links: null,
+      conexion: conexionOk,
+      pendientes: null,
+      hoy: HOY,
+    });
+    expect(filas.map((f) => f.key)).not.toContain("qavante:cuenta-historica");
+    expect(filas.map((f) => f.key)).toContain(`qavante:${vigente!.id}`);
+  });
+
   it("parcial(): los últimos 4 caracteres visibles", () => {
     expect(parcial("12-34567-8")).toBe("···67-8");
     expect(parcial("9876543210")).toBe("···3210");

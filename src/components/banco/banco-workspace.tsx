@@ -5,6 +5,8 @@ import { BancoView } from "@/components/banco/banco-view";
 import { FintocBankActions } from "@/components/banco/fintoc-bank-actions";
 import { QavanteBankConnectWidget } from "@/components/banco/qavante-bank-connect-widget";
 import { BancoV03Live } from "@/components/banco/v03/banco-v03-live";
+import { useCompanyScope } from "@/components/shell/company-scope";
+import { useCompanyHasConnectedBank } from "@/lib/api/fintoc-connections";
 
 export function BancoWorkspace({
   bancoV03,
@@ -15,6 +17,9 @@ export function BancoWorkspace({
   initialAccountId?: string;
   initialMovementId?: string;
 }) {
+  const { activeCompanyId } = useCompanyScope();
+  // Los bancos se administran por sociedad en Administración; acá sólo se ofrece el primero.
+  const sinBanco = useCompanyHasConnectedBank(activeCompanyId) === false;
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -38,7 +43,7 @@ export function BancoWorkspace({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3 self-start sm:justify-end sm:self-auto">
-          <QavanteBankConnectWidget />
+          {sinBanco ? <QavanteBankConnectWidget /> : null}
           <FintocBankActions />
         </div>
       </header>

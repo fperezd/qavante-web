@@ -26,6 +26,7 @@ import { QavanteButton } from "@/components/qavante";
 import { useCompanyScope } from "@/components/shell/company-scope";
 import { type LegalEntity } from "@/lib/api/legal-entities";
 import { normalizeRut } from "@/lib/validators/rut";
+import { fintocConnectionKeys } from "@/lib/api/fintoc-connections";
 
 export function notifyFintocCompletion(
   result: FintocCompletionResult,
@@ -96,6 +97,7 @@ export function QavanteBankConnectWidget({
       qc.invalidateQueries({ queryKey: sourcesStatusKeys.all }),
       qc.invalidateQueries({ queryKey: onboardingStatusKeys.status }),
       qc.invalidateQueries({ queryKey: treasuryKeys.all }),
+      qc.invalidateQueries({ queryKey: fintocConnectionKeys.all }),
     ]);
     await qc.refetchQueries({ queryKey: onboardingStatusKeys.status }).catch(() => undefined);
   };

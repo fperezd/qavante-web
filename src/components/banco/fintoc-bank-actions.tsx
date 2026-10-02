@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
+import { useCompanyHasConnectedBank } from "@/lib/api/fintoc-connections";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import {
@@ -30,36 +31,7 @@ export function FintocBankActions() {
   const consent = useSourceConsent(BANK_SOURCE_CODE);
   const accept = useAcceptSourceConsent(BANK_SOURCE_CODE);
   const [syncing, setSyncing] = useState(false);
-  const [hasRealConnection, setHasRealConnection] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!activeCompanyId) {
-      setHasRealConnection(false);
-      return;
-    }
-    api
-      .get<Array<{ status: string; data_source: string }>>("/api/fintoc/connections", {
-        headers: explicitCompanyRequestHeaders(activeCompanyId),
-      })
-      .then((connections) => {
-        if (!cancelled) {
-          setHasRealConnection(
-            connections.some(
-              (connection) =>
-                connection.status.toLowerCase() === "connected" &&
-                connection.data_source.toLowerCase() === "fintoc",
-            ),
-          );
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setHasRealConnection(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeCompanyId]);
+  const hasRealConnection = useCompanyHasConnectedBank(activeCompanyId) === true;
 
   const valid = consent.data?.is_valid === true;
   const missing = !valid ? (consent.data as ConsentMissingResponse | undefined) : undefined;

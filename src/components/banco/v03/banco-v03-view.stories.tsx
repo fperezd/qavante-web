@@ -41,7 +41,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V03 · Banco (ESPECIFICACION §V03): "Caja hoy" (la misma función que V01/V02), tabla de cuentas con frescura + pill de conexión + saldo según el banco, banner "conectar otro banco", filtros con conteo y tabla de movimientos con su ciclo de vida. "Actualizando" muestra ETA/etapa sólo si la fuente los publica; con inicio sin ETA declara esa ausencia.',
+          'V03 · Banco (ESPECIFICACION §V03): "Caja hoy" (la misma función que V01/V02), tabla de cuentas con frescura + pill de conexión + saldo según el banco, filtros con conteo y tabla de movimientos con su ciclo de vida. "Actualizando" muestra ETA/etapa sólo si la fuente los publica; con inicio sin ETA declara esa ausencia.',
       },
     },
   },
