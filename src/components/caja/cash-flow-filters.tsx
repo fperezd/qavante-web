@@ -8,9 +8,16 @@ import type {
   CashFlowGranularity,
   CashFlowReportParams,
 } from "@/lib/api/treasury-reports";
-import { buildMonthOptions, isValidPeriodRange } from "./cash-flow-format";
+import {
+  buildMonthOptions,
+  cashFlowQuickRanges,
+  isValidPeriodRange,
+  matchCashFlowQuickRange,
+} from "./cash-flow-format";
 
 /* Controles de filtros del cash-flow report.
+   - Atajos de período (este mes / 3 meses / 6 meses / este año), que fijan rango y
+     granularidad de una y consultan al tiro
    - Periodo from/to (YYYY-MM)
    - Granularity (month / week / day)
    - Financial layer (committed / budget / forecast / scenario / ...)
@@ -58,6 +65,10 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
   /* Opciones de mes (MM-AAAA visible, YYYY-MM como value) para los selects de
      rango. Se calculan una vez al montar. */
   const monthOptions = React.useMemo(() => buildMonthOptions(), []);
+  /* Los atajos y el que está activo se resuelven contra el mismo "ahora" que las opciones
+     de mes: se calculan una vez al montar para que el botón marcado no baile. */
+  const quickRanges = React.useMemo(() => cashFlowQuickRanges(), []);
+  const activeQuickRange = matchCashFlowQuickRange(value);
 
   const rangeValid = isValidPeriodRange(draft.period_from, draft.period_to);
   const dirty =
@@ -72,12 +83,54 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
     onChange(draft);
   }
 
+  /* Un atajo no es un borrador: fija rango + granularidad y consulta en el mismo clic.
+     Pedir después "Aplicar" convertiría un atajo en dos pasos. La capa queda como está:
+     el atajo habla de cuándo, no de qué capa. */
+  function handleQuickRange(range: ReturnType<typeof cashFlowQuickRanges>[number]) {
+    const next: CashFlowReportParams = {
+      ...draft,
+      period_from: range.period_from,
+      period_to: range.period_to,
+      granularity: range.granularity,
+    };
+    setDraft(next);
+    onChange(next);
+  }
+
   return (
     <form
       onSubmit={handleApply}
       noValidate
       className="space-y-3 rounded-xl border border-border bg-surface-muted p-3"
     >
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          id="cf-quick-label"
+          className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+        >
+          Período
+        </span>
+        <div role="group" aria-labelledby="cf-quick-label" className="flex flex-wrap gap-2">
+          {quickRanges.map((range) => (
+            <button
+              key={range.key}
+              type="button"
+              onClick={() => handleQuickRange(range)}
+              aria-pressed={activeQuickRange === range.key}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+                activeQuickRange === range.key
+                  ? "border-brand-primary bg-brand-primary text-white"
+                  : "border-border bg-surface text-neutral-dark hover:bg-surface-muted",
+              )}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <div className="space-y-1">
           <label

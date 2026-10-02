@@ -89,6 +89,13 @@ export const FEATURE_FLAGS = [
      Pagar y Cobrar. ON en producción desde #301 (override `NEXT_PUBLIC_FF_DECISION_BRIEF`
      en `wrangler.toml`); no existe fallback de cliente. */
   "decisionBrief",
+  /* Flujo de caja histórico (`/flujo-de-caja`): lo que entró y salió de verdad en el período
+     elegido, separado de Proyecciones (lo que todavía no pasó). Default OFF. */
+  "flujoDeCaja",
+  /* Maquetas de experiencia (`/maquetas`): recorrido navegable de propuestas de pantalla con
+     cifras de ejemplo. Default OFF, y nunca montado encima de una pantalla con datos reales:
+     una maqueta y una cifra real no comparten superficie. */
+  "maquetasUx",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -498,6 +505,18 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      qavante-api#467 integre los productores live y su smoke productivo quede aprobado. */
   simuladorV14: "/api/treasury/simulations/evaluate",
   decisionBrief: "/api/treasury/decision-brief",
+  /* Flujo de caja histórico: el mismo reporte agregado que alimenta Proyecciones, leído sobre la
+     capa comprometida. Comparte endpoint con `cashFlowReport`, así que `FLAG_GATING_FIELD`
+     declara qué lo distingue: el desglose por categoría dentro de cada período. Sin eso la
+     pantalla contesta "cuánto entró y salió" pero no "en qué", que es la mitad por la que un
+     financiero abre una lectura histórica. */
+  flujoDeCaja: "/api/treasury/reports/cash-flow",
+  /* Las maquetas no leen ningún contrato: sus cifras son de ejemplo y lo declaran en pantalla.
+     El mapping apunta a la lectura que las volvería reales, y su campo es el que la versión
+     original de estas pantallas se agregó sola al tipo del reporte sin que exista en ninguna
+     respuesta: el detalle movimiento por movimiento. Mientras el reporte publique sólo
+     agregados, estas pantallas se quedan donde están. */
+  maquetasUx: "/api/treasury/reports/cash-flow",
 };
 
 /** Campo de contrato que un consumidor necesita además del endpoint. La identidad de gating es
@@ -507,6 +526,11 @@ export const FLAG_GATING_FIELD: Partial<Record<FeatureFlag, string>> = {
   impuestosV06: "estimable",
   bankBalances: "balance",
   cajaDashboard: "bank_name",
+  /* Desglose por categoría dentro de cada período (`group_by=canonical_category`): lo que
+     distingue la lectura histórica del total agregado que ya consume Proyecciones. */
+  flujoDeCaja: "buckets[].groups",
+  /* Detalle movimiento por movimiento. No existe en ninguna respuesta del reporte. */
+  maquetasUx: "transactions",
 };
 
 export function flagGatingIdentity(flag: FeatureFlag): string {

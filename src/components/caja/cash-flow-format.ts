@@ -137,6 +137,73 @@ export function isValidPeriodRange(from: string, to: string): boolean {
   return isValidPeriod(from) && isValidPeriod(to) && from <= to;
 }
 
+/* ── Rangos de un clic ────────────────────────────────────────────
+   Los cuatro controles crudos del panel (desde / hasta / granularidad / capa) obligan a
+   armar el período a mano antes de ver una sola cifra. Estos atajos resuelven el caso
+   frecuente en un clic y eligen la granularidad que hace legible ese largo: día para un
+   mes, semana para un trimestre, mes para medio año o más. Los controles explícitos siguen
+   ahí para quien necesita otro rango, otra granularidad u otra capa. */
+
+export type CashFlowQuickRangeKey = "mes" | "trimestre" | "semestre" | "anio";
+
+export interface CashFlowQuickRange {
+  key: CashFlowQuickRangeKey;
+  label: string;
+  period_from: string;
+  period_to: string;
+  granularity: "month" | "week" | "day";
+}
+
+function periodoDe(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Los atajos de período, ya resueltos contra `now`. Todos terminan en el mes en curso:
+    son lecturas de lo que YA pasó, así que ninguno se extiende a meses futuros. */
+export function cashFlowQuickRanges(now: Date = new Date()): CashFlowQuickRange[] {
+  const hasta = periodoDe(now);
+  const mesesAtras = (n: number) => periodoDe(new Date(now.getFullYear(), now.getMonth() - n, 1));
+  return [
+    { key: "mes", label: "Este mes", period_from: hasta, period_to: hasta, granularity: "day" },
+    {
+      key: "trimestre",
+      label: "Últimos 3 meses",
+      period_from: mesesAtras(2),
+      period_to: hasta,
+      granularity: "week",
+    },
+    {
+      key: "semestre",
+      label: "Últimos 6 meses",
+      period_from: mesesAtras(5),
+      period_to: hasta,
+      granularity: "month",
+    },
+    {
+      key: "anio",
+      label: "Este año",
+      period_from: `${now.getFullYear()}-01`,
+      period_to: hasta,
+      granularity: "month",
+    },
+  ];
+}
+
+/** El atajo que describe exactamente este rango + granularidad, o `null` si el usuario
+    armó uno propio. Sirve para marcar el botón activo sin guardar estado paralelo. */
+export function matchCashFlowQuickRange(
+  params: { period_from: string; period_to: string; granularity?: "month" | "week" | "day" },
+  now: Date = new Date(),
+): CashFlowQuickRangeKey | null {
+  const found = cashFlowQuickRanges(now).find(
+    (r) =>
+      r.period_from === params.period_from &&
+      r.period_to === params.period_to &&
+      r.granularity === (params.granularity ?? "week"),
+  );
+  return found ? found.key : null;
+}
+
 /* ── Moneda sin procedencia verificada (#370 v1, qavante-api#905) ─────────────
    El reporte suma sólo impactos cuya moneda tiene procedencia verificada. Los
    demás quedan FUERA de toda suma: `excluded_unverified_currency` los cuenta (es

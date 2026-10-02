@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { QavanteCard, QavanteBadge } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
@@ -157,12 +158,22 @@ export function CashFlowTable({ data }: CashFlowTableProps) {
           </div>
         )}
 
+        {/* El texto anterior nombraba el campo de transporte (`requires_attention`) y manda-
+            ba activar un filtro que esta pantalla no tiene: el panel dejó `include_attention`
+            fuera del alcance. Una instrucción hacia un control inexistente deja al dueño
+            buscando algo que no está, así que se declara el efecto sobre la cifra y se ofrece
+            la acción que sí existe: revisar esos movimientos. */}
         {data.excluded_attention > 0 && (
           <p className="text-xs text-neutral-mid">
-            Se omitieron {data.excluded_attention}{" "}
-            {data.excluded_attention === 1 ? "fila" : "filas"} marcadas como
-            <code className="mx-1">requires_attention</code>. Activa &laquo;Incluir con atención
-            requerida&raquo; en filtros si quieres verlas.
+            {data.excluded_attention === 1
+              ? "1 movimiento quedó fuera de estos totales porque su clasificación necesita revisión."
+              : `${data.excluded_attention} movimientos quedaron fuera de estos totales porque su clasificación necesita revisión.`}{" "}
+            <Link
+              href="/caja/por-clasificar"
+              className="font-semibold text-brand-primary hover:underline"
+            >
+              Revisar esos movimientos
+            </Link>
           </p>
         )}
 
