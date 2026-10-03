@@ -14,9 +14,11 @@ describe("Cobrado · cobertura de conciliación", () => {
       />,
     );
 
-    expect(html).toContain("Sin información");
-    expect(html).toContain("Cobros sin verificar");
-    expect(html).toContain("trazabilidad de conciliación");
+    // No un monto inventado, y tampoco "Sin información": una acción concreta y el camino.
+    expect(html).toContain("Conciliación por cerrar");
+    expect(html).toContain("conciliado con su movimiento de banco");
+    expect(html).toContain('href="/banco"');
     expect(html).not.toContain("$0");
+    expect(html).not.toContain("Sin información");
   });
 });

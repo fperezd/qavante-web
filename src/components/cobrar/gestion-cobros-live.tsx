@@ -12,15 +12,23 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 import {
+  type AccountsReceivableResponse,
   type CollectionReminderItemResult,
   type ReceivableDocumentItem,
   type ReceivableDocumentsResponse,
+  useAccountsReceivable,
   useReceivableDocuments,
   useSendCollectionReminders,
 } from "@/lib/api/cobranza";
-import { formatMoneyFromDecimalString } from "@/lib/formatters/clp";
-import { MONTO_EN_REVISION } from "@/lib/formatters/amount";
+import { formatClp, formatMoneyFromDecimalString } from "@/lib/formatters/clp";
+import { formatPct } from "@/lib/formatters/pct";
+import {
+  MONTO_EN_REVISION,
+  formatClpODesconocido,
+  parseAmountOrNull,
+} from "@/lib/formatters/amount";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
 
@@ -61,28 +69,139 @@ export function formatCollectionMoney(
     .join(" · ");
 }
 
+/* ── Los tres recuadros de arriba ────────────────────────────────────────────────────────────
+ *
+ * EL CERO FABRICADO, medido en producción el 2026-10-02 (tenant Tooxs): la cartera tenía
+ * $44.829.044 por cobrar en 22 documentos y **ninguno** con fecha de vencimiento, así que
+ * `/accounts-receivable` respondía `overdue: null` y `/documents` respondía `overdue: []`.
+ * Un arreglo vacío pasaba por `formatCollectionMoney` y salía "$0": la pantalla afirmaba
+ * "no tienes nada vencido" sobre una cartera entera. El contrato lo dice con todas las letras
+ * ("`null` ... es 'no sé', no '$0'"), pero el recuadro leía el endpoint que no sabe decirlo.
+ *
+ * POR QUÉ ESTOS RECUADROS LEEN `/accounts-receivable` Y NO `/documents`: `/documents` publica
+ * `overdue` como lista NO nullable, así que no tiene forma de distinguir "nada vencido" de
+ * "todavía no se puede calcular". Los dos llegan como `[]`. El resumen agregado sí distingue,
+ * y además trae `undated_amount` y `document_count`, que son las dos cifras con las que se
+ * explica el caso. Es la misma fuente que ya usa V04 y "Te deben" de Inicio (Ley 1: un número,
+ * una definición).
+ *
+ * Y LAS PALABRAS: nunca "no disponible", "sin dato", "no hay", "preliminar" ni una etiqueta de
+ * confianza. Siempre una cifra y de qué está hecha, o una acción concreta. Acá la acción es
+ * traer las fechas del SII, porque no existe —hoy— pantalla para escribirlas a mano: el
+ * vencimiento viaja en el XML del DTE y el RCV no lo trae. */
+
+/** La única acción que de verdad cierra el hueco: las fechas llegan del SII, no del teclado. */
+const ACCION_TRAER_FECHAS = {
+  texto: "Revisar la conexión con el SII",
+  href: "/conexiones",
+} as const;
+
+export type RecuadroCobranza = {
+  value: string;
+  detail?: string;
+  note?: string;
+  accion?: { texto: string; href: string };
+};
+
+/** `undated_amount` en pesos, o `null`. Es la plata viva SIN vencimiento confirmado: la que
+ *  queda fuera del aging y por la que `overdue` puede venir sin computar. */
+function sinFechaDe(ar: AccountsReceivableResponse): number | null {
+  return parseAmountOrNull(ar.undated_amount);
+}
+
+function documentos(n: number) {
+  return `${n} ${n === 1 ? "documento" : "documentos"}`;
+}
+
+export function recuadroVencido(ar: AccountsReceivableResponse): RecuadroCobranza {
+  const vencido = parseAmountOrNull(ar.overdue);
+  const sinFecha = sinFechaDe(ar);
+  const faltan = sinFecha != null && sinFecha > 0;
+
+  if (vencido == null) {
+    // El backend no pudo computar la mora porque los documentos no tienen fecha. Se dice la
+    // cifra que SÍ se conoce —la cartera y de cuántos documentos está hecha— y qué falta para
+    // separar el vencido. Jamás "$0" ni un rótulo de confianza.
+    return {
+      value: `${formatClpODesconocido(ar.total, ar.amount_unknown_reason)} por cobrar`,
+      detail: documentos(ar.document_count),
+      note: "Lo vencido se separa con la fecha de vencimiento de cada factura. El SII la entrega en el XML del DTE y el RCV no la trae, así que entra con la sincronización.",
+      accion: ACCION_TRAER_FECHAS,
+    };
+  }
+
+  const pct = parseAmountOrNull(ar.overdue_pct);
+  return {
+    value: formatClpODesconocido(ar.overdue, ar.amount_unknown_reason),
+    detail: pct != null ? `${formatPct(pct)} de la cartera` : documentos(ar.document_count),
+    // Un vencido conocido puede ser un PISO: la plata sin fecha no está en ningún tramo.
+    note: faltan
+      ? `${formatClp(sinFecha)} se suman a esta cifra en cuanto el SII entregue sus fechas de vencimiento.`
+      : undefined,
+    accion: faltan ? ACCION_TRAER_FECHAS : undefined,
+  };
+}
+
+export function recuadroPorCobrar(
+  docs: Pick<ReceivableDocumentsResponse, "due_soon">,
+  ar: AccountsReceivableResponse,
+): RecuadroCobranza {
+  const sinFecha = sinFechaDe(ar);
+  const total = parseAmountOrNull(ar.total);
+  // Lo que ya tiene fecha y por lo tanto PUEDE caer en una ventana de 7 días.
+  const agendable = total != null && sinFecha != null ? total - sinFecha : null;
+
+  if (agendable != null && agendable <= 0 && sinFecha != null && sinFecha > 0) {
+    // Sin una sola fecha en la cartera, "próximos 7 días" no es un cero medido: es la cartera
+    // completa esperando fecha. Eso es lo que dice el recuadro.
+    return {
+      value: `${formatClp(sinFecha)} por agendar`,
+      detail: documentos(ar.document_count),
+      note: "Con las fechas cargadas, acá aparece lo que entra en los próximos 7 días.",
+      accion: ACCION_TRAER_FECHAS,
+    };
+  }
+
+  return {
+    value: formatCollectionMoney(docs.due_soon),
+    detail: "Próximos 7 días",
+    note:
+      sinFecha != null && sinFecha > 0
+        ? `${formatClp(sinFecha)} quedan fuera de esta ventana hasta que tengan fecha de vencimiento.`
+        : undefined,
+    accion: sinFecha != null && sinFecha > 0 ? ACCION_TRAER_FECHAS : undefined,
+  };
+}
+
 export function collectedMetric(
   data: Pick<ReceivableDocumentsResponse, "collected" | "collected_coverage" | "collected_reason">,
-) {
+): RecuadroCobranza {
   if (data.collected != null) {
     return { value: formatCollectionMoney(data.collected), detail: "Últimos 7 días" };
   }
 
+  // `collected: null` = la trazabilidad de conciliación no alcanza para afirmar un monto. Antes
+  // acá se leía "Sin información", que no dice qué hacer ni qué se sabe. La cifra existe del
+  // otro lado de la conciliación, así que el recuadro lleva a cerrarla.
+  const comun = {
+    detail: "Últimos 7 días",
+    accion: { texto: "Ir a Banco y conciliar", href: "/banco" },
+  };
   if (
     data.collected_coverage === "unverified_legacy_collections" &&
     data.collected_reason === "legacy_collection_lineage_unavailable"
   ) {
     return {
-      value: "Sin información",
-      detail: "Cobros sin verificar",
-      note: "No podemos verificar los cobros históricos hasta contar con su trazabilidad de conciliación.",
+      ...comun,
+      value: "Conciliación por cerrar",
+      note: "Los cobros históricos se suman acá en cuanto cada uno quede conciliado con su movimiento de banco.",
     };
   }
 
   return {
-    value: "Sin información",
-    detail: "Cobros sin verificar",
-    note: "No tenemos evidencia suficiente para verificar los cobros de este período.",
+    ...comun,
+    value: "Conciliación por cerrar",
+    note: "Los cobros de estos 7 días se suman acá en cuanto queden conciliados con sus movimientos de banco.",
   };
 }
 
@@ -141,6 +260,10 @@ export function GestionCobrosLive({
   suppressRecommendations?: boolean;
 } = {}) {
   const query = useReceivableDocuments();
+  // Segunda fuente, SÓLO para los tres recuadros: es la única que distingue "nada vencido" de
+  // "todavía sin fecha" (ver el bloque de `recuadroVencido`). La lista de abajo sigue saliendo
+  // de `/documents`, que es quien pagina y filtra.
+  const resumen = useAccountsReceivable();
   const send = useSendCollectionReminders();
   const [search, setSearch] = React.useState("");
   const [status, setStatus] = React.useState<StatusFilter>("collectable");
@@ -208,7 +331,7 @@ export function GestionCobrosLive({
     }
   };
 
-  if (query.isLoading) return <CobrosSkeleton />;
+  if (query.isLoading || resumen.isLoading) return <CobrosSkeleton />;
   if (query.isError || !query.data) {
     return (
       <div className="rounded-xl border border-border bg-surface p-8 text-center">
@@ -230,18 +353,34 @@ export function GestionCobrosLive({
       data-recommendations-suppressed={suppressRecommendations || undefined}
     >
       <section className="grid gap-4 md:grid-cols-3" aria-label="Resumen de cobranza">
-        <MetricCard
-          icon={AlertCircle}
-          label="Vencido"
-          value={formatCollectionMoney(query.data.overdue)}
-          danger
-        />
-        <MetricCard
-          icon={HandCoins}
-          label="Por cobrar"
-          detail="Próximos 7 días"
-          value={formatCollectionMoney(query.data.due_soon)}
-        />
+        {resumen.data ? (
+          <>
+            <MetricCard
+              icon={AlertCircle}
+              label="Vencido"
+              danger
+              {...recuadroVencido(resumen.data)}
+            />
+            <MetricCard
+              icon={HandCoins}
+              label="Por cobrar"
+              {...recuadroPorCobrar(query.data, resumen.data)}
+            />
+          </>
+        ) : (
+          // El resumen agregado no llegó. NO se cae de vuelta a `/documents`: ahí `overdue: []`
+          // volvería a pintar "$0" sobre una cartera sin fechar, que es justo el cero que este
+          // componente dejó de fabricar. Se ofrece reintentar y la lista de abajo sigue entera.
+          <MetricCard
+            icon={AlertCircle}
+            label="Vencido"
+            detail="Por cobrar"
+            value="Volver a calcular"
+            note="La lista de documentos de abajo está completa; el resumen de la cartera se recalcula al reintentar."
+            onRetry={() => void resumen.refetch()}
+            danger
+          />
+        )}
         <CollectedMetricCard data={query.data} />
       </section>
 
@@ -442,16 +581,9 @@ export function CollectedMetricCard({
 }: {
   data: Pick<ReceivableDocumentsResponse, "collected" | "collected_coverage" | "collected_reason">;
 }) {
-  const collected = collectedMetric(data);
-  return (
-    <MetricCard
-      icon={CircleDollarSign}
-      label="Cobrado"
-      detail={collected.detail}
-      value={collected.value}
-      note={collected.note}
-    />
-  );
+  // Se esparce el modelo completo: enumerar los campos a mano fue lo que dejó la acción del
+  // recuadro sin renderizar, o sea el camino concreto perdido justo donde más hace falta.
+  return <MetricCard icon={CircleDollarSign} label="Cobrado" {...collectedMetric(data)} />;
 }
 
 function MetricCard({
@@ -460,13 +592,13 @@ function MetricCard({
   value,
   detail,
   note,
+  accion,
+  onRetry,
   danger = false,
-}: {
+}: RecuadroCobranza & {
   icon: React.ElementType;
   label: string;
-  value: string;
-  detail?: string;
-  note?: string;
+  onRetry?: () => void;
   danger?: boolean;
 }) {
   return (
@@ -490,6 +622,23 @@ function MetricCard({
         {value}
       </p>
       {note && <p className="mt-2 text-xs leading-relaxed text-neutral-mid">{note}</p>}
+      {accion && (
+        <Link
+          href={accion.href}
+          className="mt-3 inline-block text-xs font-semibold text-brand-primary hover:underline"
+        >
+          {accion.texto}
+        </Link>
+      )}
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 text-xs font-semibold text-brand-primary hover:underline"
+        >
+          Reintentar
+        </button>
+      )}
     </div>
   );
 }

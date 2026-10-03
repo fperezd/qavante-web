@@ -9,9 +9,12 @@ test.describe("Flujo: Gestión de cobros documental (/cobrar)", () => {
 
   test("publica KPIs y documentos sin mezclar las monedas", async ({ page }) => {
     await expect(page.getByRole("heading", { level: 1, name: "Gestión de cobros" })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Resumen de cobranza" })).toContainText(
-      "$4.000.000",
-    );
+    // El Vencido sale de `GET /accounts-receivable` ($7.900.000 · 31,9%) y NO del `overdue` de
+    // `/documents` ($4.000.000): el agregado es el único que puede publicar `null` cuando la
+    // cartera no tiene fechas, y es el mismo número que "Te deben" en Inicio (Ley 1).
+    const resumen = page.getByRole("region", { name: "Resumen de cobranza" });
+    await expect(resumen).toContainText("$7.900.000");
+    await expect(resumen).toContainText("31,9% de la cartera");
     await expect(page.getByRole("row", { name: /Constructora Andes SpA/ })).toBeVisible();
     await expect(page.getByRole("row", { name: /Comercial del Sur Ltda/ })).toBeVisible();
   });
