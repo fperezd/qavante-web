@@ -62,8 +62,53 @@ jobs:
       - if: steps.token.outputs.available == 'true'
         run: npm ci
       - if: steps.token.outputs.available == 'true'
+        id: chromatic
         uses: chromaui/action@v11
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           exitZeroOnChanges: true
           onlyChanged: ${{ !(github.event_name == 'workflow_dispatch' && inputs.full_rebaseline) }}
+
+      # Un build "limitado" por cuota agotada NO falla: Chromatic lo informa como aviso en el
+      # log y la acción sale 0, así que el check queda VERDE sin haber comparado nada. Eso pasó
+      # durante todo octubre de 2026 (build 2394 de main: «Snapshot quota reached», check
+      # `success`) y nadie lo vio, porque el aviso vive en la línea 300 de un log que nadie abre.
+      #
+      # Este paso no bloquea a propósito. Bloquear no devuelve la protección visual —ya no está—,
+      # sólo frena el trabajo. Lo que faltaba no era un portón, era que no se pueda ignorar: un
+      # `::error::` sale como anotación en la pestaña de checks del PR incluso con el job en
+      # verde, y el resumen queda en la portada de la corrida.
+      #
+      # El detector usa los contadores de la propia acción, no texto del log: `specCount` son las
+      # stories publicadas y `actualCaptureCount` las capturas que de verdad ocurrieron. Cero
+      # capturas con stories publicadas es exactamente «no se comparó nada». Un build filtrado
+      # por TurboSnap que no capturó nada porque nada cambió informa `specCount` igual, así que
+      # el caso legítimo se distingue por `inheritedCaptureCount`.
+      - name: Declarar si el build no comparó nada
+        if: always() && steps.token.outputs.available == 'true'
+        env:
+          SPECS: ${{ steps.chromatic.outputs.specCount }}
+          CAPTURED: ${{ steps.chromatic.outputs.actualCaptureCount }}
+          INHERITED: ${{ steps.chromatic.outputs.inheritedCaptureCount }}
+          BUILD_URL: ${{ steps.chromatic.outputs.buildUrl }}
+        run: |
+          specs="${SPECS:-0}"; captured="${CAPTURED:-0}"; inherited="${INHERITED:-0}"
+          echo "specCount=$specs actualCaptureCount=$captured inheritedCaptureCount=$inherited"
+          {
+            echo "### Chromatic"
+            echo ""
+            echo "| stories publicadas | capturadas ahora | heredadas de la línea base |"
+            echo "|---|---|---|"
+            echo "| $specs | $captured | $inherited |"
+            echo ""
+            echo "[Ver build]($BUILD_URL)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$specs" -gt 0 ] && [ "$captured" -eq 0 ] && [ "$inherited" -eq 0 ]; then
+            echo "::error title=Chromatic no comparó nada::El build publicó $specs stories y capturó 0, sin heredar ninguna de la línea base. Causa típica: cuota de snapshots agotada (el plan Free son 5.000 al mes y un build sin TurboSnap gasta ~862). Este check está en verde pero NO hay prueba visual de este cambio. Ver $BUILD_URL"
+            {
+              echo ""
+              echo "> **Este check está en verde y no comparó nada.** $specs stories publicadas, 0"
+              echo "> capturadas, 0 heredadas. Revisa la cuota de snapshots antes de confiar en"
+              echo "> este verde."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
