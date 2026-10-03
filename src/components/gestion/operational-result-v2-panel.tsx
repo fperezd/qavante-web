@@ -48,10 +48,10 @@ export function OperationalResultV2Panel() {
         className="rounded-xl border border-warning-500/30 bg-warning-500/5 p-4"
         role="status"
       >
-        <h2 className="font-semibold text-neutral-dark">Resultado operacional canónico</h2>
+        <h2 className="font-semibold text-neutral-dark">Resultado operacional</h2>
         <p className="mt-1 text-sm text-neutral-mid">
           No está disponible para este corte. Conservamos el detalle histórico, pero no afirmamos
-          una cifra canónica con información incompleta.
+          una cifra con información incompleta.
         </p>
       </section>
     );
@@ -68,7 +68,7 @@ export function OperationalResultV2View({ response }: { response: OperationalRes
         className="rounded-xl border border-warning-500/30 bg-warning-500/5 p-4"
         role="status"
       >
-        <h2 className="font-semibold text-neutral-dark">Resultado operacional canónico</h2>
+        <h2 className="font-semibold text-neutral-dark">Resultado operacional</h2>
         <p className="mt-1 text-sm text-neutral-mid">
           Qavante se abstuvo de publicar el resultado porque las fuentes requeridas no acreditan una
           lectura completa para este corte.
@@ -92,7 +92,7 @@ export function OperationalResultV2View({ response }: { response: OperationalRes
             Una definición para toda Qavante
           </p>
           <h2 id="resultado-v2-title" className="mt-1 text-lg font-semibold text-neutral-dark">
-            Resultado operacional canónico
+            Resultado operacional
           </h2>
           <p className="mt-1 text-sm text-neutral-mid">
             {statement.scope.period_from} a {statement.scope.period_to} · base devengada · CLP

@@ -65,7 +65,9 @@ function fixture(): OperationalResultV2Response {
 describe("OperationalResultV2View", () => {
   it("presenta la definición aprobada y sus componentes sin doble suma", () => {
     const text = renderToStaticMarkup(<OperationalResultV2View response={fixture()} />);
-    expect(text).toContain("Resultado operacional canónico");
+    expect(text).toContain("Resultado operacional");
+    // "canónico" es vocabulario interno: no vuelve a pantalla (issue de copy, 2026-10-03).
+    expect(text).not.toContain("canónic");
     expect(text).toContain("Costo Directo");
     expect(text).toContain("$3.500.000");
     expect(text).toContain("Remuneraciones");
@@ -92,6 +94,7 @@ describe("OperationalResultV2View", () => {
     };
     const text = renderToStaticMarkup(<OperationalResultV2View response={response} />);
     expect(text).toContain("se abstuvo de publicar");
+    expect(text).not.toContain("canónic");
     expect(text).not.toContain("$0");
     expect(text).not.toContain("required_source_missing");
   });
