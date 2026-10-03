@@ -96,8 +96,13 @@ const DETALLES_COBROS_REALIZADOS: Record<
 };
 
 const HORIZONTES: Horizonte[] = [7, 14, 30, 90];
-export function CobrosMaqueta() {
-  const [today] = React.useState(() => new Date());
+export function CobrosMaqueta({ hoy }: { hoy?: Date }) {
+  /* `hoy` existe para poder CONGELAR el día. La maqueta filtra los datos de ejemplo contra la
+     fecha actual (`defaultPeriod` = últimos 90 días), así que sin esta costura su render cambia
+     solo con el paso del tiempo: la captura visual de Storybook/Chromatic mostraría un diff
+     nuevo cada día sin que nadie toque el código. La página de `/maquetas/cobros` no lo pasa y
+     sigue usando el día real; es el mismo patrón que `periodoDeVentana(dias, hoy = new Date())`. */
+  const [today] = React.useState(() => hoy ?? new Date());
   const [vista, setVista] = React.useState<VistaCobros>("pendientes");
   const [periodo, setPeriodo] = React.useState<MaquetaPeriodo>(() => defaultPeriod(today));
   const [horizonte, setHorizonte] = React.useState<Horizonte>(7);
@@ -195,7 +200,11 @@ export function CobrosMaqueta() {
         </Link>
       </header>
 
-      <div aria-label="Tipo de cobros" className="flex gap-2" role="group">
+      {/* `flex-wrap`: los tres botones en una sola fila pedían 343 px de ancho mínimo (con Sora
+          aplicada), así que a 320 px —el ancho habitual más angosto de un teléfono— empujaban la
+          página entera a scroll horizontal, contra Ley 7 §5.2. Lo mide `Ley7Angosto320` en
+          `cobros-maqueta.stories.tsx`, y sacando este `flex-wrap` esa story se pone roja. */}
+      <div aria-label="Tipo de cobros" className="flex flex-wrap gap-2" role="group">
         <TabButton active={vista === "pendientes"} onClick={() => cambiarVista("pendientes")}>
           Pendientes
         </TabButton>
