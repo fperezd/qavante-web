@@ -79,6 +79,48 @@ describe("totales monetarios", () => {
       accion: { texto: "Ir a Banco y conciliar", href: "/banco" },
     });
   });
+
+  /* LA FORMA QUE DE VERDAD LLEGA DE PRODUCCIÓN. Sondeo del 2026-10-03, tenant Tooxs:
+   * `GET /api/treasury/accounts-receivable/documents` responde `collected: []` con
+   * `collected_coverage: "not_applicable"`. #371 sólo cubrió la rama `collected: null`, así que
+   * el tercer recuadro siguió mostrando "$0 · Últimos 7 días" en la pantalla que ese PR arregló. */
+  it("una lista de cobros VACÍA no es un cero medido: abstiene y dice cómo tener la cifra", () => {
+    const metric = collectedMetric({
+      collected: [],
+      collected_coverage: "not_applicable",
+      collected_reason: null,
+    });
+
+    expect(metric.value).not.toContain("$0");
+    expect(metric).toEqual({
+      value: "Conciliación por cerrar",
+      detail: "Últimos 7 días",
+      note: "Los cobros de estos 7 días se suman acá en cuanto queden conciliados con sus movimientos de banco.",
+      accion: { texto: "Ir a Banco y conciliar", href: "/banco" },
+    });
+  });
+
+  it("con montos de verdad publicados, la cifra se muestra tal cual", () => {
+    const metric = collectedMetric({
+      collected: [{ currency: "CLP", amount: "1500000" }],
+      collected_coverage: "not_applicable",
+      collected_reason: null,
+    });
+
+    expect(metric).toEqual({ value: "$1.500.000", detail: "Últimos 7 días" });
+  });
+
+  it("el recuadro Cobrado no usa ninguna de las palabras prohibidas con la forma de producción", () => {
+    const metric = collectedMetric({
+      collected: [],
+      collected_coverage: "not_applicable",
+      collected_reason: null,
+    });
+
+    expect(
+      sinPalabrasProhibidas([metric.value, metric.detail, metric.note, metric.accion?.texto]),
+    ).toEqual([]);
+  });
 });
 
 /* ── El cero fabricado de Cobrar ──────────────────────────────────────────────────────────────

@@ -176,13 +176,27 @@ export function recuadroPorCobrar(
 export function collectedMetric(
   data: Pick<ReceivableDocumentsResponse, "collected" | "collected_coverage" | "collected_reason">,
 ): RecuadroCobranza {
-  if (data.collected != null) {
+  /* UNA LISTA VACÍA NO ES UNA MEDICIÓN. `/documents` publica `collected: []` cuando no encuentra
+   * NI UNA fila de cobro en la ventana de 7 días, y `collected: null` cuando sí las hay pero sin
+   * linaje de conciliación. En ninguno de los dos casos midió una plata. El `!= null` de #371
+   * dejaba pasar el `[]` y `formatCollectionMoney([])` lo rendía "$0": el MISMO cero fabricado que
+   * ese PR vino a matar en los otros dos recuadros, sobreviviendo en el tercero.
+   *
+   * Medido en producción el 2026-10-03 (tenant Tooxs): `collected: []`,
+   * `collected_coverage: "not_applicable"`, y el recuadro mostraba "$0 · Últimos 7 días" mientras
+   * la base tenía 276 documentos en `paid` y CERO filas en el ledger de cobros. El cero no
+   * describía la cobranza: describía un ledger que nadie escribe.
+   *
+   * La condición es `length > 0` y no la cobertura a propósito: el día que el contrato publique
+   * montos de verdad, se muestran sin tocar esto. Lo que no pasa es un arreglo vacío. */
+  if (data.collected != null && data.collected.length > 0) {
     return { value: formatCollectionMoney(data.collected), detail: "Últimos 7 días" };
   }
 
-  // `collected: null` = la trazabilidad de conciliación no alcanza para afirmar un monto. Antes
-  // acá se leía "Sin información", que no dice qué hacer ni qué se sabe. La cifra existe del
-  // otro lado de la conciliación, así que el recuadro lleva a cerrarla.
+  // Sin medición: o la trazabilidad de conciliación no alcanza para afirmar un monto
+  // (`collected: null`), o no hay una sola fila de cobro conciliada en la ventana
+  // (`collected: []`). Antes acá se leía "Sin información", que no dice qué hacer ni qué se sabe.
+  // La cifra existe del otro lado de la conciliación, así que el recuadro lleva a cerrarla.
   const comun = {
     detail: "Últimos 7 días",
     accion: { texto: "Ir a Banco y conciliar", href: "/banco" },
