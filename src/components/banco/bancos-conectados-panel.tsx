@@ -5,9 +5,12 @@ import { Dialog } from "@base-ui/react/dialog";
 import { AlertTriangle, Landmark, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/errors";
 import { QavanteButton, QavanteEmpty } from "@/components/qavante";
 import { BankLogo } from "@/components/banco/bank-logo";
+import {
+  connectionActionError,
+  connectionsLoadError,
+} from "@/components/banco/bancos-conectados-copy";
 import { useCompanyScope } from "@/components/shell/company-scope";
 import { explicitCompanyRequestHeaders } from "@/lib/company/active-company";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -41,24 +44,6 @@ function formatDate(value: string | null | undefined): string | null {
   return value ? formatDateLike(value) : null;
 }
 
-function loadErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 401)
-      return "Tu sesión expiró. Inicia sesión nuevamente para ver tus conexiones.";
-    if (error.status === 403)
-      return "No tienes autorización para ver las conexiones de esta sociedad.";
-    if (error.status === 0 || error.code === "network_error") {
-      return "El servicio no está disponible. Intenta nuevamente en unos segundos.";
-    }
-    if (error.status >= 500)
-      return "El servidor no pudo cargar las conexiones. Intenta nuevamente.";
-    return error.message;
-  }
-  return error instanceof Error
-    ? error.message
-    : "Ocurrió un error inesperado al cargar las conexiones.";
-}
-
 export function BancosConectadosPanel() {
   const { activeCompanyId } = useCompanyScope();
   const [rows, setRows] = useState<BankConnection[] | null>(null);
@@ -88,7 +73,7 @@ export function BancosConectadosPanel() {
         if (!cancelled) setRows(data);
       })
       .catch((err) => {
-        if (!cancelled) setError(loadErrorMessage(err));
+        if (!cancelled) setError(connectionsLoadError(err));
       });
     return () => {
       cancelled = true;
@@ -122,7 +107,7 @@ export function BancosConectadosPanel() {
       setSelectedBankId(null);
       toast.success(`${row.institution_name} quedó desconectado. Tu historial se conserva.`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "No se pudo desconectar este banco";
+      const message = connectionActionError(err, "desconectar");
       setActionError(message);
       toast.error(message);
     } finally {
@@ -150,7 +135,7 @@ export function BancosConectadosPanel() {
         `${row.institution_name} eliminado${row.link_id && !row.link_id.startsWith("link_demo_") ? " de Qavante y Fintoc" : " de Qavante"}. ${result.deleted_movements} movimientos borrados.`,
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : "No se pudo eliminar este banco";
+      const message = connectionActionError(err, "eliminar");
       setActionError(message);
       toast.error(message);
     } finally {

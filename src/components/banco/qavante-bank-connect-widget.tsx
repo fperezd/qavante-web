@@ -390,7 +390,7 @@ function ExistingCompanyFromHolder({
           Las cuentas pertenecen a otro RUT
         </h2>
         <p className="mt-2 text-sm text-neutral-mid">
-          FinToc informó el RUT {holder.rut}. Las cuentas no se importarán bajo la empresa actual.
+          Fintoc informó el RUT {holder.rut}. Las cuentas no se importarán bajo la empresa actual.
         </p>
         <div className="mt-4 rounded-xl border border-brand-primary/20 bg-brand-primary-50 p-3">
           <p className="text-sm font-medium text-neutral-dark">
@@ -476,7 +476,7 @@ function IntroStep({
       <div className="space-y-5 overflow-y-auto px-5 py-5">
         {companyRut ? (
           <div className="rounded-xl border border-brand-primary/20 bg-brand-primary-50 px-4 py-3 text-sm text-neutral-dark">
-            Conectarás las cuentas de <strong>{companyName}</strong> ({companyRut}). FinToc puede
+            Conectarás las cuentas de <strong>{companyName}</strong> ({companyRut}). Fintoc puede
             pedir tu RUT personal para validar el acceso. Antes de importar, comprobaremos el RUT
             titular de cada cuenta y, si es distinto, te pediremos elegir al titular correcto.
           </div>

@@ -48,10 +48,10 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
     return "Las cuentas tienen un RUT titular distinto. Elige o registra al titular correcto antes de importarlas.";
   }
   if (err.code === "fintoc_link_missing" || err.code === "fintoc_exchange_failed") {
-    return "FinToc no entregó la conexión necesaria para importar las cuentas. Intenta conectar el banco nuevamente.";
+    return "Fintoc no entregó la conexión necesaria para importar las cuentas. Intenta conectar el banco nuevamente.";
   }
   if (err.code === "fintoc_permissions_missing") {
-    return "FinToc creó el enlace, pero su API rechazó la lectura de cuentas. Revisa el enlace en FinToc o consulta a soporte con su identificador.";
+    return "Fintoc creó el enlace, pero su API rechazó la lectura de cuentas. Revisa el enlace en Fintoc o consulta a soporte con su identificador.";
   }
   if (err.code === "fintoc_not_configured") {
     return "La conexión bancaria no está disponible en este momento. Intenta nuevamente más tarde.";

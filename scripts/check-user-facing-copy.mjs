@@ -48,6 +48,9 @@ export const RAW_ACCESS_RULES = new Map([
   ["src/components/inicio/v01/cash-gap-proposal-panel.tsx", new Set(["target.reason"])],
   ["src/components/impuestos/f29-view.tsx", new Set(["data.message"])],
   ["src/components/shell/sync-status-indicator.tsx", new Set(["s.reason"])],
+  /* El panel de bancos conectados muestra fallos de conexión bancaria. El `message` del
+     servidor es evidencia técnica: el copy sale de `bancos-conectados-copy`. */
+  ["src/components/banco/bancos-conectados-panel.tsx", new Set(["err.message", "error.message"])],
 ]);
 
 export const FORBIDDEN_COPY = [
