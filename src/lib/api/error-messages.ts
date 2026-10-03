@@ -8,6 +8,11 @@ import { fallbackUserMessage, renderUserMessage } from "./user-message";
 
 export type ErrorContext = "general" | "login" | "login-correo";
 
+/* Misma situación de usuario para dos códigos distintos (`missing_scope:*` que sí emite la API y
+   la guarda interna `classification_scope_required`): un solo texto, para que no se separen. */
+const ELIGE_EMPRESA_PARA_CLASIFICAR =
+  "Elige una Empresa en el encabezado para clasificar: las cuentas de gestión y las reglas de clasificación son de cada sociedad.";
+
 export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "general"): string {
   if (err.code === "oauth_user_not_found") {
     return err.message || "No hay una cuenta Qavante con ese correo. Registrate primero.";
@@ -56,11 +61,42 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
     // la cuenta ni con CLP; el mensaje no invita a reintentar lo mismo.
     return "No se guardó la clasificación: la moneda de este movimiento bancario no está verificada. Revisa el movimiento en Banco o sincroniza la cuenta antes de clasificarlo.";
   }
-  if (err.code === "classification_scope_required") {
-    return "Se necesita un alcance financiero para clasificar. Verifica que la sociedad esté configurada.";
+  /* CL1 / web#360 — familia de 409 de alcance al clasificar.
+     `fallbackUserMessage` no tiene rama para 409, así que TODOS estos códigos caían al
+     genérico "Ocurrió un error inesperado": el usuario veía que no se guardó, sin saber
+     qué hacer. Cada mensaje nombra la causa y la acción concreta. El selector de Empresa
+     vive en el encabezado (mismo lugar que nombra `bandeja-scope`). */
+  if (err.code === "missing_scope:legal_entity" || err.code === "missing_scope:tenant") {
+    return ELIGE_EMPRESA_PARA_CLASIFICAR;
   }
+  if (err.code === "ambiguous_scope:legal_entity") {
+    return "Tienes más de una Empresa marcada como predeterminada, así que Qavante no puede decidir sobre cuál escribir. Deja una sola marcada en Administración → Empresas.";
+  }
+  if (err.code === "scope_mismatch:legal_entity") {
+    return "La Empresa que tenías elegida ya no corresponde a esta cuenta. Vuelve a elegirla en el encabezado y repite la clasificación.";
+  }
+  if (err.code === "missing_scope:functional_currency") {
+    return "Esta Empresa todavía no tiene moneda funcional declarada, y la clasificación la necesita para registrar el impacto en la caja. Declárala en Administración → Empresas.";
+  }
+  /* Lote completo rechazado (qavante-api `treasury_repo`): la respuesta trae `movement_ids`
+     con los culpables. Nada quedó clasificado, así que el mensaje no insinúa un éxito parcial. */
+  if (err.code === "classification_blocked") {
+    return "No se clasificó ningún movimiento del lote porque uno de ellos no pudo registrar su impacto en la caja, casi siempre por tener la moneda sin verificar. Revisa en Banco los movimientos que quedaron señalados y vuelve a enviar el lote.";
+  }
+  if (err.code === "idempotency_key_reused") {
+    return "Este lote llegó con la marca de una operación anterior, así que no se aplicó ningún cambio. Vuelve a enviar la clasificación.";
+  }
+  /* Guarda interna del backend (`treasury_repo._require_classification_scope`): hoy ninguna
+     ruta la convierte en respuesta HTTP —escaparía como 500 `internal_error`—, pero se deja
+     mapeada para que no caiga al genérico si alguna la expone. */
+  if (err.code === "classification_scope_required") {
+    return ELIGE_EMPRESA_PARA_CLASIFICAR;
+  }
+  /* qavante-api NO emite este código: desde ADR-0120 (migración 0217) las reglas pertenecen a
+     una sola sociedad y `TenantWideClassificationEvidenceUnavailable` ya no se lanza. Se deja
+     mapeado como respaldo, con copy que dice la verdad de la situación en vez de "no disponible". */
   if (err.code === "tenant_wide_classification_rules_unavailable") {
-    return "Las reglas de clasificación no están disponibles para este tenant. Contacta soporte.";
+    return "Las reglas de clasificación son de cada sociedad. Elige una Empresa en el encabezado para ver y aplicar las suyas.";
   }
 
   if (context === "login" && err.status === 401) {

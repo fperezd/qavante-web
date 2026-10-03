@@ -290,19 +290,120 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
   });
 });
 
-describe("CL1 — classification scope errors", () => {
-  it("classification_scope_required → copy de alcance financiero", () => {
-    const err = new ApiError("scope required", 422, "classification_scope_required");
-    expect(apiErrorToUserMessage(err)).toBe(
-      "Se necesita un alcance financiero para clasificar. Verifica que la sociedad esté configurada.",
+describe("CL1 / web#360 — errores de alcance al clasificar tienen mensaje propio", () => {
+  /* El gemelo negativo de toda esta suite: `fallbackUserMessage` no tiene rama para 409, así
+     que un código de esta familia SIN case cae a este texto. Cada aserción de abajo vale
+     justamente porque este es el texto que se evitó. */
+  const GENERICO = "Ocurrió un error inesperado. Intenta nuevamente.";
+
+  it("un 409 de alcance NO mapeado sigue cayendo al genérico (por qué hacen falta los cases)", () => {
+    expect(
+      apiErrorToUserMessage(new ApiError("scope", 409, "missing_scope:some_future_axis")),
+    ).toBe(GENERICO);
+  });
+
+  it("missing_scope:legal_entity → pide elegir Empresa y dice por qué, no el genérico", () => {
+    const out = apiErrorToUserMessage(
+      new ApiError("Falta la sociedad financiera.", 409, "missing_scope:legal_entity"),
+    );
+    expect(out).toBe(
+      "Elige una Empresa en el encabezado para clasificar: las cuentas de gestión y las reglas de clasificación son de cada sociedad.",
+    );
+    expect(out).not.toBe(GENERICO);
+  });
+
+  it("missing_scope:tenant comparte el copy de elegir Empresa", () => {
+    expect(apiErrorToUserMessage(new ApiError("", 409, "missing_scope:tenant"))).toBe(
+      apiErrorToUserMessage(new ApiError("", 409, "missing_scope:legal_entity")),
     );
   });
 
-  it("tenant_wide_classification_rules_unavailable → copy de reglas no disponibles", () => {
-    const err = new ApiError("rules unavailable", 422, "tenant_wide_classification_rules_unavailable");
-    expect(apiErrorToUserMessage(err)).toBe(
-      "Las reglas de clasificación no están disponibles para este tenant. Contacta soporte.",
+  it("ambiguous_scope:legal_entity manda a dejar una sola predeterminada", () => {
+    const out = apiErrorToUserMessage(new ApiError("", 409, "ambiguous_scope:legal_entity"));
+    expect(out).toContain("más de una Empresa marcada como predeterminada");
+    expect(out).toContain("Administración → Empresas");
+    // Gemelo: NO es el mismo consejo que "elige una Empresa" — la causa es distinta.
+    expect(out).not.toBe(
+      apiErrorToUserMessage(new ApiError("", 409, "missing_scope:legal_entity")),
     );
+  });
+
+  it("scope_mismatch:legal_entity manda a volver a elegir la Empresa", () => {
+    const out = apiErrorToUserMessage(new ApiError("", 409, "scope_mismatch:legal_entity"));
+    expect(out).toContain("ya no corresponde a esta cuenta");
+    expect(out).toContain("encabezado");
+  });
+
+  it("missing_scope:functional_currency nombra la moneda funcional y dónde declararla", () => {
+    const out = apiErrorToUserMessage(new ApiError("", 409, "missing_scope:functional_currency"));
+    expect(out).toContain("moneda funcional");
+    expect(out).toContain("Administración → Empresas");
+  });
+
+  it("classification_blocked dice que NO quedó nada clasificado (éxito parcial = fracaso)", () => {
+    const out = apiErrorToUserMessage(
+      new ApiError("bank_movement_currency_unverified", 409, "classification_blocked"),
+    );
+    expect(out).toContain("No se clasificó ningún movimiento del lote");
+    expect(out).toContain("Banco");
+    // No refleja el código técnico que viene en el detalle del backend.
+    expect(out).not.toMatch(/bank_movement_currency_unverified/);
+  });
+
+  it("idempotency_key_reused no culpa al usuario y pide reenviar", () => {
+    const out = apiErrorToUserMessage(new ApiError("", 409, "idempotency_key_reused"));
+    expect(out).toContain("no se aplicó ningún cambio");
+    expect(out).toContain("Vuelve a enviar");
+  });
+
+  /* `classification_scope_required` es una guarda interna de `treasury_repo`: hoy ninguna ruta
+     la expone (escaparía como 500 `internal_error`). Se mantiene mapeada, y comparte el copy
+     con `missing_scope:legal_entity` porque la situación del usuario es la misma. */
+  it("classification_scope_required comparte el copy de elegir Empresa", () => {
+    const out = apiErrorToUserMessage(new ApiError("", 409, "classification_scope_required"));
+    expect(out).toBe(apiErrorToUserMessage(new ApiError("", 409, "missing_scope:legal_entity")));
+    expect(out).not.toBe(GENERICO);
+  });
+
+  /* qavante-api no emite este código desde ADR-0120 (migración 0217). Queda mapeado como
+     respaldo; lo que el test fija es que el copy ya no diga "no disponible" ni "contacta soporte". */
+  it("tenant_wide_classification_rules_unavailable explica que las reglas son por sociedad", () => {
+    const out = apiErrorToUserMessage(
+      new ApiError("", 409, "tenant_wide_classification_rules_unavailable"),
+    );
+    expect(out).toBe(
+      "Las reglas de clasificación son de cada sociedad. Elige una Empresa en el encabezado para ver y aplicar las suyas.",
+    );
+  });
+
+  it("ningún mensaje de clasificación usa copy de desconfianza ni jerga interna", () => {
+    const codigos = [
+      "missing_scope:legal_entity",
+      "missing_scope:tenant",
+      "ambiguous_scope:legal_entity",
+      "scope_mismatch:legal_entity",
+      "missing_scope:functional_currency",
+      "classification_blocked",
+      "idempotency_key_reused",
+      "classification_scope_required",
+      "tenant_wide_classification_rules_unavailable",
+    ];
+    /* Regla de copy del producto: nunca "no disponible"/"sin dato"/"preliminar"/"estimado",
+       ni jerga interna ("tenant", "scope", "alcance financiero"), ni callejón sin salida. */
+    const prohibido =
+      /no (est[áa]n? )?disponible|sin dato|preliminar|estimad[oa]|confianza|tenant|scope|alcance financiero|contacta soporte/i;
+
+    for (const code of codigos) {
+      const out = apiErrorToUserMessage(new ApiError("detalle crudo", 409, code));
+      expect(out, code).not.toBe(GENERICO);
+      expect(out, code).not.toMatch(prohibido);
+      // Dice qué hacer: termina en una instrucción, no sólo en un diagnóstico.
+      expect(out, code).toMatch(/Elige|Deja|Vuelve|Revisa|Decl[áa]rala/);
+    }
+    // Gemelo positivo con la MISMA regex: el copy viejo que se reemplazó sí la gatillaba.
+    expect(
+      "Las reglas de clasificación no están disponibles para este tenant. Contacta soporte.",
+    ).toMatch(prohibido);
   });
 });
 
