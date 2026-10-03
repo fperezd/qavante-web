@@ -20,7 +20,7 @@ export function FinanciamientoV13View({ model }: { model: FinancingV13Model }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="font-rediseno-display text-[28px] leading-tight text-rediseno-tinta">
-          Préstamos
+          Financiamiento
         </h1>
         <p className="text-[12px] text-rediseno-tinta-2">Corte {model.cutOffLabel}</p>
       </div>

@@ -106,7 +106,7 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
       { href: "/presupuesto", label: "Presupuesto", Icon: PiggyBank, needsPresupuesto: true },
       {
         href: "/financiamiento",
-        label: "Préstamos",
+        label: "Financiamiento",
         Icon: WalletCards,
         needsFinanciamiento: true,
       },

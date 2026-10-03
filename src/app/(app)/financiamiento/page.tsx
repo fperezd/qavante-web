@@ -10,7 +10,7 @@ export default function FinanciamientoPage() {
     <FinanciamientoV13Live />
   ) : (
     <FeatureUnavailableState
-      title="Préstamos · todavía no disponible"
+      title="Financiamiento · todavía no disponible"
       description={
         <>
           Revisa tus préstamos y cuotas en{" "}
