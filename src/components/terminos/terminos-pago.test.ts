@@ -14,8 +14,7 @@ import {
   totalesMaestro,
   readPagados,
   isPagado,
-  withPagado,
-  withoutPagado,
+  declaradoPagadoEl,
   TERMINO_DEFAULT,
   TERMINOS_KEY,
   PAGADOS_KEY,
@@ -104,17 +103,27 @@ describe("prefs de términos", () => {
   });
 });
 
-describe("pagados (prefs)", () => {
-  it("readPagados defensivo + round-trip with/without", () => {
+describe("declaraciones heredadas (prefs, solo lectura)", () => {
+  // Blob tal como lo dejó el botón viejo "Marcar conciliado": `tipo:rut:folio → fecha del clic`.
+  const blob = { [PAGADOS_KEY]: { "compras:77111222-3:1002": "2026-07-20" } };
+
+  it("readPagados es defensivo y las marcas se siguen leyendo", () => {
     expect(readPagados(undefined)).toEqual({});
     expect(readPagados({ [PAGADOS_KEY]: "nope" })).toEqual({});
-    const marked = withPagado(undefined, "compras", "77.111.222-3", 1002, "2026-07-20");
-    expect(isPagado(readPagados(marked), "compras", "77111222-3", 1002)).toBe(true);
-    // distinto folio / distinto tipo → no está pagado
-    expect(isPagado(readPagados(marked), "compras", "77111222-3", 9999)).toBe(false);
-    expect(isPagado(readPagados(marked), "ventas", "77111222-3", 1002)).toBe(false);
-    const undone = withoutPagado(marked, "compras", "77111222-3", 1002);
-    expect(isPagado(readPagados(undone), "compras", "77111222-3", 1002)).toBe(false);
+    const map = readPagados(blob);
+    // El RUT se normaliza al leer: con puntos o sin puntos es la misma marca.
+    expect(isPagado(map, "compras", "77.111.222-3", 1002)).toBe(true);
+    expect(declaradoPagadoEl(map, "compras", "77.111.222-3", 1002)).toBe("2026-07-20");
+    // Distinto folio / distinto tipo → no hay marca.
+    expect(isPagado(map, "compras", "77111222-3", 9999)).toBe(false);
+    expect(isPagado(map, "ventas", "77111222-3", 1002)).toBe(false);
+    expect(declaradoPagadoEl(map, "ventas", "77111222-3", 1002)).toBeNull();
+  });
+
+  it("ya no existe forma de ESCRIBIR una marca nueva desde el motor puro", async () => {
+    // Control negativo del requisito 3: si alguien reintroduce un `withPagado`, este test cae.
+    const mod = (await import("./terminos-pago")) as Record<string, unknown>;
+    expect(Object.keys(mod).filter((k) => /^with(out)?Pagado$/.test(k))).toEqual([]);
   });
 });
 
@@ -378,10 +387,10 @@ describe("buildMaestro", () => {
     expect(tot.docs).toBe(3);
   });
 
-  it("un doc marcado pagado sale del vencido y cuenta como pagado", () => {
+  it("SIN motor (callers legacy): una marca manual sigue saliendo del vencido", () => {
     const t = readTerminos(undefined);
-    // Marcar pagada la factura vencida de Kaufmann (folio 1).
-    const pagados = readPagados(withPagado(undefined, "ventas", "96572360-9", 1, "2026-07-20"));
+    // Marca vieja sobre la factura vencida de Kaufmann (folio 1).
+    const pagados = readPagados({ [PAGADOS_KEY]: { "ventas:96572360-9:1": "2026-07-20" } });
     const m = buildMaestro(docs, t, "ventas", HOY, pagados);
     const kauf = m.find((c) => c.rut === "96572360-9")!;
     expect(kauf.vencido).toBe(0); // la única vencida quedó pagada

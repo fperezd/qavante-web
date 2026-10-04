@@ -15,9 +15,16 @@ test.describe("Flujo: submenús de contrapartes", () => {
     await expect(page.getByText("Cliente A SA").first()).toBeVisible();
     // Término editable por cliente.
     await expect(page.getByLabel(/Término de pago de Cliente A SA/).first()).toBeVisible();
-    // Expandir el cliente → detalle de documentos con "marcar conciliado" por factura.
-    await page.getByRole("button", { name: /Cliente A SA/ }).first().click();
-    await expect(page.getByRole("button", { name: "Marcar conciliado" }).first()).toBeVisible();
+    // Expandir el cliente → detalle de documentos. Desde web#381 NO hay un botón que declare
+    // el pago acá: lo que hay es el enlace a la pantalla donde el documento se concilia contra
+    // un movimiento bancario. El botón viejo marcaba una preferencia del usuario que no
+    // conciliaba nada, así que se verifica que NO esté.
+    await page
+      .getByRole("button", { name: /Cliente A SA/ })
+      .first()
+      .click();
+    await expect(page.getByRole("link", { name: /Conciliar el folio/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Marcar conciliado" })).toHaveCount(0);
   });
 
   test("Pagar → Proveedores (/pagar/proveedores)", async ({ page, context }) => {

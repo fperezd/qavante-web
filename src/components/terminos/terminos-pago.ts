@@ -7,9 +7,11 @@
  * contraparte (se persiste en las prefs de UI #571). Con eso, cada documento tiene un
  * vencimiento estimado y podemos priorizar por mora.
  *
- * HONESTIDAD (§13): el vencido se deriva sobre lo FACTURADO (RCV/BHE), no descuenta
- * cobros/pagos ya hechos (el backend aún no da estado por documento). Es un control de
- * vencimientos, no un estado de cuenta conciliado. La UI lo etiqueta. */
+ * HONESTIDAD (§13): el vencido se deriva sobre lo FACTURADO (RCV/BHE). Cuando el caller
+ * NO pasa `conciliacion`, no descuenta cobros/pagos: es un control de vencimientos.
+ * Cuando SÍ la pasa (maestro de Términos), el estado real lo da el motor de conciliación
+ * (`POST /api/treasury/reconciliation/document-resolution/statuses`) y un documento
+ * conciliado contra un movimiento bancario desaparece de la lista. */
 
 import type { PreferencesBlob } from "@/lib/api/preferences";
 import { normalizeRut } from "@/lib/validators/rut";
@@ -49,7 +51,21 @@ export interface DocConVencimiento {
   reclamado?: boolean;
   /** La factura fue CEDIDA (factoring, RPETC): la cobra el factor, no la empresa → NO es por-cobrar. */
   cedido?: boolean;
+  /** Clave natural con la que el dominio identifica este documento (`tipo-folio-rut` en RCV,
+   *  `YYYYMM:rut:folio` en BHE). Es la llave con la que se pide el estado de conciliación. */
+  sourceExternalId?: string | null;
 }
+
+/* ── Estado de conciliación del motor ────────────────────────────────────────
+ * Lo entrega `POST /api/treasury/reconciliation/document-resolution/statuses` por
+ * documento: `reconciled` = tiene movimiento bancario asignado y saldo 0; `partial` =
+ * tiene movimiento pero queda saldo; `unreconciled` = no tiene ninguno. El front NO
+ * infiere nada por monto y fecha: eso lo decide el motor. */
+
+export type EstadoConciliacion = "reconciled" | "partial" | "unreconciled";
+
+/** `sourceExternalId` → estado del motor. Un documento ausente del mapa no se oculta. */
+export type ConciliacionMap = Record<string, EstadoConciliacion>;
 
 /* ── Fechas ────────────────────────────────────────────────────────────────── */
 
@@ -197,10 +213,16 @@ export function withDefaultTerm(
   return { ...(blob ?? {}), [TERMINOS_KEY]: next };
 }
 
-/* ── "Marcar pagado" por documento — persistido en prefs (#571) ────────────────
- * Como el backend aún no da el estado por documento, el usuario puede marcar a mano
- * qué facturas ya cobró/pagó. Un doc pagado sale del vencido/por vencer → el total
- * refleja lo REALMENTE adeudado. Mapa `docKey → fecha ISO`. */
+/* ── Declaraciones heredadas "marqué esto pagado" — SOLO LECTURA ───────────────
+ * Histórico: cuando no había estado por documento, el maestro dejaba marcar a mano un
+ * documento como pagado y lo guardaba en el blob de prefs DEL USUARIO (`docs_pagados`,
+ * #571). Esa marca no es una conciliación: es por usuario, no tiene movimiento bancario
+ * detrás y la fecha guardada es el día del clic, no la del pago.
+ *
+ * Hoy el estado lo da el motor (`ConciliacionMap`), así que ya NO se escriben marcas
+ * nuevas: `withPagado`/`withoutPagado` se eliminaron a propósito. Las marcas existentes
+ * se siguen LEYENDO para mostrarlas como lo que son (una declaración con su fecha) y
+ * NO mueven plata. Mapa `docKey → fecha ISO`. */
 
 export const PAGADOS_KEY = "docs_pagados";
 
@@ -237,28 +259,15 @@ export function isPagado(
   return typeof map[docKey(kind, rut, folio)] === "string";
 }
 
-/** Blob COMPLETO marcando el documento pagado en `isoDate`. PURO. */
-export function withPagado(
-  blob: PreferencesBlob | undefined,
+/** Fecha ISO en que el usuario declaró este documento pagado, o `null` si nunca lo declaró.
+ *  Es una declaración sin movimiento bancario detrás: se muestra, no se contabiliza. PURO. */
+export function declaradoPagadoEl(
+  map: PagadosMap,
   kind: MaestroKind,
   rut: string,
   folio: number | string | null | undefined,
-  isoDate: string,
-): PreferencesBlob {
-  const cur = readPagados(blob);
-  return { ...(blob ?? {}), [PAGADOS_KEY]: { ...cur, [docKey(kind, rut, folio)]: isoDate } };
-}
-
-/** Blob COMPLETO desmarcando (deshacer pagado). PURO. */
-export function withoutPagado(
-  blob: PreferencesBlob | undefined,
-  kind: MaestroKind,
-  rut: string,
-  folio: number | string | null | undefined,
-): PreferencesBlob {
-  const cur = { ...readPagados(blob) };
-  delete cur[docKey(kind, rut, folio)];
-  return { ...(blob ?? {}), [PAGADOS_KEY]: cur };
+): string | null {
+  return map[docKey(kind, rut, folio)] ?? null;
 }
 
 /* ── Agregación: docs → maestro por contraparte ───────────────────────────────*/
@@ -272,8 +281,17 @@ export interface DocMaestro {
   estado: EstadoDoc;
   /** Días para vencer (negativo = días vencido). null si sin fecha. */
   diasParaVencer: number | null;
-  /** Marcado pagado/conciliado a mano (fuera del vencido/por vencer). */
+  /** Marcado pagado/conciliado a mano (fuera del vencido/por vencer). Legacy: sólo cuando el
+   *  caller NO pasa `conciliacion`; con el motor cableado esta marca ya no mueve plata. */
   pagado: boolean;
+  /** Clave natural del documento en el dominio (`tipo-folio-rut`), si se pudo derivar. */
+  sourceExternalId?: string | null;
+  /** Estado del motor de conciliación. Ausente/`null` = el motor no se consultó o no devolvió
+   *  esta fila: el documento se MUESTRA (nunca se oculta por falta de respuesta). */
+  conciliacion?: EstadoConciliacion | null;
+  /** Fecha ISO en que algún usuario declaró este documento pagado a mano (sin movimiento
+   *  bancario detrás). Se muestra como la declaración que es; no descuenta del saldo. */
+  declaradoPagadoEl?: string | null;
   /** Código de tipo de documento del SII (para mostrar Factura/NC/etc.). */
   tipoDoc: number | null;
   /** ¿Es Nota de Crédito? (resta; `monto` viene negativo). */
@@ -303,8 +321,14 @@ export interface ContraparteMaestro {
   porVencer: number;
   /** Suma de documentos vigentes. */
   vigente: number;
-  /** Suma de documentos marcados pagados (fuera del vencido/por vencer/vigente). */
+  /** Suma de documentos marcados pagados (fuera del vencido/por vencer/vigente). Legacy:
+   *  queda en 0 cuando el caller pasa `conciliacion`. */
   pagado: number;
+  /** Suma de los documentos que alguien declaró pagados a mano y que el motor NO tiene
+   *  conciliados. Sigue dentro del saldo: es deuda viva hasta que haya movimiento bancario. */
+  declaradoSinEvidencia?: number;
+  /** Cuántos documentos de esta contraparte están en esa situación. */
+  docsDeclarados?: number;
   /** Término aplicado (días). */
   termino: number;
   /** ¿El término es un override (≠ default)? */
@@ -316,14 +340,23 @@ export interface ContraparteMaestro {
 
 /** Construye el maestro por contraparte a partir de los documentos (RCV/BHE ya
  *  adaptados) y los términos. Ordena las contrapartes por vencido desc (a quién
- *  perseguir/pagar primero) y, a igual vencido, por total desc. PURO. */
+ *  perseguir/pagar primero) y, a igual vencido, por total desc. PURO.
+ *
+ *  `conciliacion` es OPCIONAL y aditiva. Sin ella, el comportamiento es el histórico
+ *  (las marcas de `pagados` descuentan). Con ella:
+ *   - un documento que el motor tiene `reconciled` NO aparece (y si es una factura, se van
+ *     también sus notas de crédito vinculadas: la pareja está saldada);
+ *   - una contraparte sin documentos restantes desaparece de la lista;
+ *   - las marcas manuales de `pagados` dejan de mover plata y quedan como anotación. */
 export function buildMaestro(
   docs: ReadonlyArray<DocConVencimiento>,
   terminos: TerminosResueltos,
   kind: MaestroKind,
   today: Date,
   pagados: PagadosMap = {},
+  conciliacion?: ConciliacionMap,
 ): ContraparteMaestro[] {
+  const conMotor = conciliacion !== undefined;
   // Agrupar los documentos por contraparte.
   const byRut = new Map<string, DocConVencimiento[]>();
   for (const d of docs) {
@@ -352,15 +385,27 @@ export function buildMaestro(
         ref_tipo_doc: d.refTipoDoc,
         reclamado: d.reclamado === true, // se preserva en la fila agrupada (genérico) → DocMaestro
         cedido: d.cedido === true, // cedida (factoring) → se preserva para excluirla del por-cobrar
+        source_external_id: d.sourceExternalId ?? null, // pasa intacto por el agrupador genérico
       })),
     );
+
+    /** Estado del motor para una fila agrupada. `null` si no se consultó o no vino. */
+    const estadoMotor = (row: {
+      source_external_id?: string | null;
+    }): EstadoConciliacion | null => {
+      if (!conciliacion) return null;
+      const key = row.source_external_id;
+      return key ? (conciliacion[key] ?? null) : null;
+    };
 
     const docsOut: DocMaestro[] = [];
     let total = 0,
       vencido = 0,
       porVencer = 0,
       vigente = 0,
-      pagadoSum = 0;
+      pagadoSum = 0,
+      declaradoSinEvidencia = 0,
+      docsDeclarados = 0;
     // Exceso de NC VINCULADAS que sobre-acreditan su factura (neto < 0): como el bucket de esa
     // factura se pisa en 0, ese crédito sobrante debe restarse de OTRAS facturas (igual que una NC
     // huérfana). Si no, quedaría vencido > saldo. Se acumula acá y entra al re-balance de abajo.
@@ -374,11 +419,17 @@ export function buildMaestro(
     );
     for (const row of rowsSorted) {
       const f = row.factura;
+      const estadoRec = estadoMotor(f);
+      // Requisito del dueño: conciliado de verdad = no aparece. Se va la factura y con ella sus
+      // NC vinculadas (dejar la NC sola la volvería huérfana y restaría de otras facturas).
+      if (estadoRec === "reconciled") continue;
       const fFolio = f.folio ?? null;
       const em = parseSiiDate(f.fecha);
       const venc = em ? addDays(em, termino) : null;
       const estado = estadoDoc(venc, today);
-      const pagadoF = isPagado(pagados, kind, rut, fFolio);
+      const declaradoEl = declaradoPagadoEl(pagados, kind, rut, fFolio);
+      // Con el motor cableado la declaración manual no descuenta: sólo se anota.
+      const pagadoF = conMotor ? false : isPagado(pagados, kind, rut, fFolio);
       const anulacion =
         row.notas.length === 0 ? null : row.estado === "anulada" ? "anulada" : "parcial";
       // Factura RECLAMADA (compras o ventas): rechazada en el SII → NO es una obligación real, no
@@ -405,6 +456,10 @@ export function buildMaestro(
           if (venc && estado !== "vencido" && row.neto > 0) {
             if (!proximo || venc < proximo) proximo = venc;
           }
+          if (conMotor && declaradoEl) {
+            declaradoSinEvidencia += Math.max(0, row.neto);
+            docsDeclarados += 1;
+          }
         }
       }
 
@@ -424,6 +479,9 @@ export function buildMaestro(
         neto: anulacion ? row.neto : null,
         reclamado: f.reclamado === true,
         cedido: f.cedido === true,
+        sourceExternalId: f.source_external_id ?? null,
+        conciliacion: estadoRec,
+        declaradoPagadoEl: declaradoEl,
       });
       for (const nc of row.notas) {
         const emN = parseSiiDate(nc.fecha);
@@ -442,6 +500,9 @@ export function buildMaestro(
           refFolio: fFolio,
           anulacion: null,
           neto: null,
+          sourceExternalId: nc.source_external_id ?? null,
+          conciliacion: estadoMotor(nc),
+          declaradoPagadoEl: null,
         });
       }
     }
@@ -451,6 +512,7 @@ export function buildMaestro(
     // trae CodRef/fecha/procedencia suficientes y repartirlas desde el front alteraría mora y
     // prioridades por una heurística. Se muestran al final del detalle.
     for (const nc of grouped.notasHuerfanas) {
+      if (estadoMotor(nc) === "reconciled") continue;
       const pendingAssociation = grouped.asociacionesPendientes.find(
         (association) => association.nota === nc,
       );
@@ -473,8 +535,13 @@ export function buildMaestro(
         associationStatus: pendingAssociation?.status ?? "unresolved",
         anulacion: null,
         neto: null,
+        sourceExternalId: nc.source_external_id ?? null,
+        conciliacion: estadoMotor(nc),
+        declaradoPagadoEl: null,
       });
     }
+    // Contraparte sin documentos pendientes → se va de la lista (requisito 1 del dueño).
+    if (conMotor && docsOut.length === 0) continue;
     let r = excesoVinculado;
     const tv = Math.min(r, vencido);
     vencido -= tv;
@@ -488,12 +555,14 @@ export function buildMaestro(
     list.push({
       rut,
       name,
-      docCount: cpDocs.length,
+      docCount: conMotor ? docsOut.length : cpDocs.length,
       total,
       vencido,
       porVencer,
       vigente,
       pagado: pagadoSum,
+      declaradoSinEvidencia,
+      docsDeclarados,
       termino,
       terminoCustom: isTermCustom(terminos, kind, rut),
       proximoVencimiento: proximo,
@@ -523,9 +592,21 @@ export function totalesMaestro(cps: ReadonlyArray<ContraparteMaestro>) {
       porVencer: acc.porVencer + c.porVencer,
       vigente: acc.vigente + c.vigente,
       pagado: acc.pagado + c.pagado,
+      declaradoSinEvidencia: acc.declaradoSinEvidencia + (c.declaradoSinEvidencia ?? 0),
+      docsDeclarados: acc.docsDeclarados + (c.docsDeclarados ?? 0),
       contrapartes: acc.contrapartes + 1,
       docs: acc.docs + c.docCount,
     }),
-    { total: 0, vencido: 0, porVencer: 0, vigente: 0, pagado: 0, contrapartes: 0, docs: 0 },
+    {
+      total: 0,
+      vencido: 0,
+      porVencer: 0,
+      vigente: 0,
+      pagado: 0,
+      declaradoSinEvidencia: 0,
+      docsDeclarados: 0,
+      contrapartes: 0,
+      docs: 0,
+    },
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, ChevronDown, RotateCcw } from "lucide-react";
 import { QavanteCard, SortHeader } from "@/components/qavante";
 import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { InfoHint } from "@/components/ui/info-hint";
@@ -12,6 +13,7 @@ import { tipoDocMeta } from "@/components/sii/tipo-doc";
 import { ReclamadaBadge } from "@/components/sii/reclamada-badge";
 import { DteActions } from "@/components/sii/dte-actions";
 import { pdfUrlDeDoc } from "./maestro-pdf-url";
+import { DESTINO_CONCILIACION, nombreDestino } from "./conciliacion-destino";
 import { cn } from "@/lib/utils";
 import type { ContraparteMaestro, EstadoDoc, MaestroKind } from "./terminos-pago";
 
@@ -48,6 +50,8 @@ export interface MaestroContrapartesProps {
     vencido: number;
     porVencer: number;
     pagado: number;
+    declaradoSinEvidencia: number;
+    docsDeclarados: number;
     contrapartes: number;
     docs: number;
   };
@@ -55,8 +59,6 @@ export interface MaestroContrapartesProps {
   onSetTerm: (rut: string, days: number) => void;
   onResetTerm: (rut: string) => void;
   onSetDefault: (days: number) => void;
-  /** Marca/desmarca un documento como pagado (persiste en prefs). */
-  onTogglePagado: (rut: string, folio: number | string | null) => void;
   pending?: boolean;
   /** Etiqueta del rango consultado, ej. "ene–jul 2026". */
   periodosLabel?: string;
@@ -75,7 +77,6 @@ export function MaestroContrapartes({
   onSetTerm,
   onResetTerm,
   onSetDefault,
-  onTogglePagado,
   pending,
   periodosLabel,
   titulo,
@@ -97,9 +98,10 @@ export function MaestroContrapartes({
             <InfoHint label="Cómo se calcula el vencimiento">
               El SII no entrega las fechas de vencimiento, así que las derivamos:{" "}
               <b>vencimiento = emisión + término de pago</b>. Ajusta el término por contraparte para
-              tener control. Sobre lo facturado{periodosLabel ? ` (${periodosLabel})` : ""}, net de
-              notas de crédito: marca <b>“conciliado”</b> los documentos ya cruzados con el
-              banco/pago y bajan tu {saldoLabel.toLowerCase()}.
+              tener control. Acá sólo queda lo que falta conciliar
+              {periodosLabel ? ` (${periodosLabel})` : ""}, neto de notas de crédito: cuando un
+              documento se cruza contra un movimiento bancario en <b>{nombreDestino(kind)}</b>, sale
+              de esta lista y baja tu {saldoLabel.toLowerCase()}.
             </InfoHint>
           </span>
           <DefaultTermControl
@@ -117,18 +119,15 @@ export function MaestroContrapartes({
         <Resumen
           label={saldoLabel}
           value={formatClp(totals.total - totals.pagado)}
-          sub={
-            totals.pagado > 0
-              ? `de ${formatClp(totals.total)} facturado · ${formatClp(totals.pagado)} conciliado`
-              : `de ${formatClp(totals.total)} facturado`
-          }
+          sub={`${totals.docs} documentos sin conciliar de ${totals.contrapartes} ${contrapartePlural}`}
         />
         <Resumen label="Vencido" value={formatClp(totals.vencido)} tone="danger" />
         <Resumen label="Por vencer" value={formatClp(totals.porVencer)} tone="warn" />
         <Resumen
-          label={contrapartePlural}
-          value={`${totals.contrapartes}`}
-          sub={`${totals.docs} docs`}
+          label="Declarado a mano"
+          value={formatClp(totals.declaradoSinEvidencia)}
+          sub={`${totals.docsDeclarados} documentos que marcaste pagados y siguen sin movimiento bancario`}
+          tone={totals.docsDeclarados > 0 ? "warn" : undefined}
         />
       </div>
 
@@ -206,7 +205,6 @@ export function MaestroContrapartes({
                   onToggle={() => setOpenRut(openRut === cp.rut ? null : cp.rut)}
                   onSetTerm={onSetTerm}
                   onResetTerm={onResetTerm}
-                  onTogglePagado={onTogglePagado}
                   pending={pending}
                 />
               ))}
@@ -281,7 +279,6 @@ function ContraparteRow({
   onToggle,
   onSetTerm,
   onResetTerm,
-  onTogglePagado,
   pending,
 }: {
   cp: ContraparteMaestro;
@@ -290,7 +287,6 @@ function ContraparteRow({
   onToggle: () => void;
   onSetTerm: (rut: string, days: number) => void;
   onResetTerm: (rut: string) => void;
-  onTogglePagado: (rut: string, folio: number | string | null) => void;
   pending?: boolean;
 }) {
   return (
@@ -361,7 +357,7 @@ function ContraparteRow({
       {isOpen && (
         <tr>
           <td colSpan={6} className="bg-surface-muted/30 px-3 py-2">
-            <DocDetail cp={cp} kind={kind} onTogglePagado={onTogglePagado} pending={pending} />
+            <DocDetail cp={cp} kind={kind} />
           </td>
         </tr>
       )}
@@ -369,17 +365,7 @@ function ContraparteRow({
   );
 }
 
-function DocDetail({
-  cp,
-  kind,
-  onTogglePagado,
-  pending,
-}: {
-  cp: ContraparteMaestro;
-  kind: MaestroKind;
-  onTogglePagado: (rut: string, folio: number | string | null) => void;
-  pending?: boolean;
-}) {
+function DocDetail({ cp, kind }: { cp: ContraparteMaestro; kind: MaestroKind }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[480px] text-[12.5px]">
@@ -392,7 +378,7 @@ function DocDetail({
             <th className="py-1 pr-3 font-semibold">Estado</th>
             <th className="py-1 pr-3 text-right font-semibold">Monto</th>
             <th className="py-1 pr-3 text-right font-semibold">DTE</th>
-            <th className="py-1 text-right font-semibold">Conciliación</th>
+            <th className="py-1 text-right font-semibold">Conciliar</th>
           </tr>
         </thead>
         <tbody>
@@ -403,7 +389,6 @@ function DocDetail({
                 key={`${d.folio ?? "x"}-${i}`}
                 className={cn(
                   "border-b border-border/50 last:border-b-0",
-                  d.pagado && "opacity-60",
                   d.esNotaCredito && d.refFolio != null && "bg-warning-500/[.04]",
                 )}
               >
@@ -439,9 +424,9 @@ function DocDetail({
                     : "Sin información"}
                 </td>
                 <td className="py-1 pr-3">
-                  {d.pagado ? (
-                    <span className="inline-block rounded-full bg-success-500/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-success-700">
-                      Conciliado
+                  {d.conciliacion === "partial" ? (
+                    <span className="inline-block rounded-full bg-brand-primary/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-brand-primary">
+                      Pago parcial
                     </span>
                   ) : d.esNotaCredito ? (
                     <span className="text-[10.5px] font-semibold text-neutral-mid">
@@ -479,7 +464,7 @@ function DocDetail({
                   className={cn(
                     "py-1 pr-3 text-right tabular-nums",
                     d.esNotaCredito ? "text-warning-700" : "text-neutral-dark",
-                    (d.pagado || d.anulacion === "anulada") && "line-through",
+                    d.anulacion === "anulada" && "line-through",
                   )}
                 >
                   {formatClp(d.monto)}
@@ -487,28 +472,26 @@ function DocDetail({
                 <td className="py-1 pr-3 text-right">
                   <DteActions url={pdfUrlDeDoc(kind, cp.rut, d)} label={`folio ${d.folio ?? ""}`} />
                 </td>
-                <td className="py-1 text-right">
-                  <button
-                    type="button"
-                    onClick={() => onTogglePagado(cp.rut, d.folio)}
-                    disabled={pending}
-                    aria-pressed={d.pagado}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
-                      d.pagado
-                        ? "border-success-500/40 bg-success-500/10 text-success-700"
-                        : "border-border bg-surface text-neutral-mid hover:border-brand-primary hover:text-brand-primary",
-                    )}
+                <td className="py-1 text-right align-top">
+                  {/* Antes había acá un botón "Marcar conciliado" que sólo escribía una marca en
+                      las preferencias del usuario (ni conciliaba, ni la veían los demás). El
+                      dueño lo rechazó, y también rechazó reemplazarlo por un "declarar pagado
+                      sin evidencia". Lo que queda es el camino a donde se concilia de verdad:
+                      el documento se cruza contra un movimiento bancario. */}
+                  <Link
+                    href={DESTINO_CONCILIACION[kind]}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-0.5 text-[11px] font-semibold text-neutral-mid transition-colors hover:border-brand-primary hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                    aria-label={`Conciliar el folio ${d.folio ?? ""} contra un movimiento bancario en ${nombreDestino(kind)}`}
                   >
-                    {d.pagado ? (
-                      <>
-                        <Check className="size-3" aria-hidden="true" />
-                        Conciliado
-                      </>
-                    ) : (
-                      "Marcar conciliado"
-                    )}
-                  </button>
+                    Conciliar en {nombreDestino(kind)}
+                    <ArrowUpRight className="size-3" aria-hidden="true" />
+                  </Link>
+                  {d.declaradoPagadoEl && (
+                    <p className="mt-0.5 text-[10.5px] text-warning-700">
+                      Lo marcaste pagado el {formatDateLike(d.declaradoPagadoEl)}, sin movimiento
+                      bancario asociado
+                    </p>
+                  )}
                 </td>
               </tr>
             );

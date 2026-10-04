@@ -31,6 +31,8 @@ const kaufmann: ContraparteMaestro = {
   porVencer: 0,
   vigente: 3_000_000,
   pagado: 0,
+  declaradoSinEvidencia: 0,
+  docsDeclarados: 0,
   termino: 30,
   terminoCustom: false,
   proximoVencimiento: new Date(2026, 6, 31),
@@ -57,6 +59,8 @@ const diveimport: ContraparteMaestro = {
   porVencer: 0,
   vigente: 1_000_000,
   pagado: 0,
+  declaradoSinEvidencia: 1_000_000,
+  docsDeclarados: 1,
   termino: 45,
   terminoCustom: true,
   proximoVencimiento: new Date(2026, 7, 1),
@@ -67,6 +71,7 @@ const diveimport: ContraparteMaestro = {
       vencimiento: new Date(2026, 7, 1),
       estado: "vigente",
       diasParaVencer: 12,
+      declaradoPagadoEl: "2026-07-20",
     }),
   ],
 };
@@ -84,6 +89,8 @@ const meta = {
       vencido: 5_000_000,
       porVencer: 0,
       pagado: 0,
+      declaradoSinEvidencia: 1_000_000,
+      docsDeclarados: 1,
       contrapartes: 2,
       docs: 3,
     },
@@ -91,7 +98,6 @@ const meta = {
     onSetTerm: () => {},
     onResetTerm: () => {},
     onSetDefault: () => {},
-    onTogglePagado: () => {},
     periodosLabel: "ene–jul 2026",
     titulo: "Clientes",
     subtitulo:
@@ -111,6 +117,21 @@ export const Clientes: Story = {
     await expect(canvas.getAllByText("$5.000.000").length).toBeGreaterThan(0);
     // Input de término editable por contraparte.
     await expect(canvas.getByLabelText(/Término de pago de COMERCIAL KAUFMANN/)).toHaveValue(30);
+  },
+};
+
+/** El botón "Marcar conciliado" se fue: cada documento lleva a donde se concilia de verdad,
+ *  y una declaración vieja se muestra como lo que es (no como "Conciliado"). */
+export const SinBotonDeMarcarConciliado: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: /DIVEIMPORT/ }));
+    await expect(canvas.queryByRole("button", { name: /Marcar conciliado/ })).toBeNull();
+    const enlace = canvas.getByRole("link", {
+      name: /Conciliar el folio 3 contra un movimiento bancario/,
+    });
+    await expect(enlace).toHaveAttribute("href", "/cobrar/facturas-emitidas");
+    await expect(canvas.getByText(/sin movimiento bancario asociado/)).toBeInTheDocument();
   },
 };
 

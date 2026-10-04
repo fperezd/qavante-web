@@ -9,6 +9,8 @@ import {
   type BheRecibida,
 } from "@/lib/api/sii";
 import { expandPeriodRange, type PeriodRange } from "@/lib/period/period-range";
+import { bheSourceExternalId, rcvSourceExternalId } from "@/components/sii/document-resolution-id";
+import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 import type { MaestroKind, DocConVencimiento } from "./terminos-pago";
 
 type ApiRcvDoc = Record<string, unknown>;
@@ -77,10 +79,13 @@ export function adaptRcv(docs: ReadonlyArray<ApiRcvDoc>): DocConVencimiento[] {
     refTipoDoc: normalizeInteger(d.ref_tipo_doc),
     reclamado: d.reclamado === true, // "R" de reclamada (#744); null/ausente (cache viejo) → false
     cedido: d.cedido === true, // cedida por factoring (RPETC) → se excluye del por-cobrar (#804)
+    // Misma clave natural que persiste el importador RCV del API → con ella se pide el estado
+    // de conciliación por documento (sin inventar un identificador propio).
+    sourceExternalId: rcvSourceExternalId(d as RcvDoc),
   }));
 }
 
-function adaptBhe(docs: ReadonlyArray<BheRecibida>): DocConVencimiento[] {
+function adaptBhe(docs: ReadonlyArray<BheRecibida>, periodo: string): DocConVencimiento[] {
   return docs
     .filter((b) => !b.anulada)
     .map((b) => ({
@@ -89,6 +94,9 @@ function adaptBhe(docs: ReadonlyArray<BheRecibida>): DocConVencimiento[] {
       fecha: b.fecha_emision ?? "",
       monto: Number(b.monto_liquido) || 0,
       folio: b.folio ?? null,
+      // El cache BHE identifica por `YYYYMM:rut:folio`; si la fila no trae `periodo` se usa el
+      // período consultado (es el que pidió esta query), no la fecha de emisión.
+      sourceExternalId: bheSourceExternalId({ ...b, periodo: b.periodo ?? periodo }),
     }));
 }
 
@@ -116,11 +124,11 @@ export function useMaestroDocs(
 
   const docs = React.useMemo(() => {
     const out: DocConVencimiento[] = [];
-    for (const r of results) {
+    for (const [index, r] of results.entries()) {
       const data = r.data;
       if (!data) continue;
       if (kind === "honorarios") {
-        out.push(...adaptBhe((data as BheResponse).bhe ?? []));
+        out.push(...adaptBhe((data as BheResponse).bhe ?? [], periods[index] ?? ""));
       } else if (kind === "ventas") {
         out.push(...adaptRcv((data as RcvVentasResponse).ventas ?? []));
       } else {
@@ -128,7 +136,7 @@ export function useMaestroDocs(
       }
     }
     return out;
-  }, [results, kind]);
+  }, [results, kind, periods]);
 
   return {
     docs,

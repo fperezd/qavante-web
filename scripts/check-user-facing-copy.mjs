@@ -155,17 +155,35 @@ function isVisibleLiteral(node) {
   return false;
 }
 
-function resolveAliasPath(value, aliases, seen = new Set()) {
-  if (seen.has(value)) return value;
+/* El `seen` corta los ciclos exactos, pero NO la explosión: cada rama compone un path NUEVO
+   (`[resuelto, ...resto].join(".")`) que nunca se vio antes, así que un árbol de alias
+   suficientemente ramificado genera caminos distintos hasta desbordar la pila. Pasó de verdad:
+   con los alias que agregó web#381, este script corrió 17 minutos y murió con
+   `RangeError: Maximum call stack size exceeded`, dejando el chequeo de copy sin correr.
+
+   La cota devuelve el valor SIN resolver en vez de abortar: un alias que no se resuelve hace
+   que el guard analice el texto literal, que es el lado conservador — a lo sumo revisa de más.
+   Abortar, en cambio, apaga el único chequeo que vigila la regla de copy del producto. */
+const MAX_PROFUNDIDAD_ALIAS = 64;
+
+function resolveAliasPath(value, aliases, seen = new Set(), profundidad = 0) {
+  if (seen.has(value) || profundidad > MAX_PROFUNDIDAD_ALIAS) return value;
   seen.add(value);
-  if (aliases.has(value)) return resolveAliasPath(aliases.get(value), aliases, seen);
+  if (aliases.has(value)) {
+    return resolveAliasPath(aliases.get(value), aliases, seen, profundidad + 1);
+  }
 
   const parts = value.split(".");
   for (let length = parts.length - 1; length > 0; length -= 1) {
     const prefix = parts.slice(0, length).join(".");
     if (aliases.has(prefix) && !seen.has(prefix)) {
-      const resolved = resolveAliasPath(aliases.get(prefix), aliases, seen);
-      return resolveAliasPath([resolved, ...parts.slice(length)].join("."), aliases, seen);
+      const resolved = resolveAliasPath(aliases.get(prefix), aliases, seen, profundidad + 1);
+      return resolveAliasPath(
+        [resolved, ...parts.slice(length)].join("."),
+        aliases,
+        seen,
+        profundidad + 1,
+      );
     }
   }
   return value;
