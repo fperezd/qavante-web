@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CompanySwitcher } from "./company-switcher";
 import type { UserRole } from "@/lib/auth/types";
+import { OBLIGACIONES_FINANCIERAS } from "@/lib/nav-labels";
 
 type SubLink = { href: string; label: string; needsRemun?: boolean };
 
@@ -59,7 +60,7 @@ const PAGAR_CHILDREN: ReadonlyArray<SubLink> = [
   { href: "/remuneraciones", label: "Remuneraciones", needsRemun: true },
   { href: "/pagar/previred", label: "Previred", needsRemun: true },
   { href: "/pagar/impuestos", label: "Impuestos y TGR" },
-  { href: "/pagar/obligaciones", label: "Obligaciones con entidades financieras" },
+  { href: "/pagar/obligaciones", label: OBLIGACIONES_FINANCIERAS },
 ];
 
 /* Sub-ítems de Gestión (top 5 de análisis para el dueño, pedido de Fernando

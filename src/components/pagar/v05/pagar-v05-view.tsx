@@ -8,6 +8,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rovingIndex } from "@/lib/a11y/roving";
+import { OBLIGACIONES_FINANCIERAS } from "@/lib/nav-labels";
 import type {
   D02AccountsPayableResponse as AccountsPayableResponse,
   PayableDuplicatePair,
@@ -491,7 +492,7 @@ function SelectorPeriodo({
 const HREF_LABEL: Record<string, string> = {
   "/pagar/facturas-recibidas": "Ver en Facturas recibidas",
   "/pagar/impuestos": "Ver en Impuestos",
-  "/pagar/obligaciones": "Ver en Préstamos y obligaciones",
+  "/pagar/obligaciones": `Ver en ${OBLIGACIONES_FINANCIERAS}`,
 };
 
 function hrefLabelDe(p: PagoV05): string {

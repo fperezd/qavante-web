@@ -2,7 +2,7 @@ import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { ObligacionesListView } from "@/components/pagar/obligaciones-list-view";
 
-/* `/pagar/obligaciones` — Préstamos y obligaciones (Tesorería). Vive bajo Pagar
+/* `/pagar/obligaciones` — Obligaciones con entidades financieras (Tesorería). Vive bajo Pagar
    porque son compromisos de pago. Alta de préstamo con amortización francesa +
    conciliación de cuotas contra débitos bancarios. Gateado por `obligations`
    (ADR-0008/0012). Server Component (regla 4: sin export const runtime). */

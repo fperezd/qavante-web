@@ -52,7 +52,7 @@ function saldoTexto(items: ReadonlyArray<ObligationListItem>) {
    mes y no una deuda en cuotas; `other` no es deuda con una entidad financiera.
    Consecuencia buscada: los totales del encabezado suman SOLO lo que se lista. */
 const CATEGORIES: ReadonlyArray<{ type: string; label: string; hint: string }> = [
-  { type: "loan", label: "Créditos", hint: "Préstamos con bancos e instituciones financieras" },
+  { type: "loan", label: "Créditos", hint: "Créditos con bancos e instituciones financieras" },
   {
     type: "card_purchase",
     label: "Compras en cuotas",

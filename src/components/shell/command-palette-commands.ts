@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@/lib/auth/types";
+import { OBLIGACIONES_FINANCIERAS } from "@/lib/nav-labels";
 
 /* Catálogo de comandos + lógica de filtrado del command palette (⌘K). PURO (sin
    JSX/React) para testear el filtrado sin montar el diálogo. El componente
@@ -148,7 +149,7 @@ export const COMMANDS: ReadonlyArray<Command> = [
   },
   {
     id: "obligaciones",
-    label: "Préstamos y obligaciones",
+    label: OBLIGACIONES_FINANCIERAS,
     group: "Tesorería",
     href: "/pagar/obligaciones",
     Icon: Landmark,
