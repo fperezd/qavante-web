@@ -3,13 +3,31 @@
 import { useDashboardSummary } from "@/lib/api/dashboard";
 import { useFinancialScope, toFinancialDecisionReadScope } from "@/lib/api/financial-scope";
 import { useOperationalResultV2, type OperationalResultV2Response } from "@/lib/api/gestion";
-import { formatMoney } from "@/lib/formatters/clp";
-import { parseAmountOrNull } from "@/lib/formatters/amount";
+import { RESULTADO_HORIZONTE } from "@/lib/gestion-titulos";
+import { formatPeriodLabel } from "./gestion-format";
+import {
+  money,
+  ResultadoBloque,
+  ResultadoBloqueAbstenido,
+  ResultadoDesgloseCostoDirecto,
+  ResultadoFuentes,
+  ResultadoMetric,
+  ResultadoMetricRow,
+  ResultadoMetricRowCompact,
+} from "./resultado-bloque";
 
-function money(value: string): string {
-  const amount = parseAmountOrNull(value);
-  return amount === null ? "Sin dato" : formatMoney(amount, "CLP");
-}
+/* Bloque del HORIZONTE de /gestion.
+ *
+ * `GET /api/management/operational-result/v2` NO mira lo corrido: arma el período de `as_of+1`
+ * a `as_of+horizon_days` (el hook pide 90), así que abierto el 4 de octubre de 2026 cubre
+ * oct 2026 a ene 2027. Por eso dejó de titularse "Resultado operacional" — ese nombre quedó
+ * para el bloque de lo corrido — y pasó a `RESULTADO_HORIZONTE`. El rango sigue publicándose
+ * bajo el título, como ya lo hacía.
+ *
+ * El diseño (tarjetas, espaciado, chip) salió a `./resultado-bloque` SIN cambios, para que el
+ * bloque de lo corrido lo reuse. */
+
+const TITULO_ID = "resultado-horizonte-title";
 
 function sourceLabel(source: string): string {
   const normalized = source.toLowerCase();
@@ -28,6 +46,15 @@ const SOURCE_STATE_LABELS = {
   error: "con error",
 } as const;
 
+/** "2026-10" a "2027-01" → "oct 2026 a ene 2027". El scope del V2 trae `YYYY-MM`
+ *  (`operational_result_v2.py` lo arma así), no fechas completas. */
+export function rangoHorizonte(periodFrom: string, periodTo: string): string {
+  const desde = formatPeriodLabel(periodFrom);
+  const hasta = formatPeriodLabel(periodTo);
+  const rango = desde === hasta ? desde : `${desde} a ${hasta}`;
+  return `${rango} · base devengada · CLP`;
+}
+
 export function OperationalResultV2Panel() {
   const dashboard = useDashboardSummary();
   const scope = useFinancialScope(dashboard.data?.generated_at);
@@ -37,23 +64,18 @@ export function OperationalResultV2Panel() {
   if (dashboard.isLoading || scope.isLoading || result.isLoading) {
     return (
       <section className="rounded-xl border border-border bg-surface p-4" role="status">
-        <p className="text-sm text-neutral-mid">Preparando el resultado operacional verificable…</p>
+        <p className="text-sm text-neutral-mid">Preparando {RESULTADO_HORIZONTE.toLowerCase()}…</p>
       </section>
     );
   }
 
   if (dashboard.isError || scope.isError || result.isError || !result.data) {
     return (
-      <section
-        className="rounded-xl border border-warning-500/30 bg-warning-500/5 p-4"
-        role="status"
-      >
-        <h2 className="font-semibold text-neutral-dark">Resultado operacional</h2>
-        <p className="mt-1 text-sm text-neutral-mid">
-          No está disponible para este corte. Conservamos el detalle histórico, pero no afirmamos
-          una cifra con información incompleta.
-        </p>
-      </section>
+      <ResultadoBloqueAbstenido titulo={RESULTADO_HORIZONTE} tituloId={TITULO_ID}>
+        Qavante se abstiene de publicar una cifra del tramo que viene mientras las fuentes
+        requeridas no acrediten una lectura completa. Revisa el estado de las fuentes en Salud del
+        dato y vuelve a abrir este bloque cuando estén al día.
+      </ResultadoBloqueAbstenido>
     );
   }
 
@@ -64,16 +86,15 @@ export function OperationalResultV2View({ response }: { response: OperationalRes
   const statement = response.statement_v2;
   if (!statement) {
     return (
-      <section
-        className="rounded-xl border border-warning-500/30 bg-warning-500/5 p-4"
-        role="status"
+      <ResultadoBloqueAbstenido
+        titulo={RESULTADO_HORIZONTE}
+        periodo={rangoHorizonte(response.scope.period_from, response.scope.period_to)}
+        tituloId={TITULO_ID}
       >
-        <h2 className="font-semibold text-neutral-dark">Resultado operacional</h2>
-        <p className="mt-1 text-sm text-neutral-mid">
-          Qavante se abstuvo de publicar el resultado porque las fuentes requeridas no acreditan una
-          lectura completa para este corte.
-        </p>
-      </section>
+        Qavante se abstuvo de publicar el tramo que viene porque las fuentes requeridas no acreditan
+        una lectura completa para este corte. Revisa el estado de las fuentes en Salud del dato y
+        vuelve a abrir este bloque cuando estén al día.
+      </ResultadoBloqueAbstenido>
     );
   }
 
@@ -82,88 +103,58 @@ export function OperationalResultV2View({ response }: { response: OperationalRes
     statement.coverage.decision_support === "eligible";
 
   return (
-    <section
-      className="space-y-4 rounded-xl border border-border bg-surface p-4"
-      aria-labelledby="resultado-v2-title"
+    <ResultadoBloque
+      titulo={RESULTADO_HORIZONTE}
+      eyebrow="Una definición para toda Qavante"
+      periodo={rangoHorizonte(statement.scope.period_from, statement.scope.period_to)}
+      apto={eligible}
+      tituloId={TITULO_ID}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-mid">
-            Una definición para toda Qavante
-          </p>
-          <h2 id="resultado-v2-title" className="mt-1 text-lg font-semibold text-neutral-dark">
-            Resultado operacional
-          </h2>
-          <p className="mt-1 text-sm text-neutral-mid">
-            {statement.scope.period_from} a {statement.scope.period_to} · base devengada · CLP
-          </p>
-        </div>
-        <span className="rounded-full bg-neutral-light px-3 py-1 text-xs font-semibold text-neutral-dark">
-          {eligible ? "Apto para decidir" : "Parcial · no usar para decidir"}
-        </span>
-      </div>
-
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Ingresos" value={money(statement.revenue)} />
-        <Metric label="Costo Directo" value={money(statement.direct_cost.total)} />
-        <Metric label="Gastos operacionales" value={money(statement.recurring_expenses)} />
-        <Metric
+      <ResultadoMetricRow>
+        <ResultadoMetric label="Ingresos" value={money(statement.revenue)} />
+        <ResultadoMetric label="Costo Directo" value={money(statement.direct_cost.total)} />
+        <ResultadoMetric label="Gastos operacionales" value={money(statement.recurring_expenses)} />
+        <ResultadoMetric
           label="Resultado antes de gastos financieros"
           value={money(statement.result_before_financial)}
         />
-      </dl>
+      </ResultadoMetricRow>
 
-      <div className="rounded-lg border border-border p-3">
-        <h3 className="text-sm font-semibold text-neutral-dark">Qué incluye Costo Directo</h3>
-        <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
-          <Metric label="Base" value={money(statement.direct_cost.base)} compact />
-          <Metric
-            label="Remuneraciones"
-            value={money(statement.direct_cost.remunerations)}
-            compact
-          />
-          <Metric
-            label="Honorarios"
-            value={money(statement.direct_cost.professional_fees)}
-            compact
-          />
-        </dl>
-        <p className="mt-2 text-xs text-neutral-mid">
-          La base contiene compras asociadas a la entrega y trabajo directo. Remuneraciones y
-          honorarios se muestran aparte y se suman una sola vez.
-        </p>
-      </div>
+      <ResultadoDesgloseCostoDirecto
+        base={money(statement.direct_cost.base)}
+        remuneraciones={money(statement.direct_cost.remunerations)}
+        honorarios={money(statement.direct_cost.professional_fees)}
+        nota="La base contiene compras asociadas a la entrega y trabajo directo. Remuneraciones y honorarios se muestran aparte y se suman una sola vez."
+      />
 
-      <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-        <Metric
+      <ResultadoMetricRowCompact>
+        <ResultadoMetric
           label="Compras sin clasificar"
           value={money(statement.unclassified_purchases)}
           compact
         />
-        <Metric
+        <ResultadoMetric
           label="Otras partidas sin clasificar"
           value={money(statement.unclassified)}
           compact
         />
-        <Metric label="Gastos financieros" value={money(statement.financial_expense)} compact />
-        <Metric label="Resultado final" value={money(statement.result_after_financial)} compact />
-      </div>
+        <ResultadoMetric
+          label="Gastos financieros"
+          value={money(statement.financial_expense)}
+          compact
+        />
+        <ResultadoMetric
+          label="Resultado final"
+          value={money(statement.result_after_financial)}
+          compact
+        />
+      </ResultadoMetricRowCompact>
 
-      {statement.source_coverage.length > 0 && (
-        <ul
-          className="flex flex-wrap gap-2 text-xs text-neutral-mid"
-          aria-label="Cobertura de fuentes"
-        >
-          {statement.source_coverage.map((source, index) => (
-            <li
-              key={`${source.source}-${index}`}
-              className="rounded-full border border-border px-2 py-1"
-            >
-              {sourceLabel(source.source)}: {SOURCE_STATE_LABELS[source.state]}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ResultadoFuentes
+        items={statement.source_coverage.map(
+          (source) => `${sourceLabel(source.source)}: ${SOURCE_STATE_LABELS[source.state]}`,
+        )}
+      />
       {statement.coverage.omitted_count > 0 && (
         <p className="text-sm text-warning-700" role="status">
           {statement.coverage.omitted_count}{" "}
@@ -171,27 +162,6 @@ export function OperationalResultV2View({ response }: { response: OperationalRes
           falta de conversión verificable; no se reemplazaron por $0.
         </p>
       )}
-    </section>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  compact = false,
-}: {
-  label: string;
-  value: string;
-  compact?: boolean;
-}) {
-  return (
-    <div
-      className={
-        compact ? "rounded-lg bg-neutral-light/30 p-2" : "rounded-lg bg-neutral-light/30 p-3"
-      }
-    >
-      <dt className="text-xs text-neutral-mid">{label}</dt>
-      <dd className="mt-1 font-semibold tabular-nums text-neutral-dark">{value}</dd>
-    </div>
+    </ResultadoBloque>
   );
 }

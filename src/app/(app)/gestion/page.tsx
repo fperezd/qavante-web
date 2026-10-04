@@ -6,6 +6,7 @@ import { OperationalResultView } from "@/components/gestion/operational-result-v
 import { currentPeriodSantiago } from "@/components/gestion/gestion-format";
 import { GestionV08Live } from "@/components/gestion/v08/gestion-v08-live";
 import { OperationalResultV2Panel } from "@/components/gestion/operational-result-v2-panel";
+import { OperationalResultCorridoPanel } from "@/components/gestion/operational-result-corrido-panel";
 
 /* Gestión — Resultado Operacional (Sprint C5). Server Component: resuelve el
    flag `operationalResult` (default OFF — ADR-0008) y calcula el período
@@ -25,6 +26,9 @@ export default function GestionPage() {
   if (gestionV08) {
     return (
       <div className="space-y-5">
+        {/* Orden de lectura: primero LO CORRIDO (lo que ya ocurrió, que es lo que el dueño
+            pregunta al abrir Gestión), después el HORIZONTE, y al final el detalle mensual. */}
+        <OperationalResultCorridoPanel initialPeriod={initialPeriod} />
         <OperationalResultV2Panel />
         <Suspense fallback={<CargandoGestion />}>
           <GestionV08Live />
@@ -42,6 +46,12 @@ export default function GestionPage() {
         </p>
       </header>
 
+      {/* Dos bloques, el mismo diseño, rótulos distintos, y cada uno declarando qué período
+          cubre. Lo CORRIDO va primero porque es la respuesta a "¿estoy ganando o perdiendo?";
+          el HORIZONTE es contexto de lo que viene (y hoy está abstenido en producción, así que
+          abrir la pantalla con él sería abrir con una abstención). La matriz mensual queda al
+          final como el detalle al que se baja después de leer las dos cifras. */}
+      <OperationalResultCorridoPanel initialPeriod={initialPeriod} />
       <OperationalResultV2Panel />
 
       {operationalResult ? (

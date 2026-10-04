@@ -41,7 +41,10 @@ function periodoMenos(period: string, n: number): string {
   return `${y}-${String(mes).padStart(2, "0")}`;
 }
 
-export function OperationalResultView({ initialPeriod, dashboard = false }: OperationalResultViewProps) {
+export function OperationalResultView({
+  initialPeriod,
+  dashboard = false,
+}: OperationalResultViewProps) {
   /* La reportabilidad NO abre en el MES EN CURSO: es incompleto (los costos ya están devengados pero
      las ventas del mes recién empiezan) → daría un "perdió $X" FALSO. Abre en el último mes CERRADO.
      El mes en curso sigue seleccionable y se muestra reformulado ("en curso, aún sin cerrar"). */
@@ -72,7 +75,11 @@ export function OperationalResultView({ initialPeriod, dashboard = false }: Oper
   );
 
   return (
-    <div className="space-y-4">
+    /* `data-testid`: /gestion ahora monta DOS bloques de resultado arriba de esta vista
+       (lo corrido y el horizonte), así que las aserciones de consistencia del e2e —"el hero
+       coincide con la cascada"— tienen que contarse DENTRO de esta vista y no sobre la página
+       entera, donde la misma cifra aparece legítimamente en otro bloque. */
+    <div className="space-y-4" data-testid="resultado-operacional-mes">
       {header}
       {single ? (
         <StateWrap

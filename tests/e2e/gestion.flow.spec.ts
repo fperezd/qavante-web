@@ -27,11 +27,16 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
     // Un mes por defecto: vista v2 — respuesta de dueño (result del fixture = $3.900.000) + cascada.
     await expect(page.getByText("El negocio ganó este mes")).toBeVisible();
     // El resultado final del hero y el de la cascada coinciden (footing correcto).
+    /* Acotado a la vista del mes: /gestion monta además los bloques "Resultado operacional"
+       (lo corrido) y "Operación hacia adelante", que publican sus propias cifras del mismo
+       mock. Lo que este test afirma es que el hero y la cascada DE ESTA VISTA coinciden, no
+       que la cifra sea única en toda la pantalla. */
+    const mes = page.getByTestId("resultado-operacional-mes");
     const hero = page.getByText("El negocio ganó este mes", { exact: true }).locator("..");
     await expect(hero.getByText("$3.900.000", { exact: true })).toBeVisible();
-    await expect(page.getByText("$3.900.000", { exact: true })).toHaveCount(2);
-    await expect(page.getByText("Ingresos")).toBeVisible();
-    await expect(page.getByText("$18.500.000")).toBeVisible(); // Ingresos, único
+    await expect(mes.getByText("$3.900.000", { exact: true })).toHaveCount(2);
+    await expect(mes.getByText("Ingresos").first()).toBeVisible();
+    await expect(mes.getByText("$18.500.000")).toBeVisible(); // Ingresos, único
     await expect(page.getByText("Qué explica el resultado")).toBeVisible();
     await expect(page.getByText("Más ventas que el mes anterior.")).toBeVisible(); // driver (texto único)
 

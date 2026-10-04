@@ -1,12 +1,17 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { OperationalResultV2Response } from "@/lib/api/gestion";
+import { RESULTADO_CORRIDO, RESULTADO_HORIZONTE } from "@/lib/gestion-titulos";
 import { OperationalResultV2View } from "./operational-result-v2-panel";
 
 function fixture(): OperationalResultV2Response {
+  /* `period_from`/`period_to` del V2 son "YYYY-MM" (los arma `operational_result_v2.py` con
+     `f"{year:04d}-{month:02d}"`), y el rango va de `as_of+1` a `as_of+horizon_days`: HACIA
+     ADELANTE. El fixture anterior usaba fechas completas y un rango pasado — no era la forma
+     que sirve producción. */
   const scope = {
-    period_from: "2026-06-01",
-    period_to: "2026-08-31",
+    period_from: "2026-09",
+    period_to: "2026-12",
     as_of: "2026-09-03T12:00:00Z",
     timezone: "America/Santiago" as const,
   };
@@ -65,7 +70,11 @@ function fixture(): OperationalResultV2Response {
 describe("OperationalResultV2View", () => {
   it("presenta la definición aprobada y sus componentes sin doble suma", () => {
     const text = renderToStaticMarkup(<OperationalResultV2View response={fixture()} />);
-    expect(text).toContain("Resultado operacional");
+    /* Este bloque YA NO se titula "Resultado operacional": ese nombre quedó para lo corrido.
+       Mira de `as_of+1` a `as_of+horizon`, así que publica su propio rótulo y su rango. */
+    expect(text).toContain(RESULTADO_HORIZONTE);
+    expect(text).not.toContain(RESULTADO_CORRIDO);
+    expect(text).toContain("sep 2026 a dic 2026");
     // "canónico" es vocabulario interno: no vuelve a pantalla (issue de copy, 2026-10-03).
     expect(text).not.toContain("canónic");
     expect(text).toContain("Costo Directo");

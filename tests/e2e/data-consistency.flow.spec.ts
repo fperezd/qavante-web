@@ -21,10 +21,15 @@ test.describe("Consistencia de datos (Gestión + Presupuesto)", () => {
 
     // El resultado final del hero también aparece en el resto del desglose, sin contradicción.
     // (18.500.000 − 7.400.000 − 4.200.000 − 900.000 − 2.100.000 = 3.900.000 → footea.)
+    /* Acotado a la vista del mes: /gestion monta además los bloques "Resultado operacional"
+       (lo corrido) y "Operación hacia adelante", que publican sus propias cifras del mismo
+       mock. Lo que este test afirma es que el hero y la cascada DE ESTA VISTA coinciden, no
+       que la cifra sea única en toda la pantalla. */
+    const mes = page.getByTestId("resultado-operacional-mes");
     const hero = page.getByText("El negocio ganó este mes", { exact: true }).locator("..");
     await expect(hero.getByText("$3.900.000", { exact: true })).toBeVisible();
-    await expect(page.getByText("$3.900.000", { exact: true })).toHaveCount(2);
-    await expect(page.getByText("$18.500.000")).toBeVisible(); // Ingresos de la cascada (único)
+    await expect(mes.getByText("$3.900.000", { exact: true })).toHaveCount(2);
+    await expect(mes.getByText("$18.500.000")).toBeVisible(); // Ingresos de la cascada (único)
 
     // Ritmo coherente: vs mes anterior en MONTO (+$600.000), no en % (que explota en base chica).
     await expect(page.getByText("vs. mes anterior")).toBeVisible();
