@@ -1760,6 +1760,34 @@
         "title": "ApiKeyListResponse",
         "type": "object"
       },
+      "ApplicationBlocker": {
+        "additionalProperties": false,
+        "description": "Por qué una propuesta NO se puede conciliar, en un código y una frase (issue #1075).\n\nLa cola proponía candidatos con una banda de dos lados (`|saldo - monto| <= ε`) y el\naplicador los rechazaba con un guard de uno solo (`saldo - monto < 0`): la pantalla ofrecía\n\"Sí, conciliar\" contra documentos que el backend rechaza SIEMPRE con 409. Ahora la propuesta\nllega igual —saber que hay una factura que casi calza es información útil— pero declarada\ncomo no confirmable y con la causa escrita.\n\n`retryable` es del backend, no de la pantalla: con `false`, repetir la misma acción da el\nmismo resultado y la copia no debe decir \"vuelve a intentar\".",
+        "properties": {
+          "code": {
+            "description": "no_document_suggested | movement_exceeds_document | subset_sum_mismatch | stale_suggestion | document_settled | currency_mismatch | infeasible_date",
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "description": "Frase lista para mostrar, con el monto del problema cuando hay uno.",
+            "title": "Message",
+            "type": "string"
+          },
+          "retryable": {
+            "description": "Si repetir la acción (o refrescar) puede cambiar el resultado.",
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "retryable",
+          "message"
+        ],
+        "title": "ApplicationBlocker",
+        "type": "object"
+      },
       "ApplyRulesResponse": {
         "additionalProperties": false,
         "description": "Resumen de `POST /api/treasury/bank-movements/apply-rules` (batch determinista).",
@@ -13880,6 +13908,18 @@
             "title": "Crons",
             "type": "array"
           },
+          "execution_book": {
+            "$ref": "#/components/schemas/ExecutionBookResponse",
+            "description": "El estado del INSTRUMENTO, publicado junto a lo que mide. Sin `audit.job_runs` no hay nada que medir y las doce filas de `jobs` se abstienen; antes de este campo esa ausencia se leía igual que «doce jobs sin historia», que tiene otro arreglo."
+          },
+          "failing_enforced": {
+            "description": "Los jobs que SE INVOCAN y no cierran bien desde más allá de su umbral. Lista aparte de `silent_enforced` porque las dos son rojas y el qué-hacer es distinto: una manda a revisar el disparador, la otra el trabajo. Mezclarlas borraría cuál de las dos está pasando.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Failing Enforced",
+            "type": "array"
+          },
           "generated_at": {
             "description": "`now()` de la base, para que las edades cierren.",
             "format": "date-time",
@@ -13892,6 +13932,14 @@
               "$ref": "#/components/schemas/CronFootprintResponse"
             },
             "title": "Informative",
+            "type": "array"
+          },
+          "instrument_missing": {
+            "description": "Las tablas de observabilidad que esta base no tiene. Un rojo CON nombre y una sola vez, en vez de doce abstenciones que no dicen por qué.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Instrument Missing",
             "type": "array"
           },
           "jobs": {
@@ -16963,6 +17011,23 @@
             "title": "Amount",
             "type": "string"
           },
+          "blocker": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationBlocker"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Causa por la que `confirmable` es false, o null."
+          },
+          "confirmable": {
+            "default": true,
+            "description": "El saldo del documento alcanza para el movimiento, así que conciliar contra él tiene un camino de aplicación. Con false el backend responde 409 siempre y el FE no debe ofrecer el botón (issue #1075).",
+            "title": "Confirmable",
+            "type": "boolean"
+          },
           "date": {
             "anyOf": [
               {
@@ -18655,6 +18720,35 @@
           "reason_code"
         ],
         "title": "ExcludedCombinationRead",
+        "type": "object"
+      },
+      "ExecutionBookResponse": {
+        "description": "¿Existe en esta base la tabla que registra las ejecuciones? Medido, no supuesto.\n\nUn chequeo de salud que supone que su propia tabla existe falla hacia el 500, y un 500 se\nlleva puesto todo lo demás que sí se podía medir. Medido el 2026-10-05 contra producción:\n`0249_job_runs.sql` está en `main` y no aplicada, el código que la lee sí desplegado, y el\nresultado era `GET /api/admin/crons/health` en HTTP 500 — el vigilante de los procesos\ncallados, callado.",
+        "properties": {
+          "migration": {
+            "default": "0249_job_runs.sql",
+            "description": "La migración que la crea. Nombrarla es el arreglo.",
+            "title": "Migration",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "present": {
+            "default": true,
+            "description": "`False` = la tabla no existe y ningún job se puede medir.",
+            "title": "Present",
+            "type": "boolean"
+          },
+          "table": {
+            "default": "audit.job_runs",
+            "title": "Table",
+            "type": "string"
+          }
+        },
+        "title": "ExecutionBookResponse",
         "type": "object"
       },
       "ExpectedDocumentAllocation": {
@@ -25991,7 +26085,7 @@
           },
           "basis": {
             "default": "job_runs",
-            "description": "`job_runs`, `no_history`, `oldest_row` o `informative`.",
+            "description": "`job_runs`, `no_history`, `oldest_row`, `informative`, o `sin_libro` cuando `audit.job_runs` no existe en esta base y no hay NADA que medir.",
             "title": "Basis",
             "type": "string"
           },
@@ -26004,6 +26098,24 @@
             "default": false,
             "title": "Enforced",
             "type": "boolean"
+          },
+          "failing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`True` = se invoca y no cierra `ok` desde más allá del umbral. `False` = cerró bien dentro del umbral. `None` = **no se afirma** (sin umbral, sin una sola corrida, o sin el libro). Es una pregunta DISTINTA de `silent`: ésta no dice si alguien lo dispara, dice si termina su trabajo.",
+            "title": "Failing"
+          },
+          "failing_basis": {
+            "default": "last_ok",
+            "description": "`last_ok`, `oldest_row` (hay corridas y ninguna cerró bien), `no_history` o `informative`.",
+            "title": "Failing Basis",
+            "type": "string"
           },
           "key": {
             "description": "La llave del job en `app/jobs/catalog.py`.",
@@ -26031,7 +26143,7 @@
                 "type": "null"
               }
             ],
-            "description": "Último cierre sin excepción. Viejo con `last_started_at` fresco = el job se invoca y revienta, que es otro problema y lo grita el estado `Failed` de la ejecución. Informativo acá, sin umbral.",
+            "description": "Último cierre sin excepción. Viejo con `last_started_at` fresco = el job se invoca y revienta. **Lleva umbral**, y es `failing`: la regla de alerta de Azure Monitor que iba a gritarlo no está creada, y mientras no exista esto sale 🟢 «da señal» con el job reventando a diario — que es lo que pasó cinco días seguidos.",
             "title": "Last Ok At"
           },
           "last_started_age_seconds": {
@@ -26093,6 +26205,18 @@
             ],
             "description": "Umbral sobre `last_started_age_seconds`.",
             "title": "Max Age Seconds"
+          },
+          "ok_age_evaluated_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La edad que se comparó contra el umbral para `failing`.",
+            "title": "Ok Age Evaluated Seconds"
           },
           "open_runs": {
             "default": 0,
@@ -41247,6 +41371,17 @@
       "ReviewSuggestion": {
         "additionalProperties": false,
         "properties": {
+          "blocker": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationBlocker"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Causa por la que `can_confirm` es false, o null cuando se puede confirmar. La pantalla muestra ESTA frase en vez de su mensaje genérico (issue #1075)."
+          },
           "bulk_eligible": {
             "default": false,
             "description": "Puede incluirse en una confirmación masiva sin ocultar falta de identidad.",

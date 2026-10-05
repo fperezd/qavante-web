@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ApiError } from "@/lib/api/errors";
 import type {
   RevertActionResponse,
   ReversibleActionsListResponse,
@@ -16,6 +17,8 @@ import {
   faltaParaGuardar,
   folioEnGlosa,
   frecuentes,
+  bloqueoConciliar,
+  avisoDeFallo,
   haySugerenciaConciliar,
   interpretarDeshacer,
   itemsClasificar,
@@ -44,14 +47,17 @@ import {
   CUENTA_SOFTWARE,
   MOV_DATTATEC,
   MOV_ENTEL_1,
+  MOV_EXCEDE,
   MOV_KAUFMANN,
   MOV_TERCEROS,
+  candidatosExcede,
   candidatosKaufmann,
   candidatosVolcan,
   categoriaSinSugerencia,
   categoriaSugeridaDattatec,
   clasificados,
   colaConciliar,
+  colaConciliarExcede,
   sinClasificar,
 } from "./bandeja-v07-fixtures";
 
@@ -66,6 +72,8 @@ const KAUFMANN = () => itemsConciliar(colaConciliar())[0]!;
 const VOLCAN = () => itemsConciliar(colaConciliar())[1]!;
 const CAND_KAUFMANN = () => candidatos(candidatosKaufmann())[0]!;
 const CAND_VOLCAN = () => candidatos(candidatosVolcan())[0]!;
+const EXCEDE = () => itemsConciliar(colaConciliarExcede())[0]!;
+const CAND_EXCEDE = () => candidatos(candidatosExcede())[0]!;
 
 describe("normalización de RUT y texto", () => {
   it("normaliza con y sin puntos, y encuentra el RUT dentro de una glosa", () => {
@@ -214,11 +222,165 @@ describe("LEY 3 — las verificaciones que pasan, y sólo esas", () => {
   });
 
   it("basta UNA de las dos: sólo monto (sin RUT) alcanza, y sólo RUT (sin monto) también", () => {
-    const soloMonto = { ...VOLCAN(), glosa: "ABONO TRANSFERENCIA MIRKO GONZALEZ" };
+    /* Esta prueba es sobre la mitad de EVIDENCIA de la compuerta, así que la autorización del
+       servidor se mantiene fija en `true`: si no, mide las dos cosas a la vez y no se sabe cuál
+       falló. El fixture del Volcán trae `can_confirm: false`, que es su propio caso más abajo. */
+    const autorizado = { ...VOLCAN(), puedeConfirmar: true };
+    const soloMonto = { ...autorizado, glosa: "ABONO TRANSFERENCIA MIRKO GONZALEZ" };
     const candCalza = { ...CAND_VOLCAN(), monto: 1033076 };
     expect(haySugerenciaConciliar(soloMonto, candCalza)).toBe(true);
-    const soloRut = { ...VOLCAN(), glosa: "ABONO 81.201.000-K MIRKO GONZALEZ" };
+    const soloRut = { ...autorizado, glosa: "ABONO 81.201.000-K MIRKO GONZALEZ" };
     expect(haySugerenciaConciliar(soloRut, CAND_VOLCAN())).toBe(true);
+  });
+
+  /* ── La compuerta del servidor: `can_confirm` / `confirmable` ───────────────────────────── */
+
+  it("EL CASO DE LA CAPTURA: evidencia que pasa + servidor que dice no ⇒ no se ofrece el botón", () => {
+    const item = EXCEDE();
+    const cand = CAND_EXCEDE();
+    /* La mitad de evidencia PASA: el RUT está en la glosa. Antes eso solo bastaba, y por eso el
+       botón se ofrecía y el backend respondía 409 siempre. */
+    expect(rutEnGlosa(item.glosa, cand.rut)).toBe(true);
+    // Y ahora igual no se ofrece, porque la autorización es del servidor.
+    expect(item.puedeConfirmar).toBe(false);
+    expect(cand.confirmable).toBe(false);
+    expect(haySugerenciaConciliar(item, cand)).toBe(false);
+  });
+
+  it("gemelo: con la MISMA evidencia y el servidor autorizando, el botón sí se ofrece", () => {
+    const item = { ...EXCEDE(), puedeConfirmar: true };
+    const cand = { ...CAND_EXCEDE(), confirmable: true, bloqueo: null };
+    expect(haySugerenciaConciliar(item, cand)).toBe(true);
+  });
+
+  it("basta que el CANDIDATO no sea confirmable, aunque la propuesta del motor lo fuera", () => {
+    // El dueño puede cambiar de documento: manda el candidato que está mirando.
+    const item = { ...KAUFMANN(), puedeConfirmar: true };
+    const cand = { ...CAND_KAUFMANN(), confirmable: false };
+    expect(haySugerenciaConciliar(item, cand)).toBe(false);
+  });
+
+  it("sin `can_confirm` en la respuesta NO se ofrece: el default honesto es no conciliar", () => {
+    const sinCampo = itemsConciliar({
+      items: [
+        {
+          movement_id: "mov-viejo",
+          date: "2026-08-01",
+          amount: "1000",
+          description: "ABONO 81.201.000-K",
+          suggestion: {
+            document_kind: "receivable",
+            document_id: "doc-1",
+            name: "Alguien",
+            score: "80",
+            document_count: 1,
+            bulk_eligible: false,
+            topology: "1:1",
+          },
+        },
+      ],
+      count: 1,
+    } as unknown as Parameters<typeof itemsConciliar>[0])[0]!;
+    expect(sinCampo.puedeConfirmar).toBe(false);
+    expect(haySugerenciaConciliar(sinCampo, { ...CAND_VOLCAN(), rut: "81201000K" })).toBe(false);
+  });
+
+  it("el bloqueo que se muestra es el del servidor, con el monto adentro", () => {
+    const bloqueo = bloqueoConciliar(EXCEDE(), CAND_EXCEDE());
+    expect(bloqueo?.codigo).toBe("movement_exceeds_document");
+    expect(bloqueo?.mensaje).toContain("$380.000");
+    expect(bloqueo?.reintentable).toBe(false);
+    // Sin bloqueo no se inventa uno.
+    expect(bloqueoConciliar({ ...KAUFMANN(), puedeConfirmar: true }, CAND_KAUFMANN())).toBeNull();
+  });
+
+  /* LOS QUE NO TIENEN DOCUMENTO PROPUESTO (43 de los 72 medidos en producción).
+     Ahí "actualiza la cola" también sería mentira: no hay nada que refrescar, hay que elegir el
+     documento a mano. Sin candidato la compuerta ya era `false`, así que el botón nunca se
+     ofrecía; lo que cambia es que ahora, si la cola manda el blocker, se dice POR QUÉ. */
+  it("sin documento propuesto se muestra el motivo del servidor, y no se promete refrescar", () => {
+    const sinDoc = {
+      ...EXCEDE(),
+      documentoPropuesto: null,
+      bloqueo: {
+        codigo: "no_document_suggested",
+        mensaje: "No encontramos un documento que calce con este movimiento.",
+        reintentable: false,
+      },
+    };
+    // Sin candidato no hay sugerencia, con blocker o sin él.
+    expect(haySugerenciaConciliar(sinDoc, null)).toBe(false);
+    const bloqueo = bloqueoConciliar(sinDoc, null);
+    expect(bloqueo?.codigo).toBe("no_document_suggested");
+    expect(bloqueo?.reintentable).toBe(false);
+  });
+
+  /* ── El aviso de un fallo: nunca prometer un reintento que no puede funcionar ───────────── */
+
+  it("409 no reintentable: dice el motivo del servidor y NO manda a reintentar", () => {
+    const err = new ApiError("Conflicto.", 409, "movement_exceeds_document", {
+      code: "movement_exceeds_document",
+      message: "El movimiento supera en $380.000 el saldo del documento.",
+      retryable: false,
+    });
+    const aviso = avisoDeFallo("conciliar este movimiento", err);
+    expect(aviso).toContain("$380.000");
+    expect(aviso).not.toContain("vuelve a intentar");
+    expect(aviso).not.toContain("Vuelve a intentar");
+  });
+
+  it("gemelo: con `retryable: true` SÍ manda a reintentar, con el mismo motivo", () => {
+    const err = new ApiError("Conflicto.", 409, "stale_suggestion", {
+      code: "stale_suggestion",
+      message: "La sugerencia quedó vieja.",
+      retryable: true,
+    });
+    const aviso = avisoDeFallo("conciliar este movimiento", err);
+    expect(aviso).toContain("La sugerencia quedó vieja.");
+    expect(aviso).toContain("Vuelve a intentar.");
+  });
+
+  it("el bloqueo también se lee cuando viaja bajo `detail`", () => {
+    const err = new ApiError("Conflicto.", 409, "document_settled", {
+      detail: { code: "document_settled", message: "El documento ya se saldó.", retryable: false },
+    });
+    expect(avisoDeFallo("conciliar este movimiento", err)).toContain("ya se saldó");
+  });
+
+  it("corte de red y 5xx: ahí reintentar sí tiene sentido", () => {
+    const red = new ApiError("Error de red.", 0, "network_error");
+    expect(avisoDeFallo("conciliar este movimiento", red)).toContain("vuelve a intentar");
+    const servidor = new ApiError("Boom.", 500, "internal");
+    expect(avisoDeFallo("conciliar este movimiento", servidor)).toContain("vuelve a intentar");
+  });
+
+  it("sin motivo legible NO se promete nada: se dice el estado y se calla", () => {
+    const err = new ApiError("Conflicto.", 409, "algo_raro");
+    const aviso = avisoDeFallo("conciliar este movimiento", err);
+    expect(aviso).toBe("No pudimos conciliar este movimiento. El movimiento sigue pendiente.");
+    expect(aviso).not.toContain("intentar");
+  });
+
+  /* LA MEDICIÓN QUE IMPORTA: cuántos botones se ofrecen antes y después, sobre la misma cola.
+     "Antes" se reconstruye con la compuerta vieja (sólo evidencia), que es lo que el front hacía;
+     "después" es la función de verdad. */
+  it("cuántos botones se retiran: los que la evidencia aprobaba y el servidor rechaza", () => {
+    const cola = [
+      { item: KAUFMANN(), cand: CAND_KAUFMANN() },
+      { item: VOLCAN(), cand: CAND_VOLCAN() },
+      { item: EXCEDE(), cand: CAND_EXCEDE() },
+    ];
+    const compuertaVieja = ({ item, cand }: (typeof cola)[number]) =>
+      rutEnGlosa(item.glosa, cand.rut) || montoCalza(item, cand);
+    const antes = cola.filter(compuertaVieja).length;
+    const despues = cola.filter(({ item, cand }) => haySugerenciaConciliar(item, cand)).length;
+    expect(antes).toBe(2); // Kaufmann (RUT + monto) y Andina (RUT en la glosa)
+    expect(despues).toBe(1); // sólo Kaufmann: el servidor autoriza uno
+    // Y el que se retira es exactamente el que el backend rechazaría con 409.
+    const retirados = cola.filter(
+      (c) => compuertaVieja(c) && !haySugerenciaConciliar(c.item, c.cand),
+    );
+    expect(retirados.map((c) => c.item.id)).toEqual([MOV_EXCEDE]);
   });
 
   it("la tolerancia de ±1 % es del documento: $10.633 de $1.063.341 calza, $30.265 no", () => {

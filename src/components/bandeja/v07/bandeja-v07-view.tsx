@@ -21,6 +21,7 @@ import {
   evidenciaConciliar,
   faltaParaGuardar,
   frecuentes,
+  bloqueoConciliar,
   haySugerenciaConciliar,
   interpretarDeshacer,
   lote,
@@ -644,6 +645,7 @@ function CartaConciliar({
   const cargando = listos ? Boolean(candidatos.cargando) : Boolean(item);
   const candidato = item ? candidatoElegido(lista, item.documentoPropuesto, elegido) : null;
   const sugerible = item ? haySugerenciaConciliar(item, candidato) : false;
+  const bloqueo = item ? bloqueoConciliar(item, candidato) : null;
 
   async function confirmarActual() {
     if (!item || !sugerible || procesandoRef.current) return;
@@ -755,8 +757,24 @@ function CartaConciliar({
         </p>
       )}
 
+      {/* DONDE IBA EL BOTÓN VA EL MOTIVO, NOMBRADO POR EL SERVIDOR.
+          "Elige un documento o sáltalo" es verdad pero no dice POR QUÉ no se puede conciliar
+          contra el que está a la vista. El contrato publica esa frase con el monto del problema
+          adentro ("el movimiento supera en $380.000 el saldo del documento") y dice que la
+          pantalla muestre ÉSA en vez de su genérica. El candidato se sigue mostrando: saber que
+          hay una factura que casi calza es información útil, y esconderla no ayuda a nadie.
+          El cierre depende de `retryable`, que es del backend: con `false`, repetir da el mismo
+          resultado y la copia no puede mandar a reintentar. */}
       {!sugerible && !cargando && (
-        <p className="mt-2 text-[12.5px] text-rediseno-tinta-2">Elige un documento o sáltalo.</p>
+        <p className="mt-2 text-[12.5px] text-rediseno-tinta-2">
+          {bloqueo
+            ? `${bloqueo.mensaje} ${
+                bloqueo.reintentable
+                  ? "Actualiza la cola y vuelve a intentar."
+                  : "Elige otro documento o sáltalo."
+              }`
+            : "Elige un documento o sáltalo."}
+        </p>
       )}
 
       {buscando && (

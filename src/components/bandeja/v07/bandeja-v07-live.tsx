@@ -36,6 +36,7 @@ import { useBandejaLegalEntityId } from "@/components/bandeja/bandeja-scope";
 import { BandejaV07View } from "./bandeja-v07-view";
 import {
   accionesAutoClasificar,
+  avisoDeFallo,
   candidatos as adaptarCandidatos,
   itemsClasificar,
   itemsConciliar,
@@ -265,13 +266,14 @@ export function BandejaV07Live({
 
   if (review.isLoading && sinClasificar.isLoading) return <CargandoBandeja />;
 
+  /* EL MOTIVO LO MANDA EL SERVIDOR, Y "VUELVE A INTENTAR" NO ES GRATIS.
+     Acá la plantilla era fija y descartaba el cuerpo del error, así que un 409
+     `movement_exceeds_document` (`retryable: false`) terminaba en "vuelve a intentar" —
+     mandando a repetir algo que va a fallar igual. `avisoDeFallo` lee la causa y sólo promete
+     un reintento con evidencia de que puede servir. */
   function fallo(accion: string) {
     return (err: unknown) => {
-      setAviso(
-        err instanceof ApiError && err.isNetworkError()
-          ? `No pudimos ${accion}: se cortó la conexión. El movimiento sigue pendiente; vuelve a intentar.`
-          : `No pudimos ${accion}. El movimiento sigue pendiente; vuelve a intentar.`,
-      );
+      setAviso(avisoDeFallo(accion, err));
       void review.refetch();
       void sinClasificar.refetch();
     };

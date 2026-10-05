@@ -24,11 +24,13 @@ export const HOY = new Date("2026-08-30T12:00:00Z");
 
 export const RUT_KAUFMANN = "96572360-9";
 export const RUT_VOLCAN = "81201000-K";
+export const RUT_ANDINA = "79876543-2";
 export const RUT_DATTATEC = "76888888-8";
 export const RUT_ENTEL = "92580000-7";
 
 export const MOV_KAUFMANN = "mov-kaufmann";
 export const MOV_VOLCAN = "mov-volcan";
+export const MOV_EXCEDE = "mov-excede";
 export const MOV_DATTATEC = "mov-dattatec";
 export const MOV_TERCEROS = "mov-terceros";
 export const MOV_ENTEL_1 = "mov-entel-1";
@@ -82,6 +84,67 @@ export function colaConciliar(over: Partial<ReviewQueueResponse> = {}): ReviewQu
   return { items, count: items.length, ...over };
 }
 
+/**
+ * EL CASO DE LA CAPTURA DE FERNANDO, en su propia cola para no mover los conteos de las otras.
+ *
+ * La evidencia de la Ley 3 PASA (el RUT está en la glosa), así que la compuerta vieja del front
+ * ofrecía "Sí, conciliar". Pero el movimiento supera el saldo del documento, así que el backend
+ * responde 409 siempre: `can_confirm` es false y el `blocker` lo nombra con el monto.
+ */
+export function colaConciliarExcede(): ReviewQueueResponse {
+  const items = [
+    {
+      movement_id: MOV_EXCEDE,
+      date: "2026-08-28",
+      amount: "2400000",
+      description: `TRANSFERENCIA ANDINA LTDA ${RUT_ANDINA} FAC 712`,
+      suggestion: {
+        document_kind: "receivable",
+        document_id: "doc-712",
+        name: "Andina Ltda.",
+        score: "84",
+        document_count: 1,
+        bulk_eligible: false,
+        can_confirm: false,
+        blocker: {
+          code: "movement_exceeds_document",
+          message: "El movimiento supera en $380.000 el saldo del documento.",
+          retryable: false,
+        },
+        topology: "1:1",
+      },
+    },
+  ];
+  return { items, count: items.length };
+}
+
+/** Candidatos del abono de Andina: el documento existe y es el correcto, pero no alcanza. */
+export function candidatosExcede(): DocumentSuggestionsResponse {
+  return {
+    movement_id: MOV_EXCEDE,
+    suggestions: [
+      {
+        document_id: "doc-712",
+        kind: "receivable",
+        document_type: 33,
+        folio: "712",
+        rut: RUT_ANDINA,
+        name: "Andina Ltda.",
+        amount: "2020000",
+        date: "2026-08-10",
+        score: 84,
+        confirmable: false,
+        blocker: {
+          code: "movement_exceeds_document",
+          message: "El movimiento supera en $380.000 el saldo del documento.",
+          retryable: false,
+        },
+        reasons: ["rut", "folio"],
+      },
+    ],
+  };
+}
+
 /** Candidatos del abono de Kaufmann ("elegir otro" ya devuelve folio/fecha/monto). */
 export function candidatosKaufmann(): DocumentSuggestionsResponse {
   return {
@@ -97,6 +160,7 @@ export function candidatosKaufmann(): DocumentSuggestionsResponse {
         amount: "2380000",
         date: "2026-08-05",
         score: 78,
+        confirmable: true,
         reasons: ["rut", "folio", "monto"],
       },
       {
@@ -109,6 +173,7 @@ export function candidatosKaufmann(): DocumentSuggestionsResponse {
         amount: "1980000",
         date: "2026-07-14",
         score: 41,
+        confirmable: true,
         reasons: ["rut"],
       },
     ],
@@ -130,6 +195,7 @@ export function candidatosVolcan(): DocumentSuggestionsResponse {
         amount: "1063341",
         date: "2026-08-19",
         score: 62,
+        confirmable: true,
         reasons: ["monto_aproximado"],
       },
     ],

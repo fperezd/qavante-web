@@ -9088,6 +9088,36 @@ export interface components {
             items: components["schemas"]["ApiKeyListItem"][];
         };
         /**
+         * ApplicationBlocker
+         * @description Por qué una propuesta NO se puede conciliar, en un código y una frase (issue #1075).
+         *
+         *     La cola proponía candidatos con una banda de dos lados (`|saldo - monto| <= ε`) y el
+         *     aplicador los rechazaba con un guard de uno solo (`saldo - monto < 0`): la pantalla ofrecía
+         *     "Sí, conciliar" contra documentos que el backend rechaza SIEMPRE con 409. Ahora la propuesta
+         *     llega igual —saber que hay una factura que casi calza es información útil— pero declarada
+         *     como no confirmable y con la causa escrita.
+         *
+         *     `retryable` es del backend, no de la pantalla: con `false`, repetir la misma acción da el
+         *     mismo resultado y la copia no debe decir "vuelve a intentar".
+         */
+        ApplicationBlocker: {
+            /**
+             * Code
+             * @description no_document_suggested | movement_exceeds_document | subset_sum_mismatch | stale_suggestion | document_settled | currency_mismatch | infeasible_date
+             */
+            code: string;
+            /**
+             * Message
+             * @description Frase lista para mostrar, con el monto del problema cuando hay uno.
+             */
+            message: string;
+            /**
+             * Retryable
+             * @description Si repetir la acción (o refrescar) puede cambiar el resultado.
+             */
+            retryable: boolean;
+        };
+        /**
          * ApplyRulesResponse
          * @description Resumen de `POST /api/treasury/bank-movements/apply-rules` (batch determinista).
          */
@@ -14630,6 +14660,13 @@ export interface components {
              * @description Una fila por cron declarado, en el orden del `.toml`.
              */
             crons?: components["schemas"]["CronFootprintResponse"][];
+            /** @description El estado del INSTRUMENTO, publicado junto a lo que mide. Sin `audit.job_runs` no hay nada que medir y las doce filas de `jobs` se abstienen; antes de este campo esa ausencia se leía igual que «doce jobs sin historia», que tiene otro arreglo. */
+            execution_book?: components["schemas"]["ExecutionBookResponse"];
+            /**
+             * Failing Enforced
+             * @description Los jobs que SE INVOCAN y no cierran bien desde más allá de su umbral. Lista aparte de `silent_enforced` porque las dos son rojas y el qué-hacer es distinto: una manda a revisar el disparador, la otra el trabajo. Mezclarlas borraría cuál de las dos está pasando.
+             */
+            failing_enforced?: string[];
             /**
              * Generated At
              * Format: date-time
@@ -14641,6 +14678,11 @@ export interface components {
              * @description Huellas que dicen algo útil y sobre las que un umbral mentiría. Mismo rol que `oldest_queued_age_seconds` en la salud de la cola del SII.
              */
             informative?: components["schemas"]["CronFootprintResponse"][];
+            /**
+             * Instrument Missing
+             * @description Las tablas de observabilidad que esta base no tiene. Un rojo CON nombre y una sola vez, en vez de doce abstenciones que no dicen por qué.
+             */
+            instrument_missing?: string[];
             /**
              * Jobs
              * @description Una fila por job programado declarado en `app/jobs/catalog.py`, con su libro de ejecuciones. Mientras los jobs no estén creados en Azure, los doce salen con `runs = 0` y `silent = null`: «no se afirma», nunca verde.
@@ -15835,6 +15877,14 @@ export interface components {
              * @description Monto pendiente del documento (string-decimal, absoluto).
              */
             amount: string;
+            /** @description Causa por la que `confirmable` es false, o null. */
+            blocker?: components["schemas"]["ApplicationBlocker"] | null;
+            /**
+             * Confirmable
+             * @description El saldo del documento alcanza para el movimiento, así que conciliar contra él tiene un camino de aplicación. Con false el backend responde 409 siempre y el FE no debe ofrecer el botón (issue #1075).
+             * @default true
+             */
+            confirmable: boolean;
             /**
              * Date
              * @description Fecha de emisión del documento (YYYY-MM-DD).
@@ -16656,6 +16706,40 @@ export interface components {
             component_codes: string[];
             /** Reason Code */
             reason_code: string;
+        };
+        /**
+         * ExecutionBookResponse
+         * @description ¿Existe en esta base la tabla que registra las ejecuciones? Medido, no supuesto.
+         *
+         *     Un chequeo de salud que supone que su propia tabla existe falla hacia el 500, y un 500 se
+         *     lleva puesto todo lo demás que sí se podía medir. Medido el 2026-10-05 contra producción:
+         *     `0249_job_runs.sql` está en `main` y no aplicada, el código que la lee sí desplegado, y el
+         *     resultado era `GET /api/admin/crons/health` en HTTP 500 — el vigilante de los procesos
+         *     callados, callado.
+         */
+        ExecutionBookResponse: {
+            /**
+             * Migration
+             * @description La migración que la crea. Nombrarla es el arreglo.
+             * @default 0249_job_runs.sql
+             */
+            migration: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Present
+             * @description `False` = la tabla no existe y ningún job se puede medir.
+             * @default true
+             */
+            present: boolean;
+            /**
+             * Table
+             * @default audit.job_runs
+             */
+            table: string;
         };
         /** ExpectedDocumentAllocation */
         ExpectedDocumentAllocation: {
@@ -19766,7 +19850,7 @@ export interface components {
             age_evaluated_seconds?: number | null;
             /**
              * Basis
-             * @description `job_runs`, `no_history`, `oldest_row` o `informative`.
+             * @description `job_runs`, `no_history`, `oldest_row`, `informative`, o `sin_libro` cuando `audit.job_runs` no existe en esta base y no hay NADA que medir.
              * @default job_runs
              */
             basis: string;
@@ -19781,6 +19865,17 @@ export interface components {
              */
             enforced: boolean;
             /**
+             * Failing
+             * @description `True` = se invoca y no cierra `ok` desde más allá del umbral. `False` = cerró bien dentro del umbral. `None` = **no se afirma** (sin umbral, sin una sola corrida, o sin el libro). Es una pregunta DISTINTA de `silent`: ésta no dice si alguien lo dispara, dice si termina su trabajo.
+             */
+            failing?: boolean | null;
+            /**
+             * Failing Basis
+             * @description `last_ok`, `oldest_row` (hay corridas y ninguna cerró bien), `no_history` o `informative`.
+             * @default last_ok
+             */
+            failing_basis: string;
+            /**
              * Key
              * @description La llave del job en `app/jobs/catalog.py`.
              */
@@ -19789,7 +19884,7 @@ export interface components {
             last_ok_age_seconds?: number | null;
             /**
              * Last Ok At
-             * @description Último cierre sin excepción. Viejo con `last_started_at` fresco = el job se invoca y revienta, que es otro problema y lo grita el estado `Failed` de la ejecución. Informativo acá, sin umbral.
+             * @description Último cierre sin excepción. Viejo con `last_started_at` fresco = el job se invoca y revienta. **Lleva umbral**, y es `failing`: la regla de alerta de Azure Monitor que iba a gritarlo no está creada, y mientras no exista esto sale 🟢 «da señal» con el job reventando a diario — que es lo que pasó cinco días seguidos.
              */
             last_ok_at?: string | null;
             /** Last Started Age Seconds */
@@ -19811,6 +19906,11 @@ export interface components {
              * @description Umbral sobre `last_started_age_seconds`.
              */
             max_age_seconds?: number | null;
+            /**
+             * Ok Age Evaluated Seconds
+             * @description La edad que se comparó contra el umbral para `failing`.
+             */
+            ok_age_evaluated_seconds?: number | null;
             /**
              * Open Runs
              * @description Corridas con `started_at` y sin `finished_at`. Una es la que está corriendo ahora. Varias viejas significan que el replica muere sin cerrar — `replicaTimeout` corto, OOM o SIGKILL—, y eso no lo dice ninguna otra señal.
@@ -26887,6 +26987,8 @@ export interface components {
         };
         /** ReviewSuggestion */
         ReviewSuggestion: {
+            /** @description Causa por la que `can_confirm` es false, o null cuando se puede confirmar. La pantalla muestra ESTA frase en vez de su mensaje genérico (issue #1075). */
+            blocker?: components["schemas"]["ApplicationBlocker"] | null;
             /**
              * Bulk Eligible
              * @description Puede incluirse en una confirmación masiva sin ocultar falta de identidad.

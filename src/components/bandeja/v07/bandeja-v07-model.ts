@@ -34,6 +34,7 @@ import {
   type ReversibleActionsListResponse,
 } from "@/lib/api/reversible-actions";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
+import { ApiError } from "@/lib/api/errors";
 
 /* ── Constantes con su cita ──────────────────────────────────────────────────────────────── */
 
@@ -74,6 +75,107 @@ export interface ItemConciliarV07 {
   documentos: number;
   /** `document_id` que el motor propuso, para elegirlo entre los candidatos. */
   documentoPropuesto: string | null;
+  /**
+   * `suggestion.can_confirm` del servidor: si la propuesta tiene respaldos completos.
+   * El servidor revalida al confirmar, así que esto es la ÚNICA autorización válida para
+   * ofrecer el botón. `false` por defecto: sin respuesta no se ofrece conciliar.
+   */
+  puedeConfirmar: boolean;
+  /**
+   * `suggestion.blocker`: la causa por la que `can_confirm` es false, nombrada por el
+   * servidor y con el monto del problema adentro. El contrato dice que la pantalla muestra
+   * ESTA frase en vez de su mensaje genérico. `null` cuando se puede confirmar.
+   */
+  bloqueo: BloqueoV07 | null;
+}
+
+/**
+ * `ApplicationBlocker`: por qué no se puede conciliar, en palabras del servidor.
+ *
+ * `codigo` NO es un enum en el contrato (los valores viven en la descripción:
+ * `no_document_suggested`, `movement_exceeds_document`, `subset_sum_mismatch`,
+ * `stale_suggestion`, `document_settled`, `currency_mismatch`, `infeasible_date`), así que acá
+ * viaja como string y nadie hace exhaustividad sobre él.
+ */
+export interface BloqueoV07 {
+  codigo: string;
+  /** Frase lista para mostrar, con el monto del problema cuando hay uno. */
+  mensaje: string;
+  /** Si repetir la acción (o refrescar) puede cambiar el resultado. */
+  reintentable: boolean;
+}
+
+/**
+ * El aviso de una acción que falló, con la causa del servidor y SIN prometer un reintento que
+ * no puede funcionar.
+ *
+ * Acá el aviso era una plantilla fija: "No pudimos {acción}. El movimiento sigue pendiente;
+ * vuelve a intentar." para todo error que no fuera de red. Con un 409
+ * `movement_exceeds_document` esa frase miente dos veces: descarta el motivo que el servidor
+ * mandó, y manda a repetir una acción que va a fallar igual. El contrato lo dice sin rodeos:
+ * "`retryable` es del backend, no de la pantalla: con `false`, repetir la misma acción da el
+ * mismo resultado y la copia no debe decir 'vuelve a intentar'".
+ *
+ * La regla es que "vuelve a intentar" necesita evidencia POSITIVA de que reintentar puede
+ * cambiar algo: un corte de red, un 5xx, o un `retryable: true` explícito. En cualquier otro
+ * caso se dice qué pasó y se deja de prometer.
+ */
+export function avisoDeFallo(accion: string, err: unknown): string {
+  if (err instanceof ApiError && err.isNetworkError()) {
+    return `No pudimos ${accion}: se cortó la conexión. El movimiento sigue pendiente; vuelve a intentar.`;
+  }
+  const bloqueo = err instanceof ApiError ? bloqueoDeError(err) : null;
+  if (bloqueo) {
+    return bloqueo.reintentable
+      ? `No pudimos ${accion}. ${bloqueo.mensaje} Vuelve a intentar.`
+      : `No pudimos ${accion}. ${bloqueo.mensaje}`;
+  }
+  /* Un 5xx es la única otra familia donde reintentar tiene sentido sin que el servidor lo
+     afirme: el error es del lado del servidor y puede ser transitorio. */
+  if (err instanceof ApiError && err.isServerError()) {
+    return `No pudimos ${accion}. El movimiento sigue pendiente; vuelve a intentar.`;
+  }
+  /* Sin motivo legible y sin evidencia de que reintentar sirva: se dice el estado y nada más.
+     Mejor un aviso corto que una instrucción que puede no funcionar. */
+  return `No pudimos ${accion}. El movimiento sigue pendiente.`;
+}
+
+/** El `ApplicationBlocker` que viaja en el cuerpo del error, si viene. */
+function bloqueoDeError(err: ApiError): BloqueoV07 | null {
+  const cuerpo = err.detail;
+  if (!cuerpo || typeof cuerpo !== "object") return null;
+  const obj = cuerpo as Record<string, unknown>;
+  /* El productor puede mandarlo plano o bajo `detail`, igual que el `code` que `extractApiError`
+     ya busca en los dos lados. */
+  const anidado =
+    obj.detail && typeof obj.detail === "object" && !Array.isArray(obj.detail)
+      ? (obj.detail as Record<string, unknown>)
+      : undefined;
+  for (const fuente of [anidado, obj]) {
+    if (!fuente) continue;
+    const mensaje = typeof fuente.message === "string" ? fuente.message : null;
+    if (!mensaje) continue;
+    return bloqueoDe({
+      code: typeof fuente.code === "string" ? fuente.code : err.code,
+      message: mensaje,
+      retryable: typeof fuente.retryable === "boolean" ? fuente.retryable : null,
+    });
+  }
+  return null;
+}
+
+/** `ApplicationBlocker` del contrato → `BloqueoV07`. `null` si no vino o está incompleto. */
+export function bloqueoDe(
+  raw: { code?: string | null; message?: string | null; retryable?: boolean | null } | null,
+): BloqueoV07 | null {
+  if (!raw || !raw.message) return null;
+  return {
+    codigo: raw.code ?? "",
+    mensaje: raw.message,
+    /* Sin `retryable` explícito NO se promete un reintento: prometerlo es el error que este
+       cambio arregla. */
+    reintentable: raw.retryable === true,
+  };
 }
 
 export interface ItemClasificarV07 {
@@ -108,6 +210,14 @@ export interface CandidatoV07 {
   monto: number | null;
   fecha: string | null;
   score: number;
+  /**
+   * `confirmable` del servidor: el saldo del documento alcanza para el movimiento, así que
+   * conciliar contra él tiene un camino de aplicación. Con `false` el backend responde 409
+   * SIEMPRE, y el front no debe ofrecer el botón. Default `true`, como el contrato.
+   */
+  confirmable: boolean;
+  /** La causa por la que `confirmable` es false, nombrada por el servidor. */
+  bloqueo: BloqueoV07 | null;
 }
 
 /* ── Normalizaciones ─────────────────────────────────────────────────────────────────────── */
@@ -208,6 +318,10 @@ export function itemsConciliar(resp: ReviewQueueResponse | null | undefined): It
     scoreMotor: parseAmountOrNull(it.suggestion?.score ?? null),
     documentos: it.suggestion?.document_count ?? 1,
     documentoPropuesto: it.suggestion?.document_id ?? null,
+    /* Sin `can_confirm` no se asume que se puede: el default del contrato es `false` y el
+       default honesto de la pantalla es no ofrecer el botón. */
+    puedeConfirmar: it.suggestion?.can_confirm === true,
+    bloqueo: bloqueoDe(it.suggestion?.blocker ?? null),
   }));
 }
 
@@ -244,6 +358,10 @@ export function candidatos(resp: DocumentSuggestionsResponse | null | undefined)
       monto: parseAmountOrNull(s.amount),
       fecha: s.date ?? null,
       score: s.score,
+      /* Acá el default del contrato SÍ es `true` (a diferencia de `can_confirm`): un candidato
+         sin la clave viene de un productor viejo y se trataba como conciliable. */
+      confirmable: s.confirmable !== false,
+      bloqueo: bloqueoDe(s.blocker ?? null),
     }))
     .sort((a, b) => b.score - a.score);
 }
@@ -374,12 +492,47 @@ function textoDias(dias: number): string {
 }
 
 /**
- * LA COMPUERTA de la Ley 3, literal: "Sin RUT en glosa Y sin monto que calce → no hay
- * sugerencia; va a revisión manual."
+ * LA COMPUERTA: quién puede conciliar lo decide el SERVIDOR; la Ley 3 sólo decide si además
+ * hay evidencia que mostrarle al dueño.
+ *
+ * Acá vivía `rutEnGlosa(...) || montoCalza(...)` y nada más. Esa es evidencia de que la
+ * propuesta es PLAUSIBLE, no de que sea APLICABLE, y la pantalla la usaba como si fueran lo
+ * mismo. La diferencia no es teórica: `montoCalza` compara el movimiento contra el MONTO del
+ * documento con una tolerancia de ±1 %, mientras que lo que decide si la conciliación tiene
+ * camino es si el SALDO del documento alcanza para el movimiento. Un movimiento que supera el
+ * saldo del documento por menos de 1 % pasaba la compuerta del front, se ofrecía el botón, y
+ * el backend respondía 409 — siempre, no a veces.
+ *
+ * Medido en producción el 2026-10-05: de 29 movimientos en `review` con sugerencia 1:1, 5
+ * superaban el saldo del documento. Esos 5 tenían el botón ofrecido y el 409 asegurado.
+ *
+ * Ahora `can_confirm` (la propuesta del motor) y `confirmable` (el candidato concreto que la
+ * card muestra, que puede ser otro si el dueño lo cambió) son condiciones NECESARIAS. La
+ * evidencia de la Ley 3 sigue siendo necesaria también: el servidor autoriza, pero una
+ * sugerencia sin RUT ni monto que calce igual va a revisión manual porque no hay nada que
+ * mostrarle al dueño para que decida.
  */
 export function haySugerenciaConciliar(item: ItemConciliarV07, cand: CandidatoV07 | null): boolean {
   if (!cand) return false;
+  if (!item.puedeConfirmar || !cand.confirmable) return false;
   return rutEnGlosa(item.glosa, cand.rut) || montoCalza(item, cand);
+}
+
+/**
+ * El bloqueo que la pantalla muestra DONDE IBA EL BOTÓN: el del candidato concreto si lo trae,
+ * y si no el de la propuesta del motor. `null` cuando no hay ninguno que nombrar.
+ *
+ * El candidato manda porque es el documento contra el que el dueño conciliaría: si cambió de
+ * candidato, el bloqueo de la propuesta original ya no describe lo que está mirando.
+ */
+export function bloqueoConciliar(
+  item: ItemConciliarV07,
+  cand: CandidatoV07 | null,
+): BloqueoV07 | null {
+  if (cand?.bloqueo) return cand.bloqueo;
+  if (cand && !cand.confirmable) return item.bloqueo;
+  if (!item.puedeConfirmar) return item.bloqueo;
+  return null;
 }
 
 /** Por qué el piloto NO lo resolvió solo, leído de los dos lados que la pantalla muestra. Nunca
