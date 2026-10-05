@@ -1,0 +1,53 @@
+# Por qué este archivo existe
+#
+# Hasta el 2026-10-05 el repo no tenía configuración de Dependabot, así que sólo llegaban
+# security updates sueltos, de un paquete por PR. Medido en el PR #399: `vitest` está clavado a
+# una versión exacta junto con tres paquetes más del mismo racimo —`@vitest/browser-playwright`,
+# `@vitest/coverage-v8` y `@vitest/browser`, este último traído por `@storybook/addon-vitest`—
+# y los tres declaran `peer vitest` a la versión EXACTA. Subir uno solo no puede resolver nunca:
+# `npm ci` aborta con ERESOLVE antes de instalar, y los nueve checks que vienen después mueren
+# todos con el mismo error. #399 nació imposible, y se repetiría en cada release de vitest.
+#
+# Agrupar es la única forma de que el racimo se mueva junto. Las dos declaraciones del grupo
+# `vitest` no son un duplicado: `applies-to` por defecto es `version-updates`, así que sin la
+# segunda los security updates —que son justo los que abrieron #399— seguirían llegando sueltos.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Santiago
+    open-pull-requests-limit: 5
+    groups:
+      # El racimo que no se puede mover de a uno (ver arriba).
+      vitest-racimo:
+        applies-to: version-updates
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@storybook/addon-vitest"
+      vitest-racimo-seguridad:
+        applies-to: security-updates
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@storybook/addon-vitest"
+      # Storybook también mueve sus paquetes en lote; `addon-vitest` ya quedó arriba.
+      storybook:
+        applies-to: version-updates
+        patterns:
+          - "storybook"
+          - "@storybook/*"
+        exclude-patterns:
+          - "@storybook/addon-vitest"
+      herramientas-de-desarrollo:
+        applies-to: version-updates
+        dependency-type: development
+        update-types: ["minor", "patch"]
+      dependencias-de-produccion:
+        applies-to: version-updates
+        dependency-type: production
+        update-types: ["minor", "patch"]
