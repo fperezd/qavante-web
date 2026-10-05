@@ -9,6 +9,7 @@ import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { formatPct } from "@/lib/formatters/pct";
+import { bloqueoDe, type BloqueoAplicacion } from "@/lib/api/application-blocker";
 
 /* Modelo puro de la cola de conciliación (ADR-0036/0042). Acá vive lo testeable: el motor deja en
    cola los matches de confianza media (score 60-90) y esta capa los prepara para mostrar. Sin
@@ -59,6 +60,22 @@ export type FilaCola = {
   tieneNombre: boolean;
   score: number | null;
   scoreTexto: string;
+  /**
+   * `suggestion.can_confirm`: si la propuesta tiene respaldos completos. Es la ÚNICA
+   * autorización válida para ofrecer el botón; el servidor revalida igual al confirmar.
+   * `false` por defecto: sin el campo no se ofrece conciliar.
+   */
+  puedeConfirmar: boolean;
+  /**
+   * `suggestion.blocker`: la causa por la que no se puede conciliar, nombrada por el servidor y
+   * con el monto del problema adentro. Se muestra DONDE IBA EL BOTÓN. `null` si se puede.
+   */
+  bloqueo: BloqueoAplicacion | null;
+  /**
+   * `suggestion.bulk_eligible`: si puede entrar en una confirmación masiva "sin ocultar falta de
+   * identidad". Una fila confirmable de a una no es necesariamente apta para el lote.
+   */
+  elegibleEnLote: boolean;
 };
 
 /** Prepara una fila para la vista. El `amount` del backend es una magnitud; el signo lo pone la
@@ -80,6 +97,12 @@ export function mapFila(item: ReviewItem): FilaCola {
     tieneNombre: Boolean(nombre),
     score: parseScore(item.suggestion.score),
     scoreTexto: scoreTexto(item.suggestion.score),
+    /* Sin `can_confirm` no se asume que se puede: el default del contrato es `false` y el
+       default honesto de la pantalla es no ofrecer el botón. Acá antes no se leía NINGUNO de
+       los tres campos, así que la fila ofrecía "Sí, es este" pasara lo que pasara. */
+    puedeConfirmar: item.suggestion.can_confirm === true,
+    bloqueo: bloqueoDe(item.suggestion.blocker ?? null),
+    elegibleEnLote: item.suggestion.bulk_eligible === true,
   };
 }
 
@@ -96,9 +119,27 @@ export function mapCola(resp: ReviewQueueResponse | undefined): FilaCola[] {
   });
 }
 
-/** Todos los ids de la cola, para "Conciliar todas (N)". */
-export function todosLosIds(filas: FilaCola[]): string[] {
-  return filas.map((f) => f.id);
+/**
+ * Las filas que el lote PUEDE aplicar: las que el servidor declara confirmables y además aptas
+ * para una confirmación masiva.
+ *
+ * Acá vivía `todosLosIds(filas)`, que devolvía la cola entera. El botón decía "Conciliar todas
+ * (N)" con N = filas, mandaba las N y el backend rechazaba las que no podía aplicar: un botón
+ * que promete N y aplica menos es la misma mentira con otro número. Se borró a propósito en vez
+ * de dejarlo al lado, para que ningún llamador pueda volver a tomar el de antes.
+ *
+ * `bulk_eligible` es una condición SEPARADA de `can_confirm`, no un sinónimo: el contrato la
+ * describe como "puede incluirse en una confirmación masiva sin ocultar falta de identidad", o
+ * sea una fila puede ser confirmable de a una —con el dueño mirándola— y no serlo en un lote
+ * donde nadie la mira. Se exigen las dos.
+ */
+export function filasParaLote(filas: FilaCola[]): FilaCola[] {
+  return filas.filter((f) => f.puedeConfirmar && f.elegibleEnLote);
+}
+
+/** Los ids que el lote aplica. El conteo del botón sale de acá, no de `filas.length`. */
+export function idsParaLote(filas: FilaCola[]): string[] {
+  return filasParaLote(filas).map((f) => f.id);
 }
 
 export type ResumenReconcile = {

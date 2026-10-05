@@ -35,6 +35,7 @@ import {
 } from "@/lib/api/reversible-actions";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 import { ApiError } from "@/lib/api/errors";
+import { bloqueoDe, type BloqueoAplicacion } from "@/lib/api/application-blocker";
 
 /* ── Constantes con su cita ──────────────────────────────────────────────────────────────── */
 
@@ -97,13 +98,10 @@ export interface ItemConciliarV07 {
  * `stale_suggestion`, `document_settled`, `currency_mismatch`, `infeasible_date`), así que acá
  * viaja como string y nadie hace exhaustividad sobre él.
  */
-export interface BloqueoV07 {
-  codigo: string;
-  /** Frase lista para mostrar, con el monto del problema cuando hay uno. */
-  mensaje: string;
-  /** Si repetir la acción (o refrescar) puede cambiar el resultado. */
-  reintentable: boolean;
-}
+/* El tipo y su mapper se mudaron a `@/lib/api/application-blocker`: la cola de conciliación de
+   `/caja/conciliacion` ofrece el MISMO botón y tiene que leer la misma decisión del servidor.
+   Se conserva el nombre local como alias para no renombrar sus usos acá. */
+export type BloqueoV07 = BloqueoAplicacion;
 
 /**
  * El aviso de una acción que falló, con la causa del servidor y SIN prometer un reintento que
@@ -162,20 +160,6 @@ function bloqueoDeError(err: ApiError): BloqueoV07 | null {
     });
   }
   return null;
-}
-
-/** `ApplicationBlocker` del contrato → `BloqueoV07`. `null` si no vino o está incompleto. */
-export function bloqueoDe(
-  raw: { code?: string | null; message?: string | null; retryable?: boolean | null } | null,
-): BloqueoV07 | null {
-  if (!raw || !raw.message) return null;
-  return {
-    codigo: raw.code ?? "",
-    mensaje: raw.message,
-    /* Sin `retryable` explícito NO se promete un reintento: prometerlo es el error que este
-       cambio arregla. */
-    reintentable: raw.retryable === true,
-  };
 }
 
 export interface ItemClasificarV07 {

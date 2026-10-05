@@ -4,6 +4,8 @@ import type { ReanalyzeResponse, ReconcileResponse, ReviewItem } from "@/lib/api
 import {
   documentoLabel,
   esCobro,
+  filasParaLote,
+  idsParaLote,
   interpretarErrorConciliar,
   mapCola,
   mapFila,
@@ -11,7 +13,6 @@ import {
   resumenReanalyze,
   resumenReconcile,
   scoreTexto,
-  todosLosIds,
 } from "./reconciliacion-cola-map";
 
 const item = (
@@ -145,19 +146,115 @@ describe("mapCola", () => {
   });
 });
 
-describe("todosLosIds", () => {
-  it("devuelve los ids en orden", () => {
-    expect(
-      todosLosIds(
-        mapCola({
-          count: 2,
-          items: [
-            item({ movement_id: "a", suggestion: { score: "65" } }),
-            item({ movement_id: "b", suggestion: { score: "88" } }),
-          ],
+describe("la elegibilidad la decide el servidor, no la pantalla", () => {
+  /* El bloqueo del contrato: el movimiento supera el saldo del documento, así que el backend
+     responde 409 SIEMPRE. Antes la fila ofrecía "Sí, es este" igual. */
+  const EXCEDE = {
+    can_confirm: false,
+    bulk_eligible: false,
+    blocker: {
+      code: "movement_exceeds_document",
+      message: "El movimiento supera en $380.000 el saldo del documento.",
+      retryable: false,
+    },
+  };
+
+  it("lee can_confirm, blocker y bulk_eligible de la sugerencia", () => {
+    const fila = mapFila(item({ suggestion: EXCEDE }));
+    expect(fila.puedeConfirmar).toBe(false);
+    expect(fila.elegibleEnLote).toBe(false);
+    expect(fila.bloqueo?.codigo).toBe("movement_exceeds_document");
+    expect(fila.bloqueo?.mensaje).toContain("$380.000");
+    expect(fila.bloqueo?.reintentable).toBe(false);
+    // Gemelo: con el servidor autorizando, los tres quedan del lado que permite conciliar.
+    const ok = mapFila(item());
+    expect(ok.puedeConfirmar).toBe(true);
+    expect(ok.elegibleEnLote).toBe(true);
+    expect(ok.bloqueo).toBeNull();
+  });
+
+  it("sin `can_confirm` en la respuesta NO se ofrece: el default honesto es no conciliar", () => {
+    const sinCampo = mapFila(
+      item({ suggestion: { can_confirm: undefined, bulk_eligible: undefined } }),
+    );
+    expect(sinCampo.puedeConfirmar).toBe(false);
+    expect(sinCampo.elegibleEnLote).toBe(false);
+    expect(sinCampo.bloqueo).toBeNull(); // no se inventa un motivo que el servidor no mandó
+  });
+
+  /* LA MEDICIÓN: cuántos botones se retiran, reconstruyendo la compuerta vieja al lado de la
+     nueva sobre la MISMA cola. La vieja no miraba nada: ofrecía el botón en todas las filas. */
+  it("cuántos botones se retiran de la cola, y cuáles", () => {
+    const filas = mapCola({
+      count: 3,
+      items: [
+        item({ movement_id: "ok", suggestion: { score: "88" } }),
+        item({ movement_id: "excede", suggestion: { score: "80", ...EXCEDE } }),
+        item({
+          movement_id: "sin-doc",
+          suggestion: {
+            score: "70",
+            can_confirm: false,
+            bulk_eligible: false,
+            blocker: {
+              code: "no_document_suggested",
+              message: "No encontramos un documento que calce con este movimiento.",
+              retryable: false,
+            },
+          },
         }),
-      ),
-    ).toEqual(["b", "a"]);
+      ],
+    });
+    const compuertaVieja = () => true; // ofrecía el botón en TODAS las filas
+    const antes = filas.filter(compuertaVieja).length;
+    const despues = filas.filter((f) => f.puedeConfirmar).length;
+    expect(antes).toBe(3);
+    expect(despues).toBe(1);
+    // Y los que se retiran son exactamente los que el backend rechazaría.
+    expect(filas.filter((f) => !f.puedeConfirmar).map((f) => f.id)).toEqual(["excede", "sin-doc"]);
+    // Cada uno se va con su motivo: ninguno queda mudo.
+    expect(filas.filter((f) => !f.puedeConfirmar).every((f) => f.bloqueo !== null)).toBe(true);
+  });
+
+  it("el lote aplica sólo lo elegible, y el conteo del botón sale de ahí", () => {
+    const filas = mapCola({
+      count: 3,
+      items: [
+        item({ movement_id: "a", suggestion: { score: "90" } }),
+        item({ movement_id: "b", suggestion: { score: "80", ...EXCEDE } }),
+        /* El caso que separa las dos condiciones: confirmable de a UNA —con el dueño
+           mirándola— pero NO apta para un lote donde nadie la mira. */
+        item({
+          movement_id: "c",
+          suggestion: { score: "70", can_confirm: true, bulk_eligible: false },
+        }),
+      ],
+    });
+    expect(idsParaLote(filas)).toEqual(["a"]);
+    // El botón decía 3 y aplicaba 1: ahora dice 1.
+    expect(filasParaLote(filas).length).toBe(1);
+    expect(filas.length).toBe(3);
+    // Y "c" sigue teniendo su botón de a una, que es lo correcto.
+    expect(filas.find((f) => f.id === "c")!.puedeConfirmar).toBe(true);
+  });
+
+  it("sin nada elegible el lote queda vacío, y no se manda una tanda que va a fallar", () => {
+    const filas = mapCola({
+      count: 1,
+      items: [item({ movement_id: "x", suggestion: EXCEDE })],
+    });
+    expect(idsParaLote(filas)).toEqual([]);
+  });
+
+  it("los ids del lote conservan el orden de la cola (mayor score primero)", () => {
+    const filas = mapCola({
+      count: 2,
+      items: [
+        item({ movement_id: "a", suggestion: { score: "65" } }),
+        item({ movement_id: "b", suggestion: { score: "88" } }),
+      ],
+    });
+    expect(idsParaLote(filas)).toEqual(["b", "a"]);
   });
 });
 

@@ -51,6 +51,11 @@ const filas = mapCola({
         document_count: 1,
         bulk_eligible: false,
         can_confirm: false,
+        blocker: {
+          code: "no_document_suggested",
+          message: "No encontramos un documento que calce con este cargo.",
+          retryable: false,
+        },
         topology: "1:1",
       },
     },
@@ -119,10 +124,38 @@ export const EligeOtroDocumento: Story = {
   },
 };
 
-/** "Conciliar todas (3)" dispara onConciliarTodas. */
+/**
+ * "Conciliar todas" cuenta los ELEGIBLES, no las filas: la cola trae 3 y el botón dice 2,
+ * porque la tercera no es apta para el lote. Antes decía 3, mandaba 3 y el backend rechazaba
+ * una en el medio.
+ */
 export const ConciliaTodas: Story = {
   play: async ({ canvas, args, userEvent }) => {
-    await userEvent.click(await canvas.findByRole("button", { name: /Conciliar todas \(3\)/i }));
+    await userEvent.click(await canvas.findByRole("button", { name: /Conciliar todas \(2\)/i }));
     await expect(args.onConciliarTodas).toHaveBeenCalled();
+    // Y la diferencia no queda muda: la cabecera dice cuántas quedan afuera.
+    await expect(await canvas.findByText(/2 se pueden aplicar en lote/i)).toBeInTheDocument();
+  },
+};
+
+/**
+ * La fila que el servidor no autoriza NO ofrece "Sí, es este": en su lugar va el motivo que
+ * manda el servidor. La propuesta se sigue mostrando y "Elegir otro" sigue disponible.
+ */
+export const FilaBloqueadaMuestraElMotivo: Story = {
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByText(/No encontramos un documento que calce con este cargo/i),
+    ).toBeInTheDocument();
+    // El cargo de $89.900 es el bloqueado: no tiene botón de confirmar.
+    await expect(canvas.queryByRole("button", { name: /Confirmar: .*89\.900/i })).toBeNull();
+    // Pero sí el camino que existe.
+    await expect(
+      await canvas.findByRole("button", { name: /Elegir otro documento para .*89\.900/i }),
+    ).toBeInTheDocument();
+    // Los dos que el servidor sí autoriza conservan su botón.
+    await expect(
+      await canvas.findByRole("button", { name: /Confirmar: .*Comercial Los Andes/i }),
+    ).toBeInTheDocument();
   },
 };

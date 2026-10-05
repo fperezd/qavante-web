@@ -21,7 +21,7 @@ import {
   mapCola,
   resumenReanalyze,
   resumenReconcile,
-  todosLosIds,
+  idsParaLote,
   type ResumenReconcile,
 } from "./reconciliacion-cola-map";
 
@@ -168,7 +168,10 @@ export function ColaConciliacionLive() {
   }
 
   function onConciliarTodas() {
-    const ids = todosLosIds(filas);
+    /* Sólo las que el servidor declara aplicables en lote. Antes iba la cola entera y el
+       backend rechazaba lo que no podía aplicar, así que el botón prometía N y aplicaba menos. */
+    const ids = idsParaLote(filas);
+    if (ids.length === 0) return;
     batch.mutate(ids, {
       onSuccess: (res) => {
         if (res.failed > 0) {

@@ -3,7 +3,7 @@
 import { ArrowRight, Check, Loader2, X } from "lucide-react";
 import { QavanteButton, QavanteCard } from "@/components/qavante";
 import { cn } from "@/lib/utils";
-import type { FilaCola } from "./reconciliacion-cola-map";
+import { filasParaLote, type FilaCola } from "./reconciliacion-cola-map";
 
 /* Presentacional puro (slots + callbacks, sin fetch): la cola de conciliación. Cada fila enfrenta
    un movimiento del banco con el documento que el motor cree que le corresponde (score 60-90). El
@@ -32,6 +32,11 @@ export function ColaConciliacion({
   conciliandoTodas,
 }: ColaConciliacionProps) {
   const total = filas.length;
+  /* EL CONTEO DEL BOTÓN ES DE LO QUE EL LOTE PUEDE APLICAR, NO DE LAS FILAS.
+     Antes decía "Conciliar todas (N)" con N = filas y mandaba las N; el backend rechazaba las
+     que no podía aplicar. Un botón que promete N y aplica menos es la misma mentira con otro
+     número, y en un lote es peor: falla en el medio y nadie sabe cuáles quedaron. */
+  const enLote = filasParaLote(filas).length;
 
   return (
     <div className="space-y-4">
@@ -40,14 +45,20 @@ export function ColaConciliacion({
           {total === 1
             ? "Hay 1 conciliación propuesta por confirmar."
             : `Hay ${total} conciliaciones propuestas por confirmar.`}
+          {/* Nunca el conteo del lote solo: si no coincide con las propuestas, se dice cuántas
+              quedan afuera y que cada una trae su motivo, en vez de dejar la diferencia muda. */}
+          {enLote < total &&
+            (enLote === 0
+              ? " Ninguna se puede aplicar en lote; cada una dice por qué."
+              : ` ${enLote} se pueden aplicar en lote: las otras ${total - enLote} dicen por qué no.`)}
         </p>
         <QavanteButton
           size="sm"
           onClick={onConciliarTodas}
           loading={conciliandoTodas}
-          disabled={total === 0}
+          disabled={enLote === 0}
         >
-          Conciliar todas ({total})
+          Conciliar todas ({enLote})
         </QavanteButton>
       </div>
 
@@ -125,19 +136,38 @@ function FilaConciliacion({
 
         {/* Acciones */}
         <div className="flex shrink-0 items-center gap-2">
-          <QavanteButton
-            size="sm"
-            onClick={onConfirmar}
-            disabled={pendiente}
-            aria-label={`Confirmar: ${fila.montoTexto} es ${fila.contraparte}`}
-          >
-            {pendiente ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Check className="h-4 w-4" aria-hidden="true" />
-            )}
-            Sí, es este
-          </QavanteButton>
+          {/* EL BOTÓN SÓLO SI EL SERVIDOR LO PERMITE.
+              Acá "Sí, es este" se ofrecía en TODAS las filas, deshabilitado nada más que
+              mientras había una acción en vuelo. Con `can_confirm: false` el backend responde
+              409 siempre, así que el botón no podía funcionar: ahora en su lugar va el motivo
+              que manda el servidor, con el monto del problema adentro. La propuesta se sigue
+              mostrando —saber que hay un documento que casi calza es información útil— y
+              "Elegir otro" sigue siendo el camino que sí existe. */}
+          {fila.puedeConfirmar ? (
+            <QavanteButton
+              size="sm"
+              onClick={onConfirmar}
+              disabled={pendiente}
+              aria-label={`Confirmar: ${fila.montoTexto} es ${fila.contraparte}`}
+            >
+              {pendiente ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Check className="h-4 w-4" aria-hidden="true" />
+              )}
+              Sí, es este
+            </QavanteButton>
+          ) : (
+            <p className="max-w-[16rem] text-xs text-neutral-mid">
+              {fila.bloqueo
+                ? `${fila.bloqueo.mensaje} ${
+                    fila.bloqueo.reintentable
+                      ? "Actualiza la cola y vuelve a intentar."
+                      : "Elige otro documento o descártala."
+                  }`
+                : "Esta propuesta no se puede confirmar como está; elige otro documento o descártala."}
+            </p>
+          )}
           <QavanteButton
             size="sm"
             variant="ghost"
