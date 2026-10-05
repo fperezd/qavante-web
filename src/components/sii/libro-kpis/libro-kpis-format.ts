@@ -9,10 +9,14 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
 import { isNotaCredito } from "../tipo-doc";
 import { hasCompleteRcvBreakdown } from "../rcv-totals";
 import { csv, csvCell } from "@/lib/export/csv";
+import { esIdentidadDebil, normalizeRut } from "@/lib/validators/rut";
 import type { RcvDoc } from "../rcv-grouped-item";
 
 export interface CounterpartyShare {
-  rut: string;
+  /** `null` cuando la contraparte llega con identidad débil (centinela de extranjero,
+   *  `SIN-RUT`, `S/D`): no hay RUT que mostrar y la vista decide cómo nombrarlo. Nunca se
+   *  mete una etiqueta humana en este campo, que es un dato. */
+  rut: string | null;
   name: string;
   total: number;
   pct: number;
@@ -25,19 +29,33 @@ export function concentrationByCounterparty(docs: RcvDoc[], topN = 5): Counterpa
   // Una sola fila parcial vuelve incierto el denominador. No se publica un top
   // aparentemente exacto basado sólo en el subconjunto completo.
   if (!docs.every(hasCompleteRcvBreakdown)) return [];
-  const map = new Map<string, { rut: string; name: string; total: number }>();
+  const map = new Map<string, { rut: string | null; name: string; total: number }>();
   let grand = 0;
   for (const d of docs) {
     if (!hasCompleteRcvBreakdown(d)) return [];
     // NC RESTA (neteo); factura/boleta suma.
     const sign = isNotaCredito(d.tipo_doc) ? -1 : 1;
-    // Clave por RUT; si no hay RUT, por razón social — así dos contrapartes
-    // distintas sin RUT no se funden en un único bucket "Sin información".
-    const key = d.rut_contraparte ?? d.razon_social ?? "sin-identificar";
+    /* UN CENTINELA NO ES UN RUT, Y AGRUPAR POR ÉL FUNDE EMPRESAS DISTINTAS.
+       La clave era `rut_contraparte ?? razon_social`, y el comentario de acá defendía el
+       fallback diciendo que así "dos contrapartes distintas sin RUT no se funden". Pero sólo
+       protegía a las filas con el RUT en `null`: el SII no manda `null` para un extranjero,
+       manda `55.555.555-5` para TODOS. Así que todo proveedor extranjero caía en un mismo
+       bucket, sus montos se sumaban, y el bucket se quedaba con la PRIMERA `razon_social` —
+       una fila que dice "ACME concentra $X" donde $X incluye la plata de otra empresa.
+       Los libros traen además `SIN-RUT` y `S/D` con el mismo problema.
+       `esIdentidadDebil` reconoce las tres formas, y entonces la razón social pasa a ser la
+       clave de verdad, que es lo que el comentario original quería decir. */
+    const identidadDebil = esIdentidadDebil(d.rut_contraparte);
+    const key = identidadDebil
+      ? `sin-rut:${d.razon_social ?? "sin-identificar"}`
+      : normalizeRut(d.rut_contraparte!);
     const t = sign * d.total;
     grand += t;
     const cur = map.get(key) ?? {
-      rut: d.rut_contraparte ?? "Sin información",
+      /* Con identidad débil la fila NO reclama un RUT que no distingue a nadie. El nombre
+         sigue siendo el de ESTA contraparte, no el de la primera que pasó, porque ahora la
+         clave es el nombre. */
+      rut: identidadDebil ? null : normalizeRut(d.rut_contraparte!),
       name: d.razon_social ?? "Sin nombre",
       total: 0,
     };

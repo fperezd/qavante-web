@@ -106,15 +106,16 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
         ) : (
           <ul className="space-y-2.5">
             {conc.map((c, i) => (
-              // key: el RUT si viene; sin RUT ("Sin información"), nombre+índice para no colisionar dos partes.
-              <li
-                key={c.rut !== "Sin información" ? c.rut : `${c.name}-${i}`}
-                className="space-y-1"
-              >
+              /* key: el RUT si viene; con identidad débil (centinela de extranjero, SIN-RUT,
+                 S/D) `rut` es null y TODAS esas filas compartían la misma clave, así que va
+                 el nombre, que es lo que de verdad las separa. */
+              <li key={c.rut ?? `sin-rut:${c.name}-${i}`} className="space-y-1">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate">
                     <span className="font-medium text-neutral-dark">{c.name}</span>
-                    <span className="ml-1 text-xs text-neutral-mid">{formatRut(c.rut)}</span>
+                    <span className="ml-1 text-xs text-neutral-mid">
+                      {c.rut ? formatRut(c.rut) : "contraparte extranjera o sin RUT"}
+                    </span>
                   </span>
                   <span className="shrink-0 tabular-nums text-neutral-dark">
                     {formatClp(c.total)}

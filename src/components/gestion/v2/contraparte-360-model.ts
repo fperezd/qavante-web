@@ -7,7 +7,7 @@
 
 import type { DocConVencimiento } from "@/components/terminos/terminos-pago";
 import { addMonths, comparePeriod } from "@/lib/period/period-range";
-import { normalizeRut } from "@/lib/validators/rut";
+import { esIdentidadDebil, normalizeRut } from "@/lib/validators/rut";
 import { isNotaCredito } from "@/components/sii/tipo-doc";
 
 export interface Customer360Scope {
@@ -41,8 +41,8 @@ export type Customer360DocumentKind = "credit_note" | "debit_note" | "positive_d
 
 const CREDIT_NOTE_CODES = new Set([60, 61, 112]);
 const DEBIT_NOTE_CODES = new Set([56, 111]);
-const WEAK_IDENTITIES = new Set(["55555555-5", "SIN-RUT", "S/D"]);
-const WEAK_IDENTITY_TOKENS = new Set(["555555555", "SINRUT", "SD"]);
+/* La lista de identidades débiles se mudó a `@/lib/validators/rut` (`esIdentidadDebil`) para
+   que el Libro use la MISMA, en vez de una copia. La contención sigue siendo la de acá. */
 
 export function customer360DocumentKind(
   tipoDoc: number | null | undefined,
@@ -97,12 +97,7 @@ export function filterCustomer360FocusDocs(
 }
 
 function hasWeakIdentity(doc: Customer360Document): boolean {
-  const rawToken = doc.rut
-    .trim()
-    .replace(/[.\-\s/]/g, "")
-    .toUpperCase();
-  const normalized = normalizeRut(doc.rut);
-  return normalized === "" || WEAK_IDENTITIES.has(normalized) || WEAK_IDENTITY_TOKENS.has(rawToken);
+  return esIdentidadDebil(doc.rut);
 }
 
 function canonicalDocumentIdentity(doc: Customer360Document): string | null {
@@ -299,9 +294,8 @@ export function customer360Series(
     if (!period) continue;
     byPeriod.set(period, (byPeriod.get(period) ?? 0) + customer360SignedAmount(doc));
   }
-  const periods = observedPeriods ?? Array.from({ length: 12 }, (_, index) =>
-    addMonths(scope.periodFrom, index),
-  );
+  const periods =
+    observedPeriods ?? Array.from({ length: 12 }, (_, index) => addMonths(scope.periodFrom, index));
   return periods
     .filter(
       (period) =>

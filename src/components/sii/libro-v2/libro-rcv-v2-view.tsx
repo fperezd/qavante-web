@@ -113,7 +113,9 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
 
   const concentracion = concentrationByCounterparty(allDocs, 10).map((c) => ({
     nombre: c.name,
-    rut: c.rut,
+    /* `rut` es null con identidad débil (centinela de extranjero, SIN-RUT, S/D) y acá el
+       campo es opcional: sin RUT la fila muestra sólo el nombre, que es lo que la distingue. */
+    rut: c.rut ?? undefined,
     monto: c.total,
     pct: c.pct,
   }));
