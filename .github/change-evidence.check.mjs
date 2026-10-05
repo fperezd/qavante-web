@@ -1,6 +1,46 @@
 import assert from "node:assert/strict";
 import { evaluateChangeEvidence } from "./change-evidence.mjs";
 
+/* EL GATE TIENE QUE NOMBRAR LA SECCION QUE FALTA, NO LAS PRIMERAS N.
+   El `.map` venia despues del `.filter`, asi que el indice era la posicion en el arreglo ya
+   filtrado y el gate nombraba siempre las primeras: a un PR al que solo le faltaba
+   `## Evidencia` le decia que le faltaba `Risk/Riesgo`. Paso de verdad con el PR #406.
+
+   Los asserts de mas abajo sobre este mismo error solo piden /Faltan secciones/, que es
+   exactamente lo que dejaba pasar el defecto: el mensaje DECIA "Faltan secciones" y estaba
+   mal. Estos tres nombran la seccion Y verifican que NO nombre las otras dos: sin esa segunda
+   mitad, un gate que listara las tres siempre pasaria igual. */
+{
+  const SOLO_RIESGO = "## Riesgo\nr";
+  const SOLO_EVIDENCIA = "## Evidencia\ne";
+  const SOLO_ROLLBACK = "## Rollback\nx";
+
+  const casos = [
+    ["Risk/Riesgo", [SOLO_EVIDENCIA, SOLO_ROLLBACK], /Risk\/Riesgo/, [/Evidence/, /Rollback/]],
+    [
+      "Evidence/Evidencia",
+      [SOLO_RIESGO, SOLO_ROLLBACK],
+      /Evidence\/Evidencia/,
+      [/Riesgo/, /Rollback/],
+    ],
+    ["Rollback", [SOLO_RIESGO, SOLO_EVIDENCIA], /Rollback/, [/Riesgo/, /Evidence/]],
+  ];
+
+  for (const [falta, presentes, esperado, noEsperados] of casos) {
+    let mensaje = null;
+    try {
+      evaluateChangeEvidence({ files: ["src/example.ts"], body: presentes.join("\n\n") });
+    } catch (error) {
+      mensaje = error.message;
+    }
+    assert.ok(mensaje, `tenia que fallar cuando falta ${falta}`);
+    assert.match(mensaje, esperado, `tenia que nombrar ${falta}, dijo: ${mensaje}`);
+    for (const otra of noEsperados) {
+      assert.doesNotMatch(mensaje, otra, `nombro una seccion que SI estaba: ${mensaje}`);
+    }
+  }
+}
+
 const body = "## Risk\nR0\n## Evidence\nTests\n## Rollback\nRevert";
 assert.equal(evaluateChangeEvidence({ files: ["docs/README.md"], body }).risk, "risk:R0");
 assert.equal(evaluateChangeEvidence({ files: ["src/example.ts"], body }).material, true);

@@ -14,6 +14,10 @@ const HIGH_RISK = Object.freeze([
 
 const DOC_ONLY = /^(?:docs\/|[^/]+\.md$)/i;
 
+/** En el MISMO orden que `MATERIAL_SECTIONS`: el nombre se busca por indice, no por posicion
+ *  en la lista de las que faltan. */
+const NOMBRES_DE_SECCION = Object.freeze(["Risk/Riesgo", "Evidence/Evidencia", "Rollback"]);
+
 /* UN BUMP DE LOCKFILE NO TIENE UNA FRASE QUE ESCRIBIR.
    Este gate existe para que alguien PIENSE antes de tocar algo riesgoso. Un PR que sólo mueve
    `package-lock.json` no es ese caso: no hay decisión que justificar, así que exigirle las tres
@@ -52,9 +56,16 @@ export function evaluateChangeEvidence({ labels = [], files = [], body = "", dra
 
   const material = files.some((file) => !DOC_ONLY.test(file) && !LOCKFILE_ONLY.test(file));
   if (material) {
-    const missing = MATERIAL_SECTIONS.filter((pattern) => !pattern.test(body)).map(
-      (pattern, index) => ["Risk/Riesgo", "Evidence/Evidencia", "Rollback"][index],
-    );
+    /* EL NOMBRE SALE DEL INDICE EN `MATERIAL_SECTIONS`, NO DEL INDICE DESPUES DE FILTRAR.
+       Antes el `.map` venia DESPUES del `.filter`, asi que el indice era la posicion en el
+       arreglo ya filtrado: a un PR que solo le faltaba `## Evidencia` el gate le decia que le
+       faltaba `Risk/Riesgo`, y a uno que le faltaban Evidencia y Rollback le nombraba
+       Riesgo y Evidencia. Siempre los primeros N, nunca los que faltaban.
+
+       No es cosmetico: el gate existe para que alguien PIENSE antes de tocar una ruta de
+       dinero, y mandarlo a escribir una seccion que ya tiene lo manda a buscar en el lugar
+       equivocado. Pasó de verdad con el PR #406. */
+    const missing = NOMBRES_DE_SECCION.filter((_, index) => !MATERIAL_SECTIONS[index].test(body));
     if (missing.length) throw new Error(`Faltan secciones mecánicas: ${missing.join(", ")}.`);
   }
 
