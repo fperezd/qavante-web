@@ -2,37 +2,98 @@ import type { Preview } from "@storybook/nextjs-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initialize, mswLoader } from "msw-storybook-addon";
 import React from "react";
-import { Sora, Fraunces, Figtree, Spline_Sans_Mono } from "next/font/google";
+import localFont from "next/font/local";
 
 /* Importa el CSS global del app — Tailwind 4 directives + tokens Qavante
    + tipografía. Sin este import las stories pierden el styling del DS. */
 import "../src/app/globals.css";
 
 /* Storybook no pasa por `src/app/layout.tsx`: carga las mismas variables tipográficas
-   para que sus capturas y revisiones visuales representen la app real. */
-const sora = Sora({
+   para que sus capturas y revisiones visuales representen la app real.
+   Y por eso también sale de los archivos del repo y no de Google: con `next/font/google` acá,
+   los jobs `storybook` y `chromatic` cargaban la misma dependencia de red en tiempo de
+   compilación que tenía `build`. Procedencia en `src/app/fonts/PROCEDENCIA.md`.
+   Fraunces vive sólo acá: la app no la declara, pero las stories sí. */
+const sora = localFont({
   variable: "--font-sora",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
+  src: [
+    { path: "../src/app/fonts/sora/sora-latin-300-normal.woff2", weight: "300", style: "normal" },
+    { path: "../src/app/fonts/sora/sora-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../src/app/fonts/sora/sora-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "../src/app/fonts/sora/sora-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "../src/app/fonts/sora/sora-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
 });
-const fraunces = Fraunces({
+const fraunces = localFont({
   variable: "--font-fraunces",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
   display: "swap",
+  src: [
+    {
+      path: "../src/app/fonts/fraunces/fraunces-latin-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../src/app/fonts/fraunces/fraunces-latin-500-normal.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../src/app/fonts/fraunces/fraunces-latin-600-normal.woff2",
+      weight: "600",
+      style: "normal",
+    },
+  ],
 });
-const figtree = Figtree({
+const figtree = localFont({
   variable: "--font-figtree",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   display: "swap",
+  src: [
+    {
+      path: "../src/app/fonts/figtree/figtree-latin-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../src/app/fonts/figtree/figtree-latin-500-normal.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../src/app/fonts/figtree/figtree-latin-600-normal.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../src/app/fonts/figtree/figtree-latin-700-normal.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
 });
-const splineSansMono = Spline_Sans_Mono({
+const splineSansMono = localFont({
   variable: "--font-spline-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
   display: "swap",
+  /* Sin tocar el fallback, igual que en `src/app/layout.tsx`: mover la métrica de la mono es
+     su propia decisión, no parte de sacar la descarga del build. */
+  src: [
+    {
+      path: "../src/app/fonts/spline-sans-mono/spline-sans-mono-latin-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../src/app/fonts/spline-sans-mono/spline-sans-mono-latin-500-normal.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../src/app/fonts/spline-sans-mono/spline-sans-mono-latin-600-normal.woff2",
+      weight: "600",
+      style: "normal",
+    },
+  ],
 });
 
 /* `NEXT_PUBLIC_API_URL` — hallazgo de revisión (PR #95): sin `.env.local` (gitignored, no

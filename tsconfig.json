@@ -34,5 +34,5 @@
     ".next-e2e-decision-brief-on/types/**/*.ts",
     ".next-e2e-decision-brief-on/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "worktrees", ".worktrees", ".codex-tmp"]
 }

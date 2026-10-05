@@ -1,3 +1,8 @@
 # El snapshot es un artefacto contractual con SHA-256 publicado por qavante-api.
 # No convertir sus saltos de línea en check-in/check-out: alteraría la evidencia.
 docs/contracts/openapi.snapshot.json -text
+
+# Las tipografías son binarios: una conversión de fin de línea las corrompe. Git lo detecta
+# solo por los NUL, pero acá se declara porque el repo se clona en Windows con autocrlf.
+*.woff2 binary
+*.woff binary
