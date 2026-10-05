@@ -8,7 +8,9 @@ import {
   bucketEmpezado,
   bucketsDesdeHoy,
   flujoDeBuckets,
-  primerCruceFuturo,
+  indiceBucketDeFecha,
+  cruceDelMinimo,
+  fechaDelDia,
   completitudFlujo,
   completitudFlujoVisible,
   entradasSinClasificarLabel,
@@ -22,7 +24,7 @@ import {
 } from "./caja-v2-map";
 import type { CashFlowBucket } from "@/lib/api/treasury-reports";
 import type { CashMinimumResponse } from "@/lib/api/cash-minimum";
-import type { SaldoPunto } from "./caja-curva-model";
+import type { DashboardCashForecastV2 } from "@/lib/api/dashboard";
 
 /** Techo de una moneda que DEBE tenerlo (si no lo tiene, el test que lo pide está mal planteado). */
 const techo = (code: string): number => {
@@ -110,21 +112,84 @@ describe("bucketEmpezado (ancla de la serie: el bucket en curso ya empezó)", ()
   });
 });
 
-describe("primerCruceFuturo (cruce bajo el mínimo, solo desde hoy)", () => {
-  const now = new Date(2026, 6, 19); // 19-jul-2026
-  const pt = (saldo: number): SaldoPunto => ({ label: "x", saldo });
-  it("ignora el dip reconstruido en un período ya pasado", () => {
-    const bs = [bucket("2026-06-29", "0"), bucket("2026-07-27", "0")]; // pasado, futuro
-    const serie = [pt(1_000), pt(5_000)]; // el pasado cae bajo el mínimo, el futuro no
-    expect(primerCruceFuturo(serie, bs, "week", now, 4_000)).toBeNull();
+/* EL CRUCE DEL MÍNIMO SE LEE, NO SE CALCULA.
+   Lo que estaba acá eran los tests de `primerCruceFuturo`, que recorría los buckets del reporte de
+   flujo de caja buscando el primer período bajo el mínimo — la definición del productor canónico
+   (`cash_model.dias_de_caja`, qavante-api#1050) reimplementada sobre otra serie. Esos tests
+   pasaban: medían bien una función que no debía existir, que es por qué ningún check viz la
+   divergencia. Los reemplazan los de las dos piezas que quedan, y ninguna de las dos puede decidir
+   si hay cruce. */
+
+describe("indiceBucketDeFecha (COLOCA una fecha ajena en la curva, no decide nada)", () => {
+  it("semana: ubica la fecha en el bucket que la contiene", () => {
+    const bs = [bucket("2026-07-06", "0"), bucket("2026-07-13", "0"), bucket("2026-07-20", "0")];
+    expect(indiceBucketDeFecha(bs, "week", new Date(2026, 6, 15))).toBe(1);
+    expect(indiceBucketDeFecha(bs, "week", new Date(2026, 6, 6))).toBe(0); // borde inferior inclusivo
+    expect(indiceBucketDeFecha(bs, "week", new Date(2026, 6, 20))).toBe(2); // borde superior exclusivo
   });
-  it("detecta el cruce en un período futuro", () => {
-    const bs = [bucket("2026-06-29", "0"), bucket("2026-07-20", "0"), bucket("2026-07-27", "0")];
-    const serie = [pt(5_000), pt(5_000), pt(2_000)]; // cruza en el 3º (futuro)
-    expect(primerCruceFuturo(serie, bs, "week", now, 4_000)).toBe(2);
+  it("mes: ubica la fecha en su mes", () => {
+    const bs = [bucket("2026-07", "0"), bucket("2026-08", "0")];
+    expect(indiceBucketDeFecha(bs, "month", new Date(2026, 7, 31))).toBe(1);
   });
-  it("sin mínimo → null", () => {
-    expect(primerCruceFuturo([pt(1)], [bucket("2026-07-20", "0")], "week", now, null)).toBeNull();
+  it("fecha fuera del rango elegido → null (y eso NO dice que no haya cruce)", () => {
+    const bs = [bucket("2026-07-06", "0"), bucket("2026-07-13", "0")];
+    expect(indiceBucketDeFecha(bs, "week", new Date(2026, 8, 1))).toBeNull();
+  });
+  it("período no parseable → null, sin reventar", () => {
+    expect(indiceBucketDeFecha([bucket("basura", "0")], "week", new Date(2026, 6, 15))).toBeNull();
+  });
+  it("sin buckets → null", () => {
+    expect(indiceBucketDeFecha([], "week", new Date(2026, 6, 15))).toBeNull();
+  });
+});
+
+describe("cruceDelMinimo (las cuatro lecturas de `days_of_cash`, sin colapsarlas)", () => {
+  const fc = (over: Partial<DashboardCashForecastV2>): DashboardCashForecastV2 =>
+    ({
+      min_14d: "0",
+      min_30d: "0",
+      days_of_cash_vencido_exigible_excluido: "0",
+      ...over,
+    }) as DashboardCashForecastV2;
+
+  it("sin el bloque → `sin_bloque`: una ausencia NO se lee como cobertura", () => {
+    expect(cruceDelMinimo(null)).toEqual({ estado: "sin_bloque" });
+    expect(cruceDelMinimo(undefined)).toEqual({ estado: "sin_bloque" });
+  });
+  it("`null` → no cruza EN EL HORIZONTE (una afirmación acotada, no un `no sé`)", () => {
+    expect(cruceDelMinimo(fc({ days_of_cash: null }))).toEqual({
+      estado: "no_cruza_en_el_horizonte",
+      vencidoExcluido: 0,
+    });
+  });
+  it("`0` → ya está bajo el mínimo hoy, y no se confunde con `null`", () => {
+    expect(cruceDelMinimo(fc({ days_of_cash: 0 }))).toEqual({
+      estado: "hoy_bajo_el_minimo",
+      vencidoExcluido: 0,
+    });
+  });
+  it("`n > 0` → cruza el día n, con el vencido excluido pegado al día", () => {
+    expect(
+      cruceDelMinimo(fc({ days_of_cash: 26, days_of_cash_vencido_exigible_excluido: "73641695" })),
+    ).toEqual({ estado: "cruza", dia: 26, vencidoExcluido: 73_641_695 });
+  });
+  it("el monto excluido también viaja en los estados sin día", () => {
+    expect(
+      cruceDelMinimo(fc({ days_of_cash: null, days_of_cash_vencido_exigible_excluido: "500" })),
+    ).toEqual({ estado: "no_cruza_en_el_horizonte", vencidoExcluido: 500 });
+  });
+});
+
+describe("fechaDelDia (componentes locales: mezclar UTC corre el cruce un día)", () => {
+  it("suma días calendario y cruza el fin de mes", () => {
+    expect(fechaDelDia(new Date(2026, 6, 19), 0)).toEqual(new Date(2026, 6, 19));
+    expect(fechaDelDia(new Date(2026, 6, 19), 26)).toEqual(new Date(2026, 7, 14));
+  });
+  it("el día publicado se ubica en la curva vía `indiceBucketDeFecha` (el par, encadenado)", () => {
+    const now = new Date(2026, 6, 19); // domingo 19-jul-2026
+    const bs = [bucket("2026-07-13", "0"), bucket("2026-07-20", "0"), bucket("2026-07-27", "0")];
+    // `days_of_cash: 3` → 22-jul → semana del 20-jul → índice 1.
+    expect(indiceBucketDeFecha(bs, "week", fechaDelDia(now, 3))).toBe(1);
   });
 });
 

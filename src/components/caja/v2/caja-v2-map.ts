@@ -11,6 +11,7 @@ import { MESES_CORTOS as MESES } from "@/lib/formatters/months";
 import { saldoAcumulado, type SaldoPunto } from "./caja-curva-model";
 import type { CashFlowBucket } from "@/lib/api/treasury-reports";
 import type { CashMinimumResponse } from "@/lib/api/cash-minimum";
+import type { DashboardCashForecastV2 } from "@/lib/api/dashboard";
 
 /** Etiqueta corta de un período del cash-flow: `2026-07-14`→`14-jul`, `2026-07`→`jul`. */
 export function labelBucketCorto(period: string): string {
@@ -142,38 +143,72 @@ export function serieAnclada(
   return buckets.map((b, i) => ({ label: label(b.period), saldo: (cum[i] ?? 0) + offset }));
 }
 
-/** Índice del primer período NO pasado cuyo saldo cae ESTRICTAMENTE bajo el mínimo — el cruce
- *  ACCIONABLE. La serie anclada reconstruye períodos pasados; un dip reconstruido en una semana
- *  que ya terminó NO es un cruce a advertir ("adelanta una cobranza" no aplica al pasado). Solo
- *  cuenta de hoy en adelante.
+/** Índice del bucket cuyo período CONTIENE `fecha` (`inicio <= fecha < fin`), o `null` si ninguno
+ *  la contiene —la fecha cae fuera del rango que el usuario eligió— o si el `period` no es
+ *  parseable.
  *
- *  **ESTO NO SON LOS DÍAS DE CAJA Y NO PUEDE USARSE COMO TALES.** Devuelve un ÍNDICE DE BUCKET
- *  —semanal o mensual según la granularidad elegida— sobre los buckets del reporte de flujo de
- *  caja, que es una agregación histórica por período. No es un número de días, y no mira la curva
- *  de proyección por vencimientos de la que sale `days_of_cash`. Su único trabajo es marcar en
- *  QUÉ BARRA de la curva está el cruce; los días de caja los publica el contrato
- *  (`cash_forecast.days_of_cash`) desde un solo helper, y rederivarlos acá es cómo la misma cifra
- *  llegó a decir 8 en una pantalla y 26 en otra.
+ *  **Esta función NO decide nada: COLOCA en la curva una fecha que decidió otro.** Es lo único que
+ *  el front necesita para marcar la barra del cruce, y es deliberadamente incapaz de responder
+ *  *si* hay cruce o *cuándo*: esa pregunta la contesta el servidor con
+ *  `cash_forecast.days_of_cash` (`cash_model.dias_de_caja`, qavante-api#1050), que es el productor
+ *  canónico y el único.
  *
- *  `null` tiene DOS causas que el llamador tiene que distinguir: no hay cruce futuro, o **no hay
- *  mínimo declarado** y por lo tanto no hubo contra qué comparar. Leer ese `null` como "no cruza"
- *  es convertir una ausencia en buena noticia: con el mínimo en null —y el default del umbral es
- *  cero— una caja en el piso devolvía `null` y la pantalla lo pintaba como período cubierto. Ver
- *  el tratamiento en `caja-v2-resumen-live`. */
-export function primerCruceFuturo(
-  serie: SaldoPunto[],
+ *  Reemplaza a `primerCruceFuturo`, que recorría los buckets del reporte de flujo de caja
+ *  aplicando la MISMA definición del productor —el primer período que cierra bajo el mínimo— sobre
+ *  una serie distinta: una agregación histórica por semana o mes anclada en el saldo de hoy, en vez
+ *  de la curva diaria por vencimientos. Dos respuestas a la misma pregunta, una en número de días
+ *  y la otra en etiqueta de período, es cómo la misma cifra llegó a decir 8 en una pantalla y 26 en
+ *  otra. */
+export function indiceBucketDeFecha(
   buckets: CashFlowBucket[],
   granularity: CFGranularity,
-  now: Date,
-  minimo: number | null,
+  fecha: Date,
 ): number | null {
-  if (minimo == null) return null;
-  for (let i = 0; i < serie.length; i++) {
-    const b = buckets[i];
-    if (b && bucketPasado(b.period, granularity, now)) continue; // ignora los períodos ya pasados
-    if ((serie[i]?.saldo ?? Number.POSITIVE_INFINITY) < minimo) return i;
+  for (let i = 0; i < buckets.length; i++) {
+    const period = buckets[i]?.period;
+    if (period == null) continue;
+    const ini = bucketInicio(period, granularity);
+    const fin = bucketFin(period, granularity);
+    if (ini != null && fin != null && ini <= fecha && fecha < fin) return i;
   }
   return null;
+}
+
+/* ── El cruce del mínimo lo define el servidor ──────────────────────────────────── */
+
+/** Las CUATRO lecturas de `cash_forecast.days_of_cash`, separadas porque significan cosas
+ *  distintas y colapsarlas es el defecto. El productor canónico es `cash_model.dias_de_caja`
+ *  (qavante-api#1050): devuelve `0` cuando la apertura ya está bajo el mínimo (o en cero o
+ *  negativa), el PRIMER DÍA `n` en que la curva cierra bajo el mínimo, o `null` cuando no lo cruza
+ *  en el horizonte publicado.
+ *
+ *  `null` NO es "no sé" y tampoco es una ausencia: es una afirmación acotada al horizonte. Lo que
+ *  sí es ausencia es que el bloque `cash_forecast` no venga, y por eso tiene estado propio. */
+export type CruceDelMinimo =
+  | { estado: "sin_bloque" }
+  | { estado: "hoy_bajo_el_minimo"; vencidoExcluido: number }
+  | { estado: "cruza"; dia: number; vencidoExcluido: number }
+  | { estado: "no_cruza_en_el_horizonte"; vencidoExcluido: number };
+
+/** Lectura ÚNICA del cruce del mínimo para la pantalla de Caja. No calcula el cruce: lo LEE.
+ *
+ *  `vencidoExcluido` viaja pegado al estado a propósito: la curva no coloca la deuda ya vencida en
+ *  ningún día (decisión del dueño del 2026-10-04, ponerla en uno sería inventarle fecha de pago),
+ *  así que el día del cruce contesta "hasta cuándo me alcanza si NO pago lo que ya debo". Sin esa
+ *  cifra al lado, el día se lee como holgura. */
+export function cruceDelMinimo(f: DashboardCashForecastV2 | null | undefined): CruceDelMinimo {
+  if (f == null) return { estado: "sin_bloque" };
+  const vencidoExcluido = parseAmount(f.days_of_cash_vencido_exigible_excluido ?? null);
+  const d = f.days_of_cash;
+  if (d == null) return { estado: "no_cruza_en_el_horizonte", vencidoExcluido };
+  if (d <= 0) return { estado: "hoy_bajo_el_minimo", vencidoExcluido };
+  return { estado: "cruza", dia: d, vencidoExcluido };
+}
+
+/** Fecha de cierre del día `n` contado desde hoy, en componentes LOCALES (la app decide en hora de
+ *  Chile y `bucketInicio`/`bucketFin` también son locales: mezclar UTC corre el cruce un día). */
+export function fechaDelDia(now: Date, n: number): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + n);
 }
 
 /** Caja mínima en CLP desde el endpoint cash-minimum, o `null` si no hay umbral CLP. */

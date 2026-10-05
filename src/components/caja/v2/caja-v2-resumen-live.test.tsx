@@ -69,6 +69,7 @@ describe("CurvaCard · modo evidencia del Decision Brief", () => {
       <CurvaCard
         serie={SERIE}
         minimo={2_000_000}
+        cruce={{ estado: "cruza", dia: 17, vencidoExcluido: 0 }}
         cruceIdx={2}
         suppressRecommendations={suppressRecommendations}
       />,
@@ -80,7 +81,7 @@ describe("CurvaCard · modo evidencia del Decision Brief", () => {
 
     expect(html).toContain("Saldo proyectado");
     expect(html).toContain("Bajo el mínimo");
-    expect(html).toContain("la caja cae bajo tu mínimo");
+    expect(html).toContain("tu caja proyectada cierra bajo tu mínimo");
     expect(html).toContain("Adelanta una cobranza");
     expect(html).toContain("posterga un pago");
   });

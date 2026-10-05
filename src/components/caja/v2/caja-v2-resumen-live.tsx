@@ -15,6 +15,9 @@ import { useCashMinimum } from "@/lib/api/cash-minimum";
 import { useUnclassifiedInRange, type UnclassifiedSummary } from "@/lib/api/treasury";
 import { parseAmount } from "@/components/inicio/dashboard-format";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
+// El horizonte que acredita el bloque de proyección, desde el ÚNICO sitio que lo declara:
+// la fila de días de caja de Inicio. Repetir el 30 acá es cómo las dos pantallas se separan.
+import { HORIZONTE_ACREDITADO_DIAS } from "@/components/inicio/v2/inicio-v2-map";
 import { formatClp } from "@/lib/formatters/clp";
 import { CajaV2Resumen, type CajaMovible } from "./caja-v2-resumen";
 import { CajaHero } from "./caja-hero";
@@ -23,9 +26,12 @@ import {
   serieAnclada,
   cajaMinimoCLP,
   flujoDeBuckets,
-  primerCruceFuturo,
+  cruceDelMinimo,
+  fechaDelDia,
+  indiceBucketDeFecha,
   completitudFlujoVisible,
   entradasSinClasificarLabel,
+  type CruceDelMinimo,
 } from "./caja-v2-map";
 import { CajaCurva } from "./caja-curva";
 import { CajaProyeccionLive } from "./caja-proyeccion-live";
@@ -178,23 +184,43 @@ function CajaV2Contenido({
     formatBucketLabel(p, granularity),
   );
   const minimo = cajaMinimoCLP(cm.data);
-  // El cruce "bajo el mínimo" cuenta solo DESDE HOY hacia adelante: un dip reconstruido en un
-  // período ya pasado no es accionable (no se puede adelantar cobranza para una semana que terminó).
-  const cruceIdx = primerCruceFuturo(serie, allBuckets, granularity, now, minimo);
-  // #853 — con `cajaV3` y sobregiro, `days_of_cash` es degenerado (~1) → no lo mostramos como "días de
-  // caja" (el medidor cuenta la recuperación). Sin sobregiro, o en v2 clásico, va como siempre.
+  /* EL CRUCE DEL MÍNIMO LO DEFINE EL SERVIDOR, Y ESTA PANTALLA SOLO LO COLOCA EN LA CURVA.
+     Acá vivía `primerCruceFuturo`, que recorría los buckets del reporte de flujo de caja buscando
+     el primer período bajo el mínimo. Esa es, palabra por palabra, la definición del productor
+     canónico (`cash_model.dias_de_caja`, qavante-api#1050) — aplicada sobre OTRA serie: una
+     agregación histórica por semana o mes anclada en el saldo de hoy, en vez de la curva diaria
+     por vencimientos. Dos productores de la misma definición divergen en cuanto haya un cruce que
+     mostrar, y divergen con el mismo nombre: es el modo de falla que en qavante-api#1050 publicó 8
+     en una pantalla y 26 en otra el mismo día.
+     Ahora la pregunta la contesta el bloque que la publica y la curva solo marca DÓNDE cae ese día:
+     `indiceBucketDeFecha` es incapaz de decidir si hay cruce. */
+  const cruce = cruceDelMinimo(dash.data?.cash_forecast);
+  const cruceIdx =
+    cruce.estado === "cruza"
+      ? indiceBucketDeFecha(allBuckets, granularity, fechaDelDia(now, cruce.dia))
+      : cruce.estado === "hoy_bajo_el_minimo"
+        ? indiceBucketDeFecha(allBuckets, granularity, now)
+        : null;
+  // #853 — con `cajaV3` y sobregiro, `days_of_cash` es degenerado → no lo mostramos como número en
+  // el hero (el medidor cuenta la recuperación). Esa decisión NO se revisa en este cambio: lo que
+  // cambia es de dónde sale el cruce, no qué cifra ocupa el hero.
   const dias = null;
-  // Caja en cero o negativa → tono crítico honesto (no un ✓ verde "alcanza ~0 días").
+  // Caja en cero o negativa → tono crítico honesto (no un ✓ verde sobre una caja vacía).
   const negativa = saldoHoy <= 0;
-  /* SIN MÍNIMO DECLARADO NO HAY "TODO BIEN".
-     `primerCruceFuturo` devuelve `null` en dos situaciones que no se parecen: la curva no cruza el
-     mínimo, y NO HAY MÍNIMO contra el que medirla (`cajaMinimoCLP` da `null` cuando la sociedad no
-     declaró umbral en pesos). Colapsarlas dejaba el ✓ verde y "La caja cubre el período
-     proyectado" sobre una caja que nadie comparó con nada — una ausencia convertida en buena
-     noticia, que es el mismo agujero de insolvencia que el productor cerró del lado de los días de
-     caja. Las dos se distinguen acá y el copy de abajo dice qué falta, con la cifra que sí hay. */
+  /* SIN MÍNIMO DECLARADO NO HAY "TODO BIEN", Y AHORA SE SABE CONTRA QUÉ SE MIDIÓ.
+     La ambigüedad que había que desarmar acá —un `null` que tapaba "no cruza" y "no hubo contra
+     qué medir" bajo el mismo ✓ verde— se desarma sola al leer el productor: `cruce` distingue los
+     cuatro casos por construcción. Lo que sigue importando es que `cajaMinimoCLP` da `null` cuando
+     la sociedad no declaró umbral en pesos: el servidor entonces compara la curva contra CERO (su
+     default), así que el día publicado es el día en que la caja se queda sin plata, no el día en
+     que toca un colchón. Eso no se oculta ni se pinta de verde: se dice en el copy. */
   const sinMinimo = minimo == null;
-  const tono = negativa ? "crit" : cruceIdx != null || sinMinimo ? "warn" : "ok";
+  const tono =
+    negativa || cruce.estado === "hoy_bajo_el_minimo"
+      ? "crit"
+      : cruce.estado === "cruza" || cruce.estado === "sin_bloque" || sinMinimo
+        ? "warn"
+        : "ok";
 
   // Caja v3 (gated `cajaV3`): reemplaza la curva histórica por el medidor de días + cascada, derivados
   // de los VENCIMIENTOS (no del cash-flow histórico, que no proyecta el futuro). El flag lo resuelve
@@ -215,6 +241,7 @@ function CajaV2Contenido({
       <CurvaCard
         serie={serie}
         minimo={minimo}
+        cruce={cruce}
         cruceIdx={cruceIdx}
         suppressRecommendations={suppressRecommendations}
       />
@@ -233,9 +260,7 @@ function CajaV2Contenido({
           runway={
             suppressRecommendations || cajaV3
               ? undefined
-              : negativa
-                ? runwayNegativo(saldoHoy)
-                : buildRunway(serie, cruceIdx, minimo, dias)
+              : buildRunway(serie, cruce, cruceIdx, minimo, saldoHoy)
           }
           runwayTono={tono}
           subtitulo="Saldo hoy en caja"
@@ -275,45 +300,107 @@ function CajaV2Contenido({
   );
 }
 
-function runwayNegativo(saldo: number): React.ReactNode {
-  if (saldo === 0) return "Sin caja disponible hoy · 0 días de caja.";
-  return "Tu caja está hoy en negativo · 0 días de caja.";
-}
+/* `runwayNegativo` VIVÍA ACÁ Y ERA EL ÚLTIMO PRODUCTOR DE LA CIFRA EN EL FRONT.
+   Decía "Tu caja está hoy en negativo · 0 días de caja." — un VALOR de días de caja afirmado
+   desde una comparación local (`saldoHoy <= 0`), no leído del productor. Daba el mismo 0 que el
+   servidor (`dias_de_caja` devuelve 0 cuando la apertura es <= 0), así que coincidir no prueba
+   nada: coincidía por casualidad de aritmética, y el día que el servidor cambiara el borde —como
+   ya le cambió la definición entera en #1050— la pantalla habría seguido afirmando su 0.
+   El HECHO de la caja en negativo no se pierde: lo publica `buildRunway`, que lo dice con el monto
+   y deja el conteo de días en manos de quien lo define. */
 
 function buildRunway(
   serie: SaldoPunto[],
+  cruce: CruceDelMinimo,
   cruceIdx: number | null,
   minimo: number | null,
-  dias: number | null,
+  saldoHoy: number,
 ): React.ReactNode {
-  if (cruceIdx != null) {
+  /* LA CIFRA QUE EL DÍA DEL CRUCE DEJA AFUERA VIAJA PEGADA AL DÍA.
+     La curva no coloca la deuda ya vencida en ningún día, así que el día publicado contesta
+     "hasta cuándo me alcanza si NO pago lo que ya debo". Un día sin ese monto al lado se lee como
+     holgura, y es el número tranquilizador incompleto. */
+  const dejaAfuera =
+    cruce.estado !== "sin_bloque" && cruce.vencidoExcluido > 0 ? (
+      <>
+        {" "}
+        Deja afuera <b>{formatClp(cruce.vencidoExcluido)}</b> de deuda ya vencida, que la curva no
+        pone en ningún día.
+      </>
+    ) : null;
+  /* CONTRA QUÉ SE COMPARÓ LA CURVA, NOMBRADO.
+     El servidor compara contra la caja mínima declarada, y su default es CERO. Decir "bajo tu
+     mínimo" cuando no hay mínimo declarado nombra un umbral que no existe: lo que el día
+     publicado significa en ese caso es "me quedo sin plata", no "toco mi colchón". */
+  const umbral =
+    minimo != null ? `tu mínimo (${formatClp(minimo)})` : "cero (no declaraste caja mínima)";
+  const pedirMinimo =
+    minimo == null ? (
+      <> Declara tu caja mínima para que el aviso use tu colchón y no el cero.</>
+    ) : null;
+  const enLaCurva =
+    cruceIdx != null && serie[cruceIdx]?.label ? (
+      <>
+        {" "}
+        En la curva cae en <b>{serie[cruceIdx]?.label}</b>.
+      </>
+    ) : null;
+
+  /* LA CAJA VACÍA DE HOY ES UN HECHO DE HOY, Y NO NECESITA UN CONTEO DE DÍAS PARA DECIRSE.
+     Va con el monto —nunca "sin caja" a secas— y sin afirmar ninguna cifra de días: el día del
+     cruce, cuando corresponde, lo agregan las ramas de abajo con el número del productor. */
+  if (saldoHoy <= 0) {
     return (
       <>
-        El <b>{serie[cruceIdx]?.label}</b> la caja cae bajo tu mínimo
-        {minimo != null ? ` (${formatClp(minimo)})` : ""}.
+        Tu caja hoy es <b>{formatClp(saldoHoy)}</b>
+        {saldoHoy < 0 ? ": ya está en negativo" : ""}, y el umbral que se compara es {umbral}.
+        {dejaAfuera}
+        {pedirMinimo}
       </>
     );
   }
-  /* SIN MÍNIMO DECLARADO NO SE AFIRMA COBERTURA.
-     `cruceIdx == null` con `minimo == null` NO dice que la caja cubra el período: dice que no hubo
-     contra qué compararla. La frase de abajo afirmaba cobertura igual, en verde, y era una ausencia
-     disfrazada de buena noticia. Lo que la reemplaza es la cifra que SÍ existe —el punto más bajo
-     de la trayectoria proyectada— más lo que falta para poder avisar del cruce. */
-  if (minimo == null) {
-    const piso = serie.length > 0 ? Math.min(...serie.map((p) => p.saldo)) : null;
+  if (cruce.estado === "hoy_bajo_el_minimo") {
     return (
       <>
-        {piso != null ? (
-          <>
-            El punto más bajo del período proyectado es <b>{formatClp(piso)}</b>.{" "}
-          </>
-        ) : null}
-        Declara tu caja mínima para que esta pantalla te avise el día que la cruces.
+        Tu caja ya está bajo {umbral}.{dejaAfuera}
+        {pedirMinimo}
       </>
     );
   }
-  if (dias != null) return `Alcanza ~${dias} días con la caja actual.`;
-  return "La caja cubre el período proyectado.";
+  if (cruce.estado === "cruza") {
+    return (
+      <>
+        El <b>día {cruce.dia}</b> tu caja proyectada cierra bajo {umbral}.{enLaCurva}
+        {dejaAfuera}
+        {pedirMinimo}
+      </>
+    );
+  }
+  if (cruce.estado === "no_cruza_en_el_horizonte") {
+    return (
+      <>
+        Tu caja proyectada no baja de {umbral} en los próximos {HORIZONTE_ACREDITADO_DIAS} días.
+        {dejaAfuera}
+        {pedirMinimo}
+      </>
+    );
+  }
+  /* El bloque `cash_forecast` no vino en esta carga. NO se afirma cobertura ni se inventa un día:
+     se publica la cifra que SÍ está —el punto más bajo de la trayectoria del período elegido— y se
+     dice de dónde sale el día del cruce, que es otra fuente. */
+  const piso = serie.length > 0 ? Math.min(...serie.map((punto) => punto.saldo)) : null;
+  return (
+    <>
+      {piso != null ? (
+        <>
+          El punto más bajo de la trayectoria de este período es <b>{formatClp(piso)}</b>.{" "}
+        </>
+      ) : null}
+      El día en que tu caja cruza el mínimo lo publica la proyección de caja, que esta carga no
+      trajo.
+      {pedirMinimo}
+    </>
+  );
 }
 
 /** Avisos que el propio reporte de caja trae (`CashFlowReportResponse.warnings`): el backend marca
@@ -435,16 +522,21 @@ export function FlujoBlock({
 export function CurvaCard({
   serie,
   minimo,
+  cruce,
   cruceIdx,
   suppressRecommendations = false,
 }: {
   serie: SaldoPunto[];
   minimo: number | null;
+  /** El cruce tal como lo publica el servidor. La tarjeta no lo deriva de `serie`. */
+  cruce: CruceDelMinimo;
+  /** Dónde cae ese cruce en ESTA curva, o `null` si el día publicado queda fuera del rango
+   *  elegido. `null` NO significa que no haya cruce: eso lo dice `cruce`. */
   cruceIdx: number | null;
   suppressRecommendations?: boolean;
 }) {
   const eventos =
-    !suppressRecommendations && cruceIdx != null
+    !suppressRecommendations && cruceIdx != null && cruce.estado !== "sin_bloque"
       ? [{ indice: cruceIdx, label: "Bajo el mínimo", tono: "crit" as const }]
       : [];
   return (
@@ -461,9 +553,24 @@ export function CurvaCard({
           <CajaCurva serie={serie} minimo={minimo} eventos={eventos} />
         )}
       </div>
-      {!suppressRecommendations && cruceIdx != null && (
+      {!suppressRecommendations && cruce.estado === "cruza" && (
         <p className="mx-4 mb-4 rounded-lg border border-danger-500/30 bg-danger-500/[.06] px-3 py-2 text-[13px] text-neutral-dark">
-          El <b>{serie[cruceIdx]?.label}</b> la caja cae bajo tu mínimo.{" "}
+          El <b>día {cruce.dia}</b> tu caja proyectada cierra bajo{" "}
+          {minimo != null ? `tu mínimo (${formatClp(minimo)})` : "cero (no declaraste caja mínima)"}
+          .{" "}
+          {cruceIdx != null && serie[cruceIdx]?.label ? (
+            <>
+              En esta curva cae en <b>{serie[cruceIdx]?.label}</b>.{" "}
+            </>
+          ) : (
+            <>Ese día queda fuera del rango que elegíste, así que la curva no lo muestra. </>
+          )}
+          {cruce.vencidoExcluido > 0 ? (
+            <>
+              Deja afuera <b>{formatClp(cruce.vencidoExcluido)}</b> de deuda ya vencida, que la
+              curva no pone en ningún día.{" "}
+            </>
+          ) : null}
           <Link
             href="/cobrar"
             className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
