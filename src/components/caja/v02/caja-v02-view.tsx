@@ -41,7 +41,9 @@ import { PostponePayableControl } from "./postpone-payable-control";
 /** Apellido de "Sale · 14 días": el agregado no postergable/vencido tal como lo publica el
  *  servidor. Un agregado parcial se dice "al menos"; uno ausente se declara, nunca se aproxima. */
 function noPostergableTexto(np: NoPostergable14V02 | null): string {
-  if (!np) return "monto crítico sin dato";
+  /* Las dos ramas sin monto decían "sin dato", que es una etiqueta de confianza pegada a un
+     hueco: no dice QUÉ falta ni de quién depende. Una ausencia se nombra como lo que es. */
+  if (!np) return "el agregado de pagos críticos no viene en esta respuesta";
   const pagos = `${np.n} ${concordar(np.n, "pago crítico", "pagos críticos")}`;
   if (np.completo && np.monto != null) {
     return `${formatClp(np.monto)} críticos · ${pagos}`;
@@ -49,7 +51,7 @@ function noPostergableTexto(np: NoPostergable14V02 | null): string {
   if (np.conocido != null && np.conocido > 0) {
     return `al menos ${formatClp(np.conocido)} críticos · ${pagos}`;
   }
-  return `${pagos} · monto sin dato`;
+  return `${pagos} · el monto que suman no viene en esta respuesta`;
 }
 
 /* V02 · Caja — "¿me alcanza la caja?" (rediseño Fase 2, issue #67).
@@ -244,8 +246,11 @@ export function CajaV02View({
                 Próximas {SEMANAS} semanas
               </h2>
             </div>
+            {/* El rojo lo decide `bajo_minimo` del servidor, que compara el piso contra la caja
+                mínima declarada. Antes se comparaba contra CERO: con un mínimo declarado, todo
+                piso entre cero y el mínimo se pintaba neutro. */}
             {barras.length > 0 ? (
-              <Barras semanas={barras} rojoEnPiso={piso?.bajoCero === true} />
+              <Barras semanas={barras} rojoEnPiso={piso?.bajoMinimo === true} />
             ) : (
               <DataState
                 status="error"
@@ -286,6 +291,18 @@ export function CajaV02View({
                   </Link>
                 )}
               </div>
+              {/* NUNCA EL PISO SOLO. El productor declara que, desde la decisión del 2026-10-04,
+                  lo vencido exigible NO se coloca en ningún día de la curva: no está en este
+                  piso. Un piso sin ese monto al lado se lee como holgura. */}
+              {!suppressRecommendations &&
+                piso.vencidoExigibleExcluido != null &&
+                piso.vencidoExigibleExcluido > 0 && (
+                  <p className="text-[12.5px] text-rediseno-tinta-3">
+                    Tu piso es {formatClp(piso.saldo)} y además hay{" "}
+                    {formatClp(piso.vencidoExigibleExcluido)} ya vencidos y exigibles hoy, que la
+                    curva no reparte en ningún día.
+                  </p>
+                )}
               {!suppressRecommendations && quiebre && (
                 <p className="text-[12.5px] text-rediseno-tinta-3">
                   Mayores pagos antes de quedar bajo el mínimo ({quiebre}).

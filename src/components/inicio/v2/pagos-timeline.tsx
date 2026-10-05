@@ -46,9 +46,15 @@ export interface PagoCritico {
 }
 
 export interface PagosTimelineProps {
-  total: number;
-  /** "Vencidos o exigibles durante los próximos 14 días". */
+  /** El agregado que publica el servidor. `null` = no vino; NUNCA se sustituye por la suma
+   *  de las filas, que cubren otra ventana. */
+  total: number | null;
+  /** QUÉ CUBRE `total`. Una cifra sin alcance es una cifra sin sentido. */
   subtitulo: string;
+  /** Con `total` nulo, qué falta y por qué. Se muestra en vez de un monto, nunca un $0. */
+  totalAusencia?: string | null;
+  /** Alcance de las filas, que es DISTINTO del de `total`: no son su desglose. */
+  listaLabel?: string;
   pagos: PagoCritico[];
   /** El total en rojo cuando la caja no lo cubre (crisis). */
   totalEnRojo?: boolean;
@@ -61,6 +67,8 @@ export interface PagosTimelineProps {
 export function PagosTimeline({
   total,
   subtitulo,
+  totalAusencia,
+  listaLabel,
   pagos,
   totalEnRojo,
   href,
@@ -75,17 +83,28 @@ export function PagosTimeline({
       <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-mid">
         Pagos críticos vencidos y próximos
       </p>
-      <p
-        className={cn(
-          "mt-1 text-2xl font-extrabold tabular-nums tracking-tight",
-          totalEnRojo ? "text-danger-500" : "text-neutral-dark",
-        )}
-      >
-        {formatClp(total)}
-      </p>
-      <p className="mt-0.5 text-xs text-neutral-mid">{subtitulo}</p>
+      {total != null ? (
+        <>
+          <p
+            className={cn(
+              "mt-1 text-2xl font-extrabold tabular-nums tracking-tight",
+              totalEnRojo ? "text-danger-500" : "text-neutral-dark",
+            )}
+          >
+            {formatClp(total)}
+          </p>
+          <p className="mt-0.5 text-xs text-neutral-mid">{subtitulo}</p>
+        </>
+      ) : (
+        <p className="mt-1 text-xs text-neutral-mid">{totalAusencia}</p>
+      )}
 
-      <ol className="relative mt-4 pl-[18px]">
+      {listaLabel && (
+        <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+          {listaLabel}
+        </p>
+      )}
+      <ol className="relative mt-2 pl-[18px]">
         {/* Riel vertical del timeline — gradiente sutil (más presente arriba, se desvanece abajo). */}
         <span
           className="absolute left-[5px] top-1.5 bottom-1.5 w-0.5 rounded-full bg-gradient-to-b from-brand-primary/30 to-border"

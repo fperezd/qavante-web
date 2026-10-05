@@ -484,8 +484,69 @@ describe("mapPagos (key_obligations)", () => {
     expect(p.pagos[0]!.tipo).toBe("sin_cobertura"); // uncovered
     expect(p.pagos[1]!.vencido).toBe(false);
     expect(p.pagos[1]!.tipo).toBe("negociable"); // tight
-    expect(p.total).toBe(12814448);
     expect(p.totalEnRojo).toBe(true);
+    /* Sin `critical_payments` NO hay titular: la suma de las filas cubre otra ventana (las
+       obligaciones clave del mes) y usarla como "pagos críticos a 14 días" era el defecto. */
+    expect(p.total).toBeNull();
+    expect(p.totalAusencia).toContain("14 días");
+  });
+
+  /* EL TITULAR ES EL AGREGADO DEL SERVIDOR, NO LA SUMA DE LAS FILAS.
+     El gemelo exacto del caso de arriba: las mismas dos filas (suman $12.814.448) con un
+     `due_14d` de $40.000.000, porque hay un proveedor grande venciendo en la ventana que no es
+     ninguna de las tres obligaciones clave del mes. El titular tiene que ser el del servidor. */
+  it("el titular lee critical_payments.due_14d y NO la suma de las filas", () => {
+    const s = {
+      ...emptySummary(),
+      critical_payments: { due_7d: "20000000", due_14d: "40000000" },
+      key_obligations: [
+        {
+          key: "sueldos",
+          label: "Remuneraciones",
+          due_date: "2026-06-30",
+          amount: "8600000",
+          coverage: "uncovered",
+        },
+        {
+          key: "impuestos_mensuales",
+          label: "IVA / F29",
+          due_date: "2026-07-20",
+          amount: "4214448",
+          coverage: "tight",
+        },
+      ],
+    } as unknown as DashboardSummaryV2;
+    const p = mapPagos(s, now)!;
+    expect(p.total).toBe(40_000_000);
+    expect(p.total).not.toBe(12_814_448); // la suma de las filas, que es otra pregunta
+    expect(p.totalAusencia).toBeNull();
+    // Y cada alcance queda rotulado, para que las filas no se lean como el desglose del titular.
+    expect(p.subtitulo).toContain("14 días");
+    expect(p.listaLabel).toContain("mes");
+  });
+
+  it("due_14d desconocido por cuarentena se declara con su motivo, nunca como $0", () => {
+    const s = {
+      ...emptySummary(),
+      critical_payments: {
+        due_7d: null,
+        due_14d: null,
+        amount_unknown_reason: "reconciliation_quarantine",
+      },
+      key_obligations: [
+        {
+          key: "sueldos",
+          label: "Remuneraciones",
+          due_date: "2026-07-20",
+          amount: "8600000",
+          coverage: "covered",
+        },
+      ],
+    } as unknown as DashboardSummaryV2;
+    const p = mapPagos(s, now)!;
+    expect(p.total).toBeNull();
+    expect(p.totalAusencia).toContain("conciliación");
+    expect(p.pagos).toHaveLength(1); // las filas que sí hay siguen visibles
   });
   it("un pago que vence HOY NO está vencido (sin off-by-one de timezone)", () => {
     const s = {

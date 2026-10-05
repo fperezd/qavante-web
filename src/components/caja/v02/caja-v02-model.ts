@@ -237,23 +237,61 @@ export interface PisoV02 {
   /** Fecha corta (§1.4): `24 ago`. */
   fechaLabel: string;
   saldo: number;
-  dia: number;
-  /** El ÚNICO candidato a rojo de la pantalla (Ley 2): el mínimo, y sólo si queda bajo cero. */
-  bajoCero: boolean;
+  /**
+   * Día relativo a `as_of`, SÓLO para colocar el piso en una barra. No decide nada.
+   * `null` si la fecha del piso no se puede ubicar contra `as_of`: entonces NINGUNA barra se
+   * marca, en vez de marcar la primera. Un día que no se pudo calcular no es el día 0.
+   */
+  dia: number | null;
+  /**
+   * El ÚNICO candidato a rojo de la pantalla (Ley 2). Lo publica el servidor comparando el piso
+   * contra la caja mínima declarada: el front no vuelve a decidir el umbral.
+   */
+  bajoMinimo: boolean;
+  /** La caja mínima contra la que el servidor comparó. */
+  minimo: number;
+  /** Cuánto falta para no bajar del mínimo ese día; 0 si alcanza. */
+  brecha: number;
+  /**
+   * Deuda ya vencida que este piso NO incluye (magnitud positiva). `null` si el productor no la
+   * publicó: ausente NO es cero, porque cero significa que se midió y no hay deuda vencida.
+   */
+  vencidoExigibleExcluido: number | null;
+  /** Ventana que el servidor miró para encontrar el piso. */
+  horizonteDias: number;
 }
 
-/** El punto más bajo de la proyección (primera ocurrencia del mínimo, incluido hoy). */
+/* EL PUNTO MÁS BAJO LO DEFINE EL SERVIDOR, Y ESTA PANTALLA SÓLO LO COLOCA EN UNA BARRA.
+   Acá vivía un recorrido de la serie que elegía el mínimo por su cuenta y lo pintaba rojo con
+   `saldo < 0`. Eran DOS divergencias contra el productor canónico (`punto_mas_bajo`,
+   qavante-api#1050), no una:
+
+   1. EL UMBRAL. El servidor compara el piso contra la caja mínima declarada y publica
+      `bajo_minimo`; el front comparaba contra CERO. Con un mínimo declarado > 0, todo piso que
+      cae entre cero y el mínimo se pintaba neutro — la caja bajo el umbral, en verde. Y en la
+      misma sección el copy ya decía "antes de quedar bajo el mínimo" leyendo `punto_quiebre` del
+      servidor: dos definiciones del MISMO umbral, a dos líneas de distancia.
+   2. EL UNIVERSO. El piso del servidor se mide sobre `horizon_days` y, desde la decisión del BO
+      del 2026-10-04, NO coloca lo vencido exigible en ningún día de la curva. El mínimo que
+      elegía el front salía de los puntos que esta pantalla tenía a mano. Dos universos, un
+      nombre.
+
+   Ahora `punto_mas_bajo` llega leído y `dia` existe sólo para que `semanas()` sepa en qué barra
+   cae: es estructuralmente incapaz de decidir si el piso está bajo el mínimo, porque ya no
+   recibe ni el mínimo ni la serie. */
 export function puntoMasBajo(p: CashProjectionResponse | null | undefined): PisoV02 | null {
-  const puntos = puntosDeProyeccion(p);
-  if (puntos.length === 0) return null;
-  let min = puntos[0]!;
-  for (const q of puntos) if (q.saldo < min.saldo) min = q;
+  const pm = p?.punto_mas_bajo;
+  if (!p || !pm) return null;
   return {
-    fecha: min.fecha,
-    fechaLabel: formatDateShort(min.fecha),
-    saldo: min.saldo,
-    dia: min.dia,
-    bajoCero: min.saldo < 0,
+    fecha: pm.fecha,
+    fechaLabel: formatDateShort(pm.fecha),
+    saldo: parseAmount(pm.saldo),
+    dia: diasEntreISO(p.as_of, pm.fecha),
+    bajoMinimo: pm.bajo_minimo,
+    minimo: parseAmount(pm.minimo),
+    brecha: parseAmount(pm.brecha),
+    vencidoExigibleExcluido: parseAmountOrNull(pm.vencido_exigible_excluido),
+    horizonteDias: pm.horizon_days,
   };
 }
 
@@ -293,8 +331,11 @@ export function semanas(p: CashProjectionResponse | null | undefined, n = SEMANA
     const fin = sumarDiasISO(p.as_of, hasta);
     /* El día 0 (hoy) pertenece a la primera semana: si el saldo de hoy YA es el mínimo, la
        primera barra es la que lo carga. */
+    /* Sin día ubicable no se marca ninguna barra: marcar la primera sería inventar que el
+       piso cae hoy. */
+    const pisoDia = piso?.dia ?? null;
     const esPiso =
-      piso != null && (k === 0 ? piso.dia <= hasta : piso.dia > desde && piso.dia <= hasta);
+      pisoDia != null && (k === 0 ? pisoDia <= hasta : pisoDia > desde && pisoDia <= hasta);
     out.push({
       indice: k,
       label: `${formatDateShort(ini)}–${formatDateShort(fin)}`,
@@ -391,6 +432,40 @@ export function exclusiones(p: CashProjectionResponse | null | undefined): strin
       })`,
     );
   }
+  /* LO QUE LA CURVA DEJA AFUERA LO DECLARA `fuentes.cobertura`, Y HASTA ACÁ NADIE LO LEÍA.
+     El docstring de esta función ya prometía "sólo lo que el backend declara", pero leía
+     `por_cobrar_vencido` y `calidad_fechas` y se saltaba el bloque que el productor escribió
+     justamente para esto. Cada clave de abajo es un monto o un conteo que NO está en el piso: sin
+     nombrarlas, el piso se lee como si cubriera todo. Una ausencia no se traduce a cero. */
+  const cob = p.fuentes?.cobertura;
+  if (cob) {
+    /* El caso más caro: el monto es DESCONOCIDO, así que no hay cifra que mostrar al lado. Lo
+       único honesto es nombrar la obligación que falta y cómo se repara. */
+    if (cob.f29_legacy_unattributed) {
+      out.push(
+        "No cuenta el F29 pendiente que cuelga de un F29 histórico sin sociedad: su monto no entra a la curva, ni como cero ni como estimado. Se repara re-sincronizando el F29 bajo la sociedad",
+      );
+    }
+    if (cob.f29_omitido_por_moneda) {
+      out.push(
+        "No cuenta el F29, porque la moneda funcional de la sociedad no es el peso chileno y no se proyectó",
+      );
+    }
+    const docsOtraMoneda = parseAmountOrNull(cob.moneda_distinta_excluidos);
+    if (docsOtraMoneda != null && docsOtraMoneda > 0) {
+      out.push(
+        `No cuenta ${docsOtraMoneda} ${concordar(docsOtraMoneda, "documento vivo", "documentos vivos")} en una moneda distinta de la funcional`,
+      );
+    }
+    /* Conteo aparte del de arriba a propósito: las cuotas viven en otra tabla que el universo
+       AP/AR, y sumarlas haría incomparable el contador con el de la otra superficie de Caja. */
+    const cuotasOtraMoneda = parseAmountOrNull(cob.moneda_distinta_cuotas_excluidas);
+    if (cuotasOtraMoneda != null && cuotasOtraMoneda > 0) {
+      out.push(
+        `No cuenta ${cuotasOtraMoneda} ${concordar(cuotasOtraMoneda, "cuota", "cuotas")} de tarjeta o préstamo en una moneda distinta de la funcional`,
+      );
+    }
+  }
   const cf = p.fuentes?.calidad_fechas;
   if (cf && cf.items_totales > 0) {
     const pct = formatPct(Math.round(cf.con_fecha_real * 100));
@@ -476,6 +551,8 @@ export function comoSeCalcula(
           ? ["La proyección no declara exclusiones para tu empresa"]
           : ["Sin proyección no hay exclusiones que declarar"],
     fuente: "Saldos bancarios, cobros con fecha y pagos comprometidos registrados en Qavante",
-    frescura: partes.length > 0 ? partes.join(" · ") : "Fecha de actualización no disponible",
+    /* "no disponible" es una etiqueta de confianza sobre un hueco: no dice qué falta. Lo que
+       falta acá tiene nombre: la respuesta no trajo `as_of` ni `saldo_synced_at`. */
+    frescura: partes.length > 0 ? partes.join(" · ") : "La proyección no informó cuándo se calculó",
   };
 }

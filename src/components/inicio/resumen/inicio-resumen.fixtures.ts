@@ -7,12 +7,21 @@ export const NOW = new Date("2026-09-11T12:15:00Z");
 export const DEFICIT: DashboardSummaryV2 = {
   generated_at: NOW.toISOString(),
   cash_today: { total: "17900000", last_updated: NOW.toISOString(), data_state: "available" },
-  cash_forecast: { min_14d: "-14000000", min_30d: "-14000000", last_updated: NOW.toISOString() },
+  cash_forecast: {
+    min_14d: "-14000000",
+    min_30d: "-14000000",
+    days_of_cash_vencido_exigible_excluido: "0",
+    last_updated: NOW.toISOString(),
+  },
   cash_gap: {
     has_gap: true,
     cash_gap_amount_14d: "14000000",
     projected_cash_14d: "-10000000",
     critical_obligations_14d: "34800000",
+    vencido_exigible: "0",
+    vencido_exigible_n: 0,
+    vencido_exigible_desde_dias: 90,
+    vencido_exigible_mora_estructural: "0",
     last_updated: NOW.toISOString(),
   },
   priority_actions: [],
@@ -20,7 +29,12 @@ export const DEFICIT: DashboardSummaryV2 = {
 export const NO_DEFICIT: DashboardSummaryV2 = {
   ...DEFICIT,
   cash_today: { total: "43200000", last_updated: NOW.toISOString(), data_state: "available" },
-  cash_forecast: { min_14d: "16000000", min_30d: "14000000", last_updated: NOW.toISOString() },
+  cash_forecast: {
+    min_14d: "16000000",
+    min_30d: "14000000",
+    days_of_cash_vencido_exigible_excluido: "0",
+    last_updated: NOW.toISOString(),
+  },
   cash_gap: {
     ...DEFICIT.cash_gap!,
     has_gap: false,

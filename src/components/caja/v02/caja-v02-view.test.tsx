@@ -116,7 +116,7 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).not.toContain("negociable");
     // Gemelo: con el agregado ausente la pantalla lo declara en vez de aproximarlo.
     expect(texto(html({ pagos: pagos({ non_postponable_or_overdue_14d: undefined }) }))).toContain(
-      "monto crítico sin dato",
+      "el agregado de pagos críticos no viene en esta respuesta",
     );
   });
 

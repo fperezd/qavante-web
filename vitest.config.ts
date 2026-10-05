@@ -107,6 +107,17 @@ export default defineConfig({
             "**/*.stories.tsx",
             // Este archivo usa el runner nativo de Node y se ejecuta por separado.
             "scripts/release-workflow-policy.test.mjs",
+            /* CHECKOUTS AUXILIARES DEL ÁRBOL DE TRABAJO.
+               Este repo no soporta worktrees de git, así que las copias auxiliares viven como
+               directorios sin trackear DENTRO del checkout, cada una con su propio
+               `node_modules`. Vitest las recogía y corría sus tests contra OTRA copia de React:
+               medido el 2026-10-05, `npm test` reportaba 30 fallos en `worktrees/`,
+               `.worktrees/` y `.codex-tmp/` con `src/` entero en verde. En CI no existen, así
+               que allá esto es inocuo; en local es la diferencia entre un rojo que significa
+               algo y 30 que enseñan a ignorar el rojo. */
+            "**/worktrees/**",
+            "**/.worktrees/**",
+            "**/.codex-tmp/**",
           ],
           setupFiles: ["./src/test/msw/vitest.setup.ts"],
         },

@@ -15,6 +15,7 @@ import type { CollectionForecastResponse, CashCycleResponse } from "@/lib/api/tr
 import type { PagosTimelineProps, PagoCritico, Postergabilidad } from "./pagos-timeline";
 import type { ResultadoPreliminarProps, ResultadoExtra } from "./resultado-preliminar";
 import { parseAmount } from "../dashboard-format";
+import { parseAmountOrNull } from "@/lib/formatters/amount";
 import {
   importeDesconocido,
   motivoImporteDesconocido,
@@ -349,8 +350,20 @@ export function mapCobranzaForecast(f: CollectionForecastResponse): CobranzaReal
 }
 
 /** Pagos con las 3 fechas clave. Usa `key_obligations` (campo v2: label + due_date
- *  + amount + coverage). `null` si el backend aún no las manda (degrada: la vista
- *  cae al total de critical_payments). El tag sale de la cobertura contra la caja. */
+ *  + amount + coverage). `null` si el backend aún no las manda. El tag sale de la
+ *  cobertura contra la caja.
+ *
+ *  EL TOTAL Y LAS FILAS CUBREN COSAS DISTINTAS, Y POR ESO SE ROTULAN DISTINTO.
+ *  Acá el titular era `pagos.reduce(...)`: la suma de las tres obligaciones clave del mes
+ *  (`key_obligations` son `imposiciones`, `impuestos_mensuales` y `sueldos`) puesta bajo el
+ *  rótulo "Pagos críticos vencidos y próximos". Son dos preguntas distintas con una sola cifra:
+ *  tres obligaciones nombradas del mes no son todo lo crítico que vence, y el servidor publica
+ *  lo segundo en `critical_payments.due_14d` ("saldo que vence en ≤14 días, acumulativo, incluido
+ *  lo vencido"). Con un proveedor grande venciendo en la ventana, el titular quedaba por debajo
+ *  del número que Pagar muestra para la misma pregunta.
+ *  Ahora el titular LEE `due_14d` y dice qué cubre; las filas conservan su propio alcance (el
+ *  mes) para que no se lean como el desglose del titular. Y `due_14d` nulo por cuarentena de
+ *  conciliación (#687) no se rellena con la suma de las filas: se declara con su motivo. */
 export function mapPagos(s: DashboardSummaryV2, now: Date): PagosTimelineProps | null {
   const obs = s.key_obligations;
   if (!obs || obs.length === 0) return null;
@@ -371,11 +384,21 @@ export function mapPagos(s: DashboardSummaryV2, now: Date): PagosTimelineProps |
       vencido,
     };
   });
-  const total = pagos.reduce((sum, p) => sum + p.monto, 0);
+  const cp = s.critical_payments;
+  const total = parseAmountOrNull(cp?.due_14d);
   return {
     total,
+    /* Sin el agregado no hay cifra: una cuarentena de conciliación deja el monto DESCONOCIDO, y
+       un $0 ahí sería la ausencia convertida en buena noticia. */
+    totalAusencia:
+      total == null
+        ? cp?.amount_unknown_reason === "reconciliation_quarantine"
+          ? "Hay movimientos en revisión de conciliación, así que el monto a 14 días todavía no se puede sumar."
+          : "El servidor no publicó el monto que vence en 14 días."
+        : null,
     totalEnRojo: pagos.some((p) => p.tipo === "sin_cobertura" || p.vencido),
-    subtitulo: "Vencimientos clave del mes",
+    subtitulo: "Vence en los próximos 14 días, incluido lo ya vencido",
+    listaLabel: "Obligaciones clave del mes",
     pagos,
   };
 }

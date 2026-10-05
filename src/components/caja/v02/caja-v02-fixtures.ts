@@ -10,7 +10,15 @@ import type { UnclassifiedSummary } from "@/lib/api/treasury";
 export const HOY = new Date("2026-08-30T12:00:00Z");
 export const AS_OF = "2026-08-30";
 
-const COBERTURA_SIN_EXCLUSIONES = {
+/** Cobertura con todo medido en cero: el backend corrió y no declara exclusiones. */
+export const COBERTURA_SIN_EXCLUSIONES = {
+  cuotas_agendadas: "0",
+  cuotas_agendadas_count: "0",
+  cuotas_en_payables: "0",
+  cuotas_en_payables_count: "0",
+  impactos_committed_agendados: "0",
+  impactos_committed_agendados_count: "0",
+  moneda_distinta_cuotas_excluidas: "0",
   f29_legacy_unattributed: false,
   f29_omitido_por_moneda: false,
   moneda_distinta_excluidos: "0",
@@ -58,6 +66,38 @@ export function serie(dias: number, saldoDelDia: (dia: number) => number) {
   });
 }
 
+/** `vencido_exigible` sin stock: el escenario corrió y no hay deuda vencida (cero medido). */
+const SIN_VENCIDO_EXIGIBLE = {
+  total: "0",
+  n: 0,
+  moneda: "CLP",
+  en_la_curva: false as const,
+  desde_dias: 90,
+  mora_estructural: { total: "0", n: 0 },
+  plan_de_pago: {
+    compromiso_vigente: "0",
+    compromiso_vigente_n: 0,
+    compromiso_incumplido: "0",
+    compromiso_incumplido_n: 0,
+  },
+};
+
+/** El piso que publica el productor, con la forma de `PuntoMasBajo`. */
+function puntoMasBajo(over: { fecha?: string; saldo?: string; minimo?: string } = {}) {
+  const minimo = over.minimo ?? "0";
+  const saldo = over.saldo ?? "9800000";
+  const brecha = Math.max(0, Number(minimo) - Number(saldo));
+  return {
+    fecha: over.fecha ?? AS_OF,
+    saldo,
+    minimo,
+    horizon_days: 28,
+    bajo_minimo: Number(saldo) < Number(minimo),
+    brecha: String(brecha),
+    vencido_exigible_excluido: "0",
+  };
+}
+
 export function proyeccion(over: Partial<CashProjectionResponse> = {}): CashProjectionResponse {
   return {
     as_of: AS_OF,
@@ -67,15 +107,24 @@ export function proyeccion(over: Partial<CashProjectionResponse> = {}): CashProj
     minimo: "0",
     en_sobregiro: false,
     dias_de_caja: null,
+    dias_de_caja_vencido_exigible_excluido: "0",
     saldo_final: "9800000",
     serie: serie(28, () => 9_800_000),
-    escenario_duro: { dias_de_caja: null, piso: "9800000", piso_fecha: AS_OF },
+    punto_mas_bajo: puntoMasBajo(),
+    vencido_exigible: SIN_VENCIDO_EXIGIBLE,
+    escenario_duro: {
+      dias_de_caja: null,
+      piso: "9800000",
+      piso_fecha: AS_OF,
+      punto_mas_bajo: puntoMasBajo(),
+    },
     escenario_condicionado: {
       dias_de_caja: null,
       saldo_final: "9800000",
       n_flujos: 0,
       total_cobros_condicionados: "0",
       total_pagos_condicionados: "0",
+      vencido_exigible: SIN_VENCIDO_EXIGIBLE,
     },
     esperado_con_recuperacion: {
       saldo_final: "9800000",
@@ -138,12 +187,29 @@ export const PROYECCION_BAJO_CERO: CashProjectionResponse = proyeccion({
       },
     ],
   },
+  /* El piso lo publica el productor: el mismo −1.121.250 del 7 sep que la serie dibuja, pero
+     afirmado por quien lo define en vez de buscado por la pantalla. */
+  punto_mas_bajo: puntoMasBajo({ fecha: "2026-09-07", saldo: "-1121250" }),
   por_cobrar_vencido: { total: "39600000", n: 17 },
   fuentes: {
     saldo_synced_at: "2026-08-30T08:12:00Z",
     calidad_fechas: { con_fecha_real: 0.75, items_totales: 12 },
     cobertura: COBERTURA_SIN_EXCLUSIONES,
   },
+});
+
+/** El caso que antes se pintaba verde: el piso NO baja de cero, pero SÍ del mínimo declarado.
+ *  Mínimo $5.000.000, piso $1.200.000 el 7 sep ⇒ `bajo_minimo` con brecha $3.800.000. */
+export const PROYECCION_BAJO_EL_MINIMO: CashProjectionResponse = proyeccion({
+  minimo: "5000000",
+  saldo_hoy: "9800000",
+  saldo_final: "1200000",
+  serie: serie(28, (dia) => (dia <= 7 ? 9_800_000 : 1_200_000)),
+  punto_mas_bajo: puntoMasBajo({
+    fecha: "2026-09-07",
+    saldo: "1200000",
+    minimo: "5000000",
+  }),
 });
 
 export function cobranza(

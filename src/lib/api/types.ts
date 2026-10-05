@@ -142,6 +142,8 @@ export interface paths {
          * Bancos: keep-warm de la sesión de TODOS los conectores x tenants (cron genérico)
          * @description Toca la sesión cacheada de cada banco registrado en cada tenant conectado, **sin** login.
          *     Un solo cron liviano (cada ~20 min) para todos los bancos. Best-effort por (banco, tenant).
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_banks_keepwarm_all"];
         delete?: never;
@@ -164,6 +166,8 @@ export interface paths {
          * @description Sincroniza la cartola de cada banco registrado en cada tenant conectado. El re-login
          *     server-side on-demand ocurre dentro del sync si la sesión expiró. Best-effort por (banco,
          *     tenant); `consent` faltante NO cuenta como error.
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_banks_sync_all"];
         delete?: never;
@@ -186,6 +190,8 @@ export interface paths {
          * @description 'Toca' la sesión BICE cacheada de cada tenant (userInfo) para mantenerla viva **sin**
          *     disparar login. Lo llama el cron liviano (cada ~20 min) con `SERVER_API_KEY`. Baja la
          *     frecuencia de re-login (que es el paso Cloudflare-duro). Best-effort por tenant.
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_bice_keepwarm_all"];
         delete?: never;
@@ -208,6 +214,8 @@ export interface paths {
          * @description Sincroniza BICE de **todos** los tenants conectados. Lo llama el cron con
          *     `SERVER_API_KEY`. El re-login server-side (patchright_proxy) se dispara solo si la
          *     sesión expiró → mantiene BICE siempre conectado. Idempotente; best-effort por tenant.
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_bice_sync_all"];
         delete?: never;
@@ -285,6 +293,8 @@ export interface paths {
          * Sync automático de cesiones RPETC de todos los tenants con SII (cron)
          * @description Sincroniza las cesiones recientes de **todos** los tenants con SII. Lo llama el cron con
          *     `SERVER_API_KEY`; best-effort por tenant. El histórico ancho va por `/api/sii/cesiones/sync`.
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_cesiones_sync_all"];
         delete?: never;
@@ -306,6 +316,8 @@ export interface paths {
          * Clasificación LLM automática del residuo reciente de todos los tenants (cron)
          * @description Corre el clasificador LLM sobre el residuo reciente de **todos** los tenants con RCV. Lo llama
          *     el cron con `SERVER_API_KEY`. Best-effort por tenant; no-op honesto si el LLM está apagado.
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_classify_run_all"];
         delete?: never;
@@ -413,6 +425,8 @@ export interface paths {
          *     Cada resultado que no sea `aplicada` es un bucket con nombre. Juntarlos en "no se pudo"
          *     escondería justamente lo que hay que mirar: una nota sin referencia necesita que alguien
          *     decida, y una sin factura puede significar que falta sincronizar un período viejo.
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_credit_notes_apply"];
         delete?: never;
@@ -453,6 +467,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/crons/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Crons: huella en la base de cada cron de producción (observabilidad)
+         * @description Dice, por cada cron y por cada job programado, cuándo fue la última vez que corrió.
+         *
+         *     Requiere `SERVER_API_KEY` (contexto sin tenant): la lectura es cross-tenant por
+         *     construcción —un `MAX` sobre todas las fuentes— y no corresponde que la responda la
+         *     credencial de un tenant.
+         */
+        get: operations["admin_crons_health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/f29/remanente-seed": {
         parameters: {
             query?: never;
@@ -463,13 +501,13 @@ export interface paths {
         /**
          * F29: consulta el seed del remanente inicial del tenant (ADR-0069 Fase 2)
          * @description Devuelve el seed del remanente inicial del tenant. `exists=false` (con montos en 0) si no
-         *     tiene uno cargado. Con `SERVER_API_KEY`.
+         *     tiene uno cargado. Alcance **tenant**.
          */
         get: operations["admin_f29_remanente_seed_get"];
         put?: never;
         /**
          * F29: carga/reemplaza el seed del remanente inicial del tenant (ADR-0069 Fase 2)
-         * @description Carga o reemplaza el seed del remanente inicial (uno por tenant). Con `SERVER_API_KEY`.
+         * @description Carga o reemplaza el seed del remanente inicial (uno por tenant). Alcance **tenant**.
          *     Idempotente. `remanente` = crédito fiscal acumulado arrastrado HACIA `(period_year, period_month)`.
          */
         post: operations["admin_f29_remanente_seed_put"];
@@ -554,6 +592,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/platform/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Censo de empresas con su estado y su superficie de secretos (admin de plataforma)
+         * @description Alcance PLATAFORMA: requiere una sesión de usuario con `core.users.is_platform_admin`. Una api key de tenant o la `SERVER_API_KEY` no acceden. Devuelve, por empresa, su estado y cuántas credenciales, certificados, api keys y sesiones vivas tiene: es lo que hay que mirar antes de dar una de baja y lo que hay que volver a mirar después.
+         */
+        get: operations["admin_platform_tenants_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/platform/tenants/purge-due": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Qué empresas tienen el plazo de retención cumplido (admin de plataforma)
+         * @description Alcance PLATAFORMA: requiere `core.users.is_platform_admin` por sesión.
+         *
+         *     **El aviso.** Recorre todas las empresas y dice en qué punto del plazo está cada una. No muta nada y no purga nada: la purga la ejecuta una persona, y esto es lo que le dice cuándo puede.
+         *
+         *     Devuelve un número por cada estado, con los ceros incluidos y descritos. Un `purgeable_now: 0` significa «ninguna empresa tiene el plazo cumplido», no «no se pudo mirar»: `tenants_reviewed` dice cuántas se revisaron.
+         */
+        get: operations["admin_platform_tenants_purge_due"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/platform/tenants/{tenant_id}/offboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Da de baja una empresa: la deshabilita, corta accesos y destruye sus credenciales
+         * @description Alcance PLATAFORMA: requiere `core.users.is_platform_admin` por sesión.
+         *
+         *     Modo `revoke_access` (el único implementado): pone `core.tenants.status = 'disabled'`, revoca las api keys, borra sesiones, invitaciones y consentimientos, y **destruye todas las credenciales y certificados** de la empresa. Toda la mutación va en UNA transacción: un fallo a mitad de camino no deja la empresa partida.
+         *
+         *     **No borra datos financieros** y no borra la fila de `core.tenants`. La baja es reversible con un `UPDATE core.tenants SET status = 'active'`; las credenciales no vuelven, que es justo lo que se quiere.
+         *
+         *     Deja evidencia en `audit.tenant_offboarding_events`, escrita en su propia transacción antes y después de la mutación, en una tabla append-only sin FK a la empresa: la evidencia sobrevive a la baja.
+         */
+        post: operations["admin_platform_tenant_offboard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/platform/tenants/{tenant_id}/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Destruye TODOS los datos de una empresa dada de baja hace más del plazo de retención
+         * @description Alcance PLATAFORMA: requiere `core.users.is_platform_admin` **por sesión**. Una api key no entra: una destrucción irreversible tiene que quedar atribuida a una persona con nombre.
+         *
+         *     **Irreversible.** Borra todas las filas de la empresa en las tablas con `tenant_id` descubiertas de la base, las hijas declaradas que cuelgan de ellas, y por último la fila de `core.tenants`. Lo único que sobrevive es la evidencia en `audit.tenant_offboarding_events`, que queda con el inventario de lo destruido.
+         *
+         *     Qué se purga: **todo lo de la empresa, sin excepción por respaldo tributario.** Qavante es una herramienta financiera, no un sistema contable: lo que guarda del RCV, del F29 y de los DTE es una copia de trabajo, y el respaldo que la empresa debe conservar por ley lo conserva en su contabilidad.
+         *
+         *     Exige tres confirmaciones: el plazo cumplido (90 días desde la baja consumada, configurable), el `confirm_slug` exacto y el `expected_inventory_digest` que devolvió `purge-preview`. Cada negativa deja una fila `phase = 'refused'` con el motivo y cuántos días faltaban: un intento al día 30 es información.
+         *
+         *     Toda la mutación va en UNA transacción y antes de commitear se verifica que no quede ninguna fila de la empresa: un fallo a mitad de camino no la deja partida.
+         */
+        post: operations["admin_platform_tenant_purge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/platform/tenants/{tenant_id}/purge-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Qué destruiría la purga de esta empresa y cuánto (admin de plataforma)
+         * @description Alcance PLATAFORMA: requiere `core.users.is_platform_admin` por sesión.
+         *
+         *     No muta nada. Devuelve, por tabla con al menos una fila, cuántas filas hay, los montos sumados por columna de monto y el rango de períodos que cubren; más el reloj del plazo y el `inventory_digest` que la purga va a exigir de vuelta.
+         *
+         *     **El alcance no es una lista escrita a mano.** Las tablas se descubren en `pg_attribute` al momento de correr: toda tabla con `tenant_id` entra, así que una tabla nueva queda cubierta el día que se crea. Las que no tienen `tenant_id` están declaradas una por una en `tenant_purge._TABLES_WITHOUT_TENANT_ID`, y CI falla si aparece una sin declarar.
+         *
+         *     Se puede pedir antes de que el plazo se cumpla: es lo que deja ver, el día 30, qué se va a perder el día 90.
+         */
+        get: operations["admin_platform_tenant_purge_preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/pulso/snapshot": {
         parameters: {
             query?: never;
@@ -567,6 +729,8 @@ export interface paths {
          * PULSO v2: persiste el snapshot del día de todos los tenants (cron, ADR-0064 §5)
          * @description Persiste el snapshot del pulso v2 del día de **todos** los tenants con caja. Lo llama el
          *     cron con `SERVER_API_KEY`. Idempotente (recalcular el día upserta); best-effort por tenant.
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_pulso_snapshot"];
         delete?: never;
@@ -588,6 +752,8 @@ export interface paths {
          * Conciliación automática de todos los tenants con banco (cron)
          * @description Concilia **todos** los tenants con banco. Lo llama el cron con `SERVER_API_KEY`. El motor es
          *     el mismo que el botón manual (auto-aplica solo ≥90, encola 60-90); best-effort por tenant.
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_reconcile_run_all"];
         delete?: never;
@@ -651,7 +817,7 @@ export interface paths {
         put?: never;
         /**
          * SII: re-sync completo del devengado (AR/AP) desde el RCV histórico (ADR-0064 §4.3)
-         * @description Backfill del devengado de un tenant desde el RCV. Con `SERVER_API_KEY`. Idempotente.
+         * @description Backfill del devengado de un tenant desde el RCV. Alcance **tenant**. Idempotente.
          *
          *     - **Background (default):** responde **202** con los períodos planificados; el trabajo corre
          *       después. Para el re-sync operativo ("todo 2026").
@@ -697,6 +863,34 @@ export interface paths {
         put?: never;
         /** SII: reclama y ejecuta refresh durable */
         post: operations["admin_sii_refresh_cache_drain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/sii/refresh-cache/retire-superseded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII: retira encargos encolados que ya no se van a reclamar
+         * @description Reparación de datos EXPLÍCITA: la dispara una persona, no un deploy.
+         *
+         *     `claim_next` toma el encargo más nuevo por diseño, así que la punta vieja de la cola no se
+         *     reclama nunca y tampoco llega a `dead_letter` —para agotar reintentos hay que ser
+         *     reclamado—. Medido en producción el 2026-10-04: 27 filas `queued`, todas con
+         *     `attempt = 1`, la más vieja del 2026-09-23.
+         *
+         *     No borra: transiciona a `dead_letter` con `error.code = 'retired_superseded'` y conserva
+         *     el error anterior en `error.previous_error`. En seco por default.
+         */
+        post: operations["admin_sii_refresh_cache_retire_superseded"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1058,6 +1252,8 @@ export interface paths {
          * @description Chequea el TTL de la sesión TGR de **todos** los tenants (local, sin red a
          *     TGR) y refleja el estado en `connection_status`. Lo llama el cron cada 6 h con
          *     `SERVER_API_KEY`. Idempotente; best-effort por tenant.
+         *
+         *     Alcance: **servidor**. Cross-tenant por construcción.
          */
         post: operations["admin_tgr_session_watchdog"];
         delete?: never;
@@ -1231,6 +1427,36 @@ export interface paths {
          *     Hace `seed` idempotente desde `payroll_worker_lines` antes de leer.
          */
         get: operations["admin_payroll_settlements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/treasury/payroll-worker-outstanding/{period}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Saldo por trabajador de un período de nómina, contado sólo desde evidencia (D14)
+         * @description Saldo por trabajador del período según el ledger D14 (#422).
+         *
+         *     Un trabajador aparece `confirmed_paid` sólo cuando una asignación individual colgada de un
+         *     pago confirmado cubre su obligación sellada. Un lote asignado al snapshot y no repartido
+         *     baja lo que se debe en total y no alcanza para nombrar a nadie: el período lo declara en
+         *     `abstention_reasons` junto con `distribution_gap_amount`.
+         *
+         *     Las cifras legadas (`legacy_*`) viajan al lado, cada una etiquetada por lo que la respalda,
+         *     para que un pago asumido no se lea como uno observado. A diferencia de
+         *     `GET /treasury/payroll-settlements/{period}`, esta lectura no hace `seed` ni escribe nada,
+         *     y no exige una sola sociedad legal: las tablas de evidencia de 0173 son tenant-wide.
+         */
+        get: operations["admin_payroll_worker_outstanding"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3429,6 +3655,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/onboarding/activity-start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fecha de inicio declarada por sociedad, y la cifra de lo que falta declarar
+         * @description Read-only: qué sociedades declararon su fecha de inicio y qué queda sin atribuir.
+         *
+         *     Una sociedad sin fecha declarada **no devuelve cero**: devuelve cuántos documentos, cuántos
+         *     períodos y cuánta plata quedan sin atribuir, y de dónde salió la fecha que igual tiene.
+         *
+         *     `live_debt_protected` va aparte y a propósito: es la deuda viva sin sociedad, que está
+         *     EXENTA de la compuerta por fecha (decisión de Fernando, 2026-10-04) y sigue contando en la
+         *     posición financiera. Mostrarla al lado de lo que sí queda sin atribuir es lo que vuelve
+         *     discutible la excepción en vez de invisible.
+         */
+        get: operations["onboarding_activity_start_get"];
+        /**
+         * La empresa DECLARA la fecha de inicio de una sociedad (owner/admin)
+         * @description Escribe la declaración de la empresa como fuente de `effective_from` de la sociedad.
+         *
+         *     Es el único camino que deja `activity_start_provenance = 'declared_by_company'`. No valida
+         *     la fecha contra el SII —Fernando rechazó leerla de ahí— ni contra la ventana de importación,
+         *     que es otra cosa: `onboarding_import_start_date` dice desde cuándo IMPORTAR, y está acotada
+         *     a 6 meses antes del alta, así que no podría sostener un inicio de 2017.
+         */
+        put: operations["onboarding_activity_start_set"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/onboarding/complete": {
         parameters: {
             query?: never;
@@ -3881,11 +4144,27 @@ export interface paths {
         };
         /**
          * Get Release Provenance
-         * @description Expose complete immutable build provenance, or explicitly abstain.
+         * @description Expose which commit, tree and image this process is actually running.
          *
-         *     The response intentionally does not claim an OCI digest: that digest only
-         *     exists after the image is built and is verified from Azure's control plane
-         *     by the release receipt. A legacy/partial file is not a certified release.
+         *     Two independently sourced halves, never mixed:
+         *
+         *     ``release``
+         *         Source identity (commit SHA, tree, version, build id, source archive
+         *         hash) baked into the image filesystem at build time from build args.
+         *         Never read from the environment, so a runtime env var cannot restate
+         *         what source went into the artefact.
+         *
+         *     ``image``
+         *         The OCI manifest digest, which cannot be baked without circularity: it
+         *         exists only after the build. The deploy reads it back from the registry
+         *         and sets it on the revision together with the pinned image, so it is a
+         *         control-plane statement about the artefact that was started.
+         *
+         *     Either half abstains with ``status: "unavailable"`` and a ``null`` payload
+         *     when its source did not supply a well-formed value. Nothing here is ever
+         *     filled with a placeholder: an unanswered question reads as unanswered, not
+         *     as a plausible-looking SHA. A legacy/partial baked file is not a certified
+         *     release and abstains too.
          */
         get: operations["get_release_provenance_api_release_get"];
         put?: never;
@@ -4690,8 +4969,11 @@ export interface paths {
          * @description Último estado de la compuerta D08 del RCV (#701, ADR-0116 §9 paso 5): la fila del tenant
          *     (identidad: ventas y compras observaron el mismo RUT empresa válido) y una por cuenta fuente
          *     `cl_rut` (sociedad: el RUT prueba una sociedad única). Con Empresa seleccionada se ocultan las
-         *     cuentas que hoy declara otra sociedad. Sin montos. `d07_prerequisite` queda `not_credited`
-         *     hasta que el cierre de D07 esté registrado. Read-only: no abre ni cierra la compuerta.
+         *     cuentas que hoy declara otra sociedad. Sin montos. `d07_prerequisite` quedó `credited` el
+         *     2026-10-04 (ADR-0123 §1). `graph_publication` dice qué publicó el grafo —versión,
+         *     identificadores y aliases vigentes—, porque `overall=enabled` sólo significa que el
+         *     productor tiene permiso de escribir: con `seeded=false` ese permiso no produce nada.
+         *     Read-only: no abre ni cierra la compuerta.
          */
         get: operations["sii_rcv_d08_gate"];
         put?: never;
@@ -4996,6 +5278,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/accounts-payable/{payable_id}/settled-by-obligation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Declarar que una obligación (compra en cuotas) liquidó este pago */
+        post: operations["treasury_accounts_payable_settled_by_obligation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/accounts-receivable": {
         parameters: {
             query?: never;
@@ -5147,6 +5446,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/bank-movements/accept-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirma en bloque las propuestas del clasificador (suggested → classified)
+         * @description Confirma EN BLOQUE las propuestas del clasificador (`classification_status='suggested'`).
+         *
+         *     Era el camino que faltaba: una propuesta trae categoría y confianza pero NO cuenta de gestión,
+         *     y tanto `PATCH /{id}/classify` como `classify-bulk` exigen una cuenta — el segundo, una sola
+         *     para todo el lote. Con propuestas repartidas en varias categorías no había forma de aplicarlas.
+         *
+         *     La cuenta sale de `accounts` (la persona la elige acá) o del historial confirmado de la propia
+         *     sociedad cuando esa categoría siempre fue a la misma cuenta. Si no, la propuesta queda pendiente
+         *     y `por_categoria` dice qué categoría necesita que se elija una cuenta: nunca se elige una cuenta
+         *     probable. Idempotente.
+         */
+        post: operations["treasury_bank_movements_accept_suggestions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/bank-movements/apply-rules": {
         parameters: {
             query?: never;
@@ -5162,8 +5490,44 @@ export interface paths {
          *     determinista). Materializa los `financial_impacts` de los que matchean → así los reportes de
          *     caja/gestión (que leen esa tabla) dejan de salir vacíos tras un import. Solo clasifica lo que
          *     matchea una regla real; lo demás queda sin clasificar (sin default). Idempotente.
+         *
+         *     0255: lo que el barrido HACE depende del modo que la sociedad declaró. En `automatic` aplica;
+         *     en `review` y mientras no haya declarado (`sin_declarar`) PROPONE y nada mueve una cifra
+         *     hasta que una persona acepte en `POST /accept-suggestions`. La respuesta trae siempre `modo`
+         *     y `propuestas_nuevas`.
          */
         post: operations["treasury_bank_movements_apply_rules"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/bank-movements/classification-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * El modo de clasificación que declaró la sociedad activa
+         * @description El modo de clasificación que ESTA sociedad declaró, y cuántas propuestas esperan.
+         *
+         *     `sin_declarar` no es un default disfrazado: es el hecho de que la sociedad todavía no
+         *     eligió, y mientras no elija el barrido propone en vez de aplicar. La pantalla tiene que
+         *     mostrarlo como una decisión pendiente, no traducirlo a uno de los dos modos.
+         */
+        get: operations["treasury_bank_movements_classification_mode_get"];
+        /**
+         * La sociedad declara si la clasificación automática se revisa o se aplica sola
+         * @description La sociedad declara su modo: revisar antes de aplicar, o aplicar sola.
+         *
+         *     Queda con la persona que lo declaró. Autorizar que un barrido mueva cifras solo es un acto
+         *     de alguien, igual que la evidencia `person` de 0241: sin persona no se declara.
+         */
+        put: operations["treasury_bank_movements_classification_mode_declare"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6959,6 +7323,9 @@ export interface paths {
          *     cada movimiento se confirma por separado; uno que no esté en cola (`not_in_review`), no tenga
          *     identidad visible para lote (`not_bulk_eligible`) o falle (`error`) NO aborta el resto. Cada
          *     ítem reporta su `status`.
+         *
+         *     `legal_entity_id` del body es opcional por la misma razón que en `confirm`: la autoridad es la
+         *     sociedad activa de la sesión y el campo sólo la repite. Obligatorio, dejaba el botón muerto.
          */
         post: operations["treasury_reconciliation_confirm_batch"];
         delete?: never;
@@ -7316,6 +7683,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/reconciliation/settlement-integrity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Censo de documentos saldados que no declaran qué los respalda
+         * @description Hace visible el hueco que la migración 0245 cierra hacia adelante.
+         *
+         *     Parte el censo por el corte de apertura de ESTA empresa, que es dato por tenant y no una
+         *     fecha global: lo de antes del corte es arrastre que el corte retira, lo de después es un
+         *     caso que alguien tiene que mirar. Sin esa partición el indicador nacería rojo para siempre
+         *     —hoy todo el arrastre medido es anterior a cualquier corte— y un indicador que no puede
+         *     ponerse verde no lo mira nadie, con lo cual tampoco se vería el caso nuevo.
+         */
+        get: operations["treasury_reconciliation_settlement_integrity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/reconciliation/{movement_id}/cases": {
         parameters: {
             query?: never;
@@ -7347,6 +7740,13 @@ export interface paths {
          * @description Sin body (o `document_id` null) → aplica la sugerencia ENCOLADA por el motor (`confirm_review`).
          *     Con `document_id` → concilia el movimiento contra ESE documento elegido por el humano
          *     (`confirm_review_with_document`, ADR-0097). La reversa deshace ambos igual.
+         *
+         *     `legal_entity_id` es opcional y NO es un guard que se baje: la sociedad sale de
+         *     `_financial_scope_or_409(tenant)` —la sesión y su Empresa activa— y el parámetro sólo la
+         *     REPITE. Era obligatorio desde #809 y ningún cliente lo mandaba, así que FastAPI respondía
+         *     422 de validación antes de entrar al handler: el botón "Sí, conciliar" estaba muerto para
+         *     todos. El censo de `tests/test_write_route_scope_census.py` es lo que impide que otra ruta
+         *     de escritura vuelva a exigirle al cliente una sociedad que la sesión ya resuelve.
          */
         post: operations["treasury_reconciliation_confirm"];
         delete?: never;
@@ -7453,6 +7853,14 @@ export interface paths {
          *     Cuotas de crédito y pagos de cartola resueltos con autoridad canónica (#852/#858) se revierten
          *     con la reversa exacta de su rail. Si el rail no la tiene (legacy-adapter, historia sin caso,
          *     nómina) responde 409 `rail_owned_reconciliation:<rail>` sin escribir (#688).
+         *
+         *     **Auth (#1012): X-Api-Key o cookie de sesión.** Es la reparación de datos más usada
+         *     cuando el motor aplica un match equivocado, así que tiene que poder correr desde un
+         *     runbook sin falsificar una sesión de navegador. El path api-key exige `actor_user_id`
+         *     en el body: la reversa registra autoría y no se acepta anónima. Sin él responde 422
+         *     `actor_user_id_required`; si ese usuario no tiene rol financiero de escritura activo en el
+         *     tenant, 403 `actor_not_authorized`. Con cookie el autor es la sesión, y declarar a otro
+         *     usuario es 403 `actor_mismatch`.
          */
         post: operations["treasury_reconciliation_revert"];
         delete?: never;
@@ -7878,6 +8286,119 @@ export interface components {
              */
             token: string;
         };
+        /**
+         * AcceptSuggestionsAccountChoice
+         * @description La persona fija la cuenta de gestión de una categoría propuesta.
+         */
+        AcceptSuggestionsAccountChoice: {
+            canonical_category: components["schemas"]["CanonicalCategory"];
+            /**
+             * Management Account Id
+             * Format: uuid
+             */
+            management_account_id: string;
+        };
+        /**
+         * AcceptSuggestionsCategoryOverride
+         * @description La persona cambia la categoría de UNA propuesta antes de aceptarla.
+         */
+        AcceptSuggestionsCategoryOverride: {
+            /** @description La categoría que decide la persona. Es la que se clasifica; la propuesta original queda en la nota y su procedencia en la fila, para poder corregir la regla. */
+            canonical_category: components["schemas"]["CanonicalCategory"];
+            /**
+             * Movement Id
+             * Format: uuid
+             */
+            movement_id: string;
+        };
+        /**
+         * AcceptSuggestionsCategoryResult
+         * @description Resultado por categoría propuesta: lo aceptado y lo que falta decidir.
+         */
+        AcceptSuggestionsCategoryResult: {
+            /**
+             * Aceptados
+             * @description Propuestas confirmadas en esta categoría.
+             */
+            aceptados: number;
+            /** Canonical Category */
+            canonical_category: string;
+            /**
+             * Motivo
+             * @description Qué falta para confirmar las pendientes. `elegir_cuenta`: esta categoría nunca se clasificó en esta sociedad, hay que elegir la cuenta una vez. `cuenta_ambigua`: el historial usó más de una cuenta, hay que decir cuál. `cuenta_inexistente`: la cuenta del historial ya no está. `null` cuando no quedaron pendientes.
+             */
+            motivo?: ("elegir_cuenta" | "cuenta_ambigua" | "cuenta_inexistente") | null;
+            /**
+             * Pendientes
+             * @description Propuestas que siguen esperando: la cuenta de gestión no está decidida.
+             */
+            pendientes: number;
+        };
+        /**
+         * AcceptSuggestionsRequest
+         * @description Confirmar en bloque las propuestas del clasificador.
+         *
+         *     `movement_ids` omitido = todas las propuestas de la sociedad activa. `accounts` deja que la
+         *     persona resuelva, en la misma llamada, las categorías cuya cuenta el sistema no puede derivar
+         *     de su historial. `categorias_modificadas` deja que cambie la categoría de una propuesta
+         *     antes de aceptarla.
+         */
+        AcceptSuggestionsRequest: {
+            /**
+             * Accounts
+             * @description Cuenta de gestión elegida por categoría. Resuelve las categorías que la respuesta anterior devolvió como pendientes.
+             */
+            accounts?: components["schemas"]["AcceptSuggestionsAccountChoice"][];
+            /**
+             * Categorias Modificadas
+             * @description Propuestas cuya categoría la persona cambió antes de aceptarlas. Se clasifica con la categoría que mandás acá, no con la que propuso la regla o la señal.
+             */
+            categorias_modificadas?: components["schemas"]["AcceptSuggestionsCategoryOverride"][];
+            /**
+             * Movement Ids
+             * @description Propuestas a confirmar. Omitir = todas las propuestas confirmables de la sociedad.
+             */
+            movement_ids?: string[] | null;
+        };
+        /**
+         * AcceptSuggestionsResponse
+         * @description Lote de confirmación: cuántas quedaron aplicadas y qué falta para el resto.
+         */
+        AcceptSuggestionsResponse: {
+            /**
+             * Aceptados
+             * @description Propuestas confirmadas → ya alimentan Caja y el P&L.
+             */
+            aceptados: number;
+            /**
+             * Evaluados
+             * @description Propuestas consideradas.
+             */
+            evaluados: number;
+            /**
+             * Modificadas
+             * @description De las confirmadas, cuántas quedaron en una categoría distinta de la propuesta porque la persona la cambió.
+             * @default 0
+             */
+            modificadas: number;
+            /**
+             * Pendientes
+             * @description Propuestas que siguen esperando una cuenta de gestión.
+             */
+            pendientes: number;
+            /**
+             * Por Categoria
+             * @description Desglose por categoría propuesta, para pedir sólo lo que falta decidir.
+             */
+            por_categoria?: components["schemas"]["AcceptSuggestionsCategoryResult"][];
+            /**
+             * Reversible
+             * @description La cuenta la resolvió el sistema desde el historial, así que cada confirmación deja Deshacer por 7 días (ADR-0113).
+             * @default true
+             * @constant
+             */
+            reversible: true;
+        };
         /** AccountDimensionPoliciesResponse */
         AccountDimensionPoliciesResponse: {
             /** Items */
@@ -8211,6 +8732,85 @@ export interface components {
              */
             total: number;
         };
+        /** ActivityStartLiveDebt */
+        ActivityStartLiveDebt: {
+            /** Payables Amount */
+            payables_amount: string;
+            /** Payables Count */
+            payables_count: number;
+            /** Receivables Amount */
+            receivables_amount: string;
+            /** Receivables Count */
+            receivables_count: number;
+        };
+        /**
+         * ActivityStartOpeningCutoffOverlap
+         * @description Qué pasa cuando la fecha de inicio y el corte de apertura se contradicen.
+         *
+         *     Son dos declaraciones distintas que se parecen y ninguna explica a la otra, y por eso se
+         *     publican juntas. La regla, escrita acá y no dejada al lector:
+         *
+         *     * **La fecha de inicio** dice desde cuándo la empresa quiere ver sus datos (palabras de
+         *       Fernando, 2026-10-04: "es iniciar desde cuándo quiero que se comience a mostrar datos,
+         *       documentos, sincronizaciones"). Gobierna qué se trae y qué se atribuye.
+         *     * **El corte de apertura** ya escribió: marcó como saldados los documentos anteriores a su
+         *       fecha. Es una limpieza puntual, aplicada, y reversible desde Administración.
+         *     * Donde se superponen, **gana el corte**, porque ya está aplicado — y eso es justamente el
+         *       problema: si la empresa declaró importar desde marzo y el corte quedó al 31 de agosto,
+         *       el corte marcó como pagados documentos de cinco meses que la empresa pidió ver. Esos
+         *       meses son `overlap_months`, y mientras no sean 0 la posición de ese tramo la fijó el
+         *       corte y no la operación.
+         *
+         *     Se publica siempre, también cuando no hay superposición, y entonces `overlap_months` es 0
+         *     con las dos fechas a la vista.
+         */
+        ActivityStartOpeningCutoffOverlap: {
+            /**
+             * Active
+             * @description Hay un corte de apertura aplicado y no revertido.
+             */
+            active: boolean;
+            /**
+             * Cutoff Date
+             * @description Fecha del corte aplicado; null cuando no hay corte activo.
+             */
+            cutoff_date?: string | null;
+            /**
+             * Detail
+             * @description Las dos fechas y su superposición en prosa, con el número.
+             */
+            detail: string;
+            /**
+             * Import Start Date
+             * Format: date
+             * @description Desde cuándo la empresa pidió ver sus datos (ventana de importación).
+             */
+            import_start_date: string;
+            /**
+             * Overlap Months
+             * @description Meses entre la fecha de inicio de importación y el corte. Son los meses que el corte marcó como saldados dentro del tramo que la empresa pidió ver. 0 significa que las dos declaraciones no se pisan.
+             */
+            overlap_months: number;
+        };
+        /** ActivityStartUnattributed */
+        ActivityStartUnattributed: {
+            /** Amount */
+            amount: string;
+            /** Documents */
+            documents: number;
+            /** Payables Amount */
+            payables_amount: string;
+            /** Payables Documents */
+            payables_documents: number;
+            /** Payables Periods */
+            payables_periods: number;
+            /** Receivables Amount */
+            receivables_amount: string;
+            /** Receivables Documents */
+            receivables_documents: number;
+            /** Receivables Periods */
+            receivables_periods: number;
+        };
         /** AdminEventResponse */
         AdminEventResponse: {
             /** Actor User Id */
@@ -8503,11 +9103,46 @@ export interface components {
              */
             evaluados: number;
             /**
+             * Modo
+             * @description Modo de clasificación de esta sociedad. `automatic`: el barrido aplicó las reglas. `review`: las propuso y esperan tu revisión. `sin_declarar`: esta sociedad todavía no eligió, así que el barrido propuso en vez de aplicar — elegí el modo en Configuración.
+             * @enum {string}
+             */
+            modo: "review" | "automatic" | "sin_declarar";
+            /**
+             * Movimientos Con Regla Inerte
+             * @description Movimientos que siguen sin clasificar y que SÍ matchean una regla inerte. Están contados también en `sin_regla`; se publican aparte porque 'sin regla' afirmaba lo contrario de lo que pasa: la regla existe y no puede aplicarse.
+             * @default 0
+             */
+            movimientos_con_regla_inerte: number;
+            /**
              * Omitidos Transferencia
              * @description Movimientos saltados por las reglas por ser probables patas de transferencia interna (RUT propio del tenant en la glosa) — los clasifica la detección de traspasos, no las reglas por keyword/monto. Evita el gasto-fantasma que no netea.
              * @default 0
              */
             omitidos_transferencia: number;
+            /**
+             * Propuesta Existente
+             * @description Movimientos que matchean una regla y ya tenían una propuesta esperando (de una señal de glosa o de una corrida anterior). La regla no la pisa: cambiar en silencio lo que estás a punto de revisar sería peor que no proponer.
+             * @default 0
+             */
+            propuesta_existente: number;
+            /**
+             * Propuestas Nuevas
+             * @description Movimientos que quedaron propuestos y esperan que una persona los acepte. En modo `automatic` es 0 porque el barrido aplica; en `review` y `sin_declarar` es el resultado real del barrido, y `clasificados` es 0 por diseño.
+             * @default 0
+             */
+            propuestas_nuevas: number;
+            /**
+             * Reglas Inertes
+             * @description Reglas activas `source_type='bank_movement'` que el batch NO pudo usar porque les falta `canonical_category` (o cuenta de gestión): matchean pero no clasifican, porque sin categoría el motor de impactos no alimenta la caja. Hay que completarlas a mano; el sistema no les inventa una categoría.
+             * @default 0
+             */
+            reglas_inertes: number;
+            /**
+             * Reglas Inertes Detalle
+             * @description Cada regla que matchea y no puede aplicarse, con su nombre, qué le falta y cuántos movimientos está deteniendo. El contador solo decía que había un problema; esto dice cuál regla completar primero.
+             */
+            reglas_inertes_detalle?: components["schemas"]["InertRuleDetail"][];
             /**
              * Sin Regla
              * @description Movimientos que no matchearon ninguna regla (siguen sin clasificar).
@@ -8993,6 +9628,16 @@ export interface components {
             canonical_category?: string | null;
             /** Classification Confidence */
             classification_confidence?: string | null;
+            /**
+             * Classification Evidence Kind
+             * @description Naturaleza del respaldo de la categoría: rule, document, person, resolution_case, paired_movement o builtin_signal.
+             */
+            classification_evidence_kind?: string | null;
+            /**
+             * Classification Evidence Ref
+             * @description Id de la cosa concreta que respalda la categoría.
+             */
+            classification_evidence_ref?: string | null;
             /** Classification Model Version */
             classification_model_version?: string | null;
             /** Classification Notes */
@@ -10834,10 +11479,27 @@ export interface components {
             /** Warnings */
             warnings?: string[];
         };
-        /** CashForecast */
+        /**
+         * CashForecast
+         * @description Mínimo del saldo proyectado a 14/30 días + los días de caja, CON lo que excluyen.
+         *
+         *     `days_of_cash_vencido_exigible_excluido` es OBLIGATORIO y no opcional, por la misma razón
+         *     que las cuatro cifras nuevas de `CashGap`: `days_of_cash` es el primer día en que la caja
+         *     proyectada cierra bajo el mínimo, y la curva **no coloca la deuda ya vencida en ningún
+         *     día** (decisión del BO del 2026-10-04 — colocarla es inventarle una fecha de pago). O sea
+         *     la cifra contesta "hasta cuándo me alcanza si NO pago lo que ya debo".
+         *
+         *     Medido contra el tenant productivo el 2026-10-04: **26 días** con **$73.641.695**
+         *     exigibles ese mismo día, sobre una caja de $6,7M. Un bloque que publicara `days_of_cash`
+         *     solo diría "tu caja alcanza 26 días" sobre esa cartera. Hasta #1036 el productor calculaba
+         *     el monto y este modelo era `extra="forbid"` sin campo para él, así que no llegaba a la
+         *     pantalla ni por accidente: quedó medido y fijado por test entonces, y arreglado acá.
+         */
         CashForecast: {
             /** Days Of Cash */
             days_of_cash?: number | null;
+            /** Days Of Cash Vencido Exigible Excluido */
+            days_of_cash_vencido_exigible_excluido: string;
             /** Last Updated */
             last_updated?: string | null;
             /** Min 14D */
@@ -10847,7 +11509,23 @@ export interface components {
             /** Source */
             source?: string | null;
         };
-        /** CashGap */
+        /**
+         * CashGap
+         * @description Obligaciones con fecha a 14 días vs caja proyectada, MÁS la deuda ya exigible.
+         *
+         *     LAS CUATRO PRIMERAS CIFRAS DEJARON DE CUBRIR LA DEUDA VENCIDA, y por eso las cuatro de
+         *     abajo son obligatorias y no opcionales. Decisión del BO del 2026-10-04 (cierra #564): lo
+         *     vencido no se coloca en ningún día de la curva, así que `critical_obligations_14d` pasó a
+         *     significar lo que su nombre dice —lo que vence en los próximos 14 días— y `has_gap` pasó a
+         *     describir si la caja alcanza para ESO.
+         *
+         *     Medido contra el tenant productivo el 2026-10-04, el cambio da vuelta `has_gap` de `true`
+         *     a `false` y `critical_obligations_14d` de $80.617.342 a $5.178.642, con $75.438.700
+         *     exigibles ese mismo día. Un bloque que publicara sólo las cuatro primeras cifras diría
+         *     "no hay brecha" sobre esa cartera: es el false all-clear del ADR-0076 entrando por la
+         *     puerta de la buena noticia. Las cuatro nuevas son lo que lo impide, y van acá —en el mismo
+         *     bloque que `has_gap`— precisamente para que no se puedan leer por separado.
+         */
         CashGap: {
             /** Cash Gap Amount 14D */
             cash_gap_amount_14d: string;
@@ -10861,6 +11539,26 @@ export interface components {
             projected_cash_14d: string;
             /** Source */
             source?: string | null;
+            /**
+             * Vencido Exigible
+             * @default 0
+             */
+            vencido_exigible: string;
+            /**
+             * Vencido Exigible Desde Dias
+             * @default 90
+             */
+            vencido_exigible_desde_dias: number;
+            /**
+             * Vencido Exigible Mora Estructural
+             * @default 0
+             */
+            vencido_exigible_mora_estructural: string;
+            /**
+             * Vencido Exigible N
+             * @default 0
+             */
+            vencido_exigible_n: number;
         };
         /**
          * CashMinimumResponse
@@ -11052,9 +11750,15 @@ export interface components {
             as_of: string;
             /**
              * Dias De Caja
-             * @description Runway banda esperada: días hasta saldo_cierre < mínimo; null si nunca.
+             * @description LA cifra de días de caja del producto (#564): primer día en que el `saldo_cierre` de la banda esperada queda bajo el mínimo configurado. `0` si la apertura ya está bajo el mínimo o no hay caja; `null` si no lo cruza en el horizonte (que viaja al lado, en `horizon_days`). Es la MISMA cifra que `cash_forecast.days_of_cash` de `/api/dashboard/summary`: un solo helper, dos claves.
              */
             dias_de_caja?: number | null;
+            /**
+             * Dias De Caja Vencido Exigible Excluido
+             * @description LA DEUDA YA VENCIDA QUE `dias_de_caja` NO CONTEMPLA (string-decimal, magnitud positiva). `dias_de_caja` es el primer día en que la curva cae bajo el mínimo, y la curva ya no coloca lo vencido: sin esta cifra la pantalla diría 'te alcanza N días' sin decir que hay una deuda exigible hoy. Va como monto y no como booleano porque esa frase no se puede escribir sin el número.
+             * @default 0
+             */
+            dias_de_caja_vencido_exigible_excluido: string;
             /**
              * Dias Hasta Recuperar
              * @description Si `en_sobregiro`: días hasta volver sobre el mínimo (null si no recupera).
@@ -11062,7 +11766,7 @@ export interface components {
             dias_hasta_recuperar?: number | null;
             /**
              * En Sobregiro
-             * @description True si el saldo de hoy ya está bajo el mínimo. En ese caso `dias_de_caja` es degenerado (~1) — usar `dias_hasta_recuperar` para mostrar 'recuperás en N días'.
+             * @description True si el saldo de hoy ya está bajo el mínimo. En ese caso `dias_de_caja` es **0** — no te alcanza HOY — y `dias_hasta_recuperar` dice en cuántos días volvés sobre el mínimo. Hasta el #564 esta cifra era el `~1` que esta descripción llamaba degenerado, y un '1 día de caja' es una promesa falsa.
              * @default false
              */
             en_sobregiro: boolean;
@@ -11095,6 +11799,8 @@ export interface components {
             por_cobrar_vencido: components["schemas"]["PorCobrarVencido"];
             /** @description Pagos atrasados (lo que se debe y venció). Usar junto con por_cobrar_vencido en vez de vencido.total (que netea signos). */
             por_pagar_vencido: components["schemas"]["PorPagarVencido"];
+            /** @description #281 C03: el punto MÁS BAJO del esperado — el mismo cálculo que publica la proyección de 30 días del Inicio, no una segunda aritmética. Distinto de `punto_quiebre`, que es el primer cruce bajo el mínimo y puede ser null. */
+            punto_mas_bajo: components["schemas"]["PuntoMasBajo"];
             punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
             /**
              * Saldo Final
@@ -11110,6 +11816,8 @@ export interface components {
             /** Serie */
             serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
             vencido: components["schemas"]["Vencido"];
+            /** @description EL STOCK EXIGIBLE con su antigüedad y el estado de su plan de pago. Es el concepto que reemplaza la colocación de lo vencido que se retiró de la curva. */
+            vencido_exigible: components["schemas"]["VencidoExigible"];
         };
         /** CashProjectionRunCreateRequest */
         CashProjectionRunCreateRequest: {
@@ -11768,6 +12476,38 @@ export interface components {
             /** Id */
             id: string;
         };
+        /**
+         * ClassificationModeResponse
+         * @description El modo de clasificación de la sociedad activa, y quién lo declaró.
+         */
+        ClassificationModeResponse: {
+            /**
+             * Declarado At
+             * @description Cuándo se declaró. Llega sólo cuando hay una declaración: en `sin_declarar` la decisión todavía está pendiente.
+             */
+            declarado_at?: string | null;
+            /**
+             * Declarado Por User Id
+             * @description Quién declaró el modo. Llega sólo cuando hay una declaración: en `sin_declarar` la decisión todavía está pendiente.
+             */
+            declarado_por_user_id?: string | null;
+            /**
+             * Modo
+             * @description `review`: cada clasificación automática te espera para que la aceptes. `automatic`: se aplica sola. `sin_declarar`: esta sociedad todavía no eligió, y mientras no elija el barrido propone en vez de aplicar.
+             * @enum {string}
+             */
+            modo: "review" | "automatic" | "sin_declarar";
+            /**
+             * Nota
+             * @description Nota que dejó quien declaró el modo, si escribió una.
+             */
+            nota?: string | null;
+            /**
+             * Propuestas En Espera
+             * @description Movimientos propuestos que esperan que una persona los acepte en esta sociedad. Ninguno de ellos mueve caja ni P&L hasta que se acepte.
+             */
+            propuestas_en_espera: number;
+        };
         /** ClassificationProposal */
         ClassificationProposal: {
             /** Account Code */
@@ -12147,6 +12887,30 @@ export interface components {
          */
         Cobertura: {
             /**
+             * Cuotas Agendadas
+             * @description Σ de las cuotas de obligación que SÍ entraron a la curva dentro de `horizon_days` (positivo), string-decimal. Una compra en cuotas con tarjeta es deuda con el banco emisor y no una cuenta por pagar: cuando se compra en N cuotas la tarjeta ya le pagó al comercio, y lo que queda vivo es el calendario con el banco.
+             * @default 0
+             */
+            cuotas_agendadas: string;
+            /**
+             * Cuotas Agendadas Count
+             * @description Nº de cuotas de obligación dentro de `horizon_days` (conteo).
+             * @default 0
+             */
+            cuotas_agendadas_count: string;
+            /**
+             * Cuotas En Payables
+             * @description Σ de los pagaderos vivos cuya propia glosa los declara cuota de tarjeta (`<n>-<N> CUOTA`), string-decimal. Siguen DENTRO de la curva de pagaderos: la plata se debe igual —al banco emisor en vez de al comercio— y restarla bajaría los egresos comprometidos sin que nada los reponga. La cifra existe para que el solapamiento entre las dos fuentes de egresos se publique en vez de sumarse en silencio.
+             * @default 0
+             */
+            cuotas_en_payables: string;
+            /**
+             * Cuotas En Payables Count
+             * @description Nº de esos pagaderos (conteo).
+             * @default 0
+             */
+            cuotas_en_payables_count: string;
+            /**
              * F29 Legacy Unattributed
              * @description True si una obligación F29 pendiente depende de F29 histórico sin sociedad (`f29_legacy_unattributed`): su monto es desconocido y NO está en la curva — ni como $0 ni como estimado. Remediación: re-sincronizar el F29 bajo la sociedad.
              * @default false
@@ -12157,6 +12921,24 @@ export interface components {
              * @description True si la moneda funcional no es CLP y por eso el F29 no se proyectó.
              */
             f29_omitido_por_moneda: boolean;
+            /**
+             * Impactos Committed Agendados
+             * @description Σ (CON SIGNO: negativo = egreso) de los impactos de `financial_impacts` en capa `committed` con fecha futura que SÍ entraron a la curva dentro de `horizon_days`, string-decimal. Era la ÚNICA fuente que esta proyección no leía y la del Inicio sí: las dos publicaban el mismo piso —diferencia $0 a 7, 14, 30 y 90 días, medido contra producción el 2026-10-04— porque esa consulta devuelve cero filas en los seis tenants, no porque tuvieran la misma definición. Ahora la leen las dos y la magnitud se publica: `0` significa que se midió cero.
+             * @default 0
+             */
+            impactos_committed_agendados: string;
+            /**
+             * Impactos Committed Agendados Count
+             * @description Nº de días con impacto committed dentro de `horizon_days`.
+             * @default 0
+             */
+            impactos_committed_agendados_count: string;
+            /**
+             * Moneda Distinta Cuotas Excluidas
+             * @description Cuotas de obligación (tarjeta/préstamo) pendientes vivas en una moneda distinta de la funcional (conteo). Clave aparte de `moneda_distinta_excluidos`, que describe el universo AP/AR: son tablas distintas y mezclarlas haría incomparable el contador que las dos superficies de Caja ponen una al lado de la otra.
+             * @default 0
+             */
+            moneda_distinta_cuotas_excluidas: string;
             /**
              * Moneda Distinta Excluidos
              * @description Documentos vivos en una moneda distinta de la funcional (conteo).
@@ -12665,11 +13447,8 @@ export interface components {
         };
         /** ConfirmBatchRequest */
         ConfirmBatchRequest: {
-            /**
-             * Legal Entity Id
-             * Format: uuid
-             */
-            legal_entity_id: string;
+            /** Legal Entity Id */
+            legal_entity_id?: string | null;
             /** Movement Ids */
             movement_ids: string[];
         };
@@ -13764,6 +14543,115 @@ export interface components {
             /** Source */
             source?: string | null;
         };
+        /**
+         * CronFootprintResponse
+         * @description La huella de UN cron, su antigüedad y el umbral contra el que se la compara.
+         */
+        CronFootprintResponse: {
+            /**
+             * Age Evaluated Seconds
+             * @description La edad que se comparó contra `max_age_seconds`.
+             */
+            age_evaluated_seconds?: number | null;
+            /**
+             * Basis
+             * @description Contra qué se evaluó: `last_seen`, `oldest_row` (nunca hubo huella, así que se usa la antigüedad de la fila más vieja para decir hace cuánto que eso es cierto), `no_history` o `informative`.
+             * @default last_seen
+             */
+            basis: string;
+            /**
+             * Cron
+             * @description La expresión tal como la declara `worker/wrangler.toml`.
+             */
+            cron: string;
+            /**
+             * Endpoint
+             * @description El endpoint admin que el cron invoca (POST).
+             */
+            endpoint: string;
+            /**
+             * Enforced
+             * @description `True` = su silencio es un rojo. `False` = aviso con la edad, y `note` dice la condición concreta para encenderlo.
+             * @default false
+             */
+            enforced: boolean;
+            /**
+             * Footprint
+             * @description La columna de la base por la que se mide que el cron corrió.
+             */
+            footprint: string;
+            /**
+             * Key
+             * @description Identificador estable del cron. Es lo que el chequeo nombra.
+             */
+            key: string;
+            /**
+             * Last Seen Age Seconds
+             * @description Segundos desde `last_seen_at`. `None` cuando nunca hubo huella — distinto de `0`, que significa «acaba de correr».
+             */
+            last_seen_age_seconds?: number | null;
+            /**
+             * Last Seen At
+             * @description La huella más reciente. **La señal.** `None` = nunca hubo una.
+             */
+            last_seen_at?: string | null;
+            /**
+             * Max Age Seconds
+             * @description Umbral. `None` = la huella no es concluyente y se publica informativa, nunca como criterio (ver `note`).
+             */
+            max_age_seconds?: number | null;
+            /**
+             * Note
+             * @description Por qué esta huella y este umbral. Se imprime en el resumen del chequeo.
+             * @default
+             */
+            note: string;
+            /**
+             * Observed Rows
+             * @description Filas en el alcance de la huella. `0` = nunca se le pidió nada a esto, que NO es un atasco: una base recién migrada o un restore no están callados, están vacíos.
+             * @default 0
+             */
+            observed_rows: number;
+            /**
+             * Silent
+             * @description `True` = callado más allá del umbral. `False` = dio señal dentro del umbral. `None` = **no se afirma** —sin umbral, o sin historia—. `None` no es `False`.
+             */
+            silent?: boolean | null;
+        };
+        /**
+         * CronHealthResponse
+         * @description Estado de los crons del Worker y de los jobs programados de Azure.
+         *
+         *     Sólo metadata operacional: sin tenant, sin RUT, sin montos (INV-SEC-001).
+         */
+        CronHealthResponse: {
+            /**
+             * Crons
+             * @description Una fila por cron declarado, en el orden del `.toml`.
+             */
+            crons?: components["schemas"]["CronFootprintResponse"][];
+            /**
+             * Generated At
+             * Format: date-time
+             * @description `now()` de la base, para que las edades cierren.
+             */
+            generated_at: string;
+            /**
+             * Informative
+             * @description Huellas que dicen algo útil y sobre las que un umbral mentiría. Mismo rol que `oldest_queued_age_seconds` en la salud de la cola del SII.
+             */
+            informative?: components["schemas"]["CronFootprintResponse"][];
+            /**
+             * Jobs
+             * @description Una fila por job programado declarado en `app/jobs/catalog.py`, con su libro de ejecuciones. Mientras los jobs no estén creados en Azure, los doce salen con `runs = 0` y `silent = null`: «no se afirma», nunca verde.
+             */
+            jobs?: components["schemas"]["JobRunHealthResponse"][];
+            /**
+             * Silent Enforced
+             * @description Las llaves que el chequeo tiene que gritar: `enforced` y `silent`. Incluye crons (llaves con guion bajo) y jobs (llaves con guion medio) en la misma lista, porque lo que el vigilante necesita es «qué está callado» y no «de qué sección». El criterio se calcula en el repo y no en el shell del workflow para que no se desincronice.
+             */
+            silent_enforced?: string[];
+        };
         /** CuentaBalanceResponse */
         CuentaBalanceResponse: {
             data?: components["schemas"]["BalanceData"] | null;
@@ -14302,6 +15190,23 @@ export interface components {
              * Format: uuid
              */
             selection_id: string;
+        };
+        /**
+         * DeclareClassificationModeRequest
+         * @description La sociedad declara su modo. No hay valor para 'no sé': eso es no declarar.
+         */
+        DeclareClassificationModeRequest: {
+            /**
+             * Modo
+             * @description `review`: el barrido propone y vos aceptás. `automatic`: el barrido aplica las reglas sin intervención.
+             * @enum {string}
+             */
+            modo: "review" | "automatic";
+            /**
+             * Nota
+             * @description Por qué se eligió este modo.
+             */
+            nota?: string | null;
         };
         /** DeclareIdentifierRequest */
         DeclareIdentifierRequest: {
@@ -15553,6 +16458,8 @@ export interface components {
              * @description Σ de los pagos con fecha estimada/no verificable que vencen DENTRO de `horizon_days` (negativo), string-decimal.
              */
             total_pagos_condicionados: string;
+            /** @description El stock exigible de ESTE escenario: deuda ya vencida cuya fecha es estimada o no tiene procedencia verificable. Tampoco se coloca en ningún día. Va acá dentro y no junto al firme porque es una hipótesis: sumarlos bajo una clave mezclaría un hecho con un supuesto. */
+            vencido_exigible: components["schemas"]["VencidoExigible"];
         };
         /** EscenarioDuro */
         EscenarioDuro: {
@@ -15571,6 +16478,8 @@ export interface components {
              * @description Día del piso (YYYY-MM-DD).
              */
             piso_fecha: string;
+            /** @description El mismo piso con su mínimo y su brecha al lado (#281 C03): el consumidor deja de tener que restar para saber si ese piso alcanza. */
+            punto_mas_bajo: components["schemas"]["PuntoMasBajo"];
         };
         /**
          * EsperadoConIngresos
@@ -15850,6 +16759,42 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * F29BankPaymentEvidenceSchema
+         * @description La evidencia bancaria: el movimiento DECLARADO que pagó, o su ausencia.
+         *
+         *     Nunca se rellena por parecido de monto o fecha. Si `bank_movement_id` es null,
+         *     nadie declaró el movimiento todavía — y `missing_requirements` dice qué falta.
+         */
+        F29BankPaymentEvidenceSchema: {
+            /**
+             * Applied Amount
+             * @description Suma de lo aplicado a esta declaración por todas las cuotas vigentes. 0 cuando nadie declaró ninguna.
+             */
+            applied_amount: string;
+            /**
+             * Bank Movement Id
+             * @description El movimiento bancario declarado cuando hay EXACTAMENTE UNO. `null` tiene dos lecturas y `applications` las distingue: con `applications` vacía es la AUSENCIA EXPLÍCITA —nadie declaró nada, no hay vínculo afirmable—; con dos o más entradas, o con una aplicación por comprobante, es que no existe UN movimiento que represente el pago, y el detalle por cuota está en `applications`. Nunca se elige el movimiento más parecido.
+             */
+            bank_movement_id?: string | null;
+            /**
+             * Currency
+             * @description Moneda del movimiento aplicado.
+             */
+            currency?: string | null;
+            /**
+             * Linked At
+             * @description Cuándo se declaró el vínculo.
+             */
+            linked_at?: string | null;
+            /**
+             * Provenance
+             * @description bank_movement_declared | manual_receipt_declared. Sin valor por omisión.
+             */
+            provenance?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * F29BridgeComponentsSchema
          * @description Componentes oficiales compuestos desde las observaciones del PDF F29.
          */
@@ -15937,13 +16882,15 @@ export interface components {
              */
             observed_at: string;
             official_components: components["schemas"]["F29BridgeComponentsSchema"];
+            /** @description #440: el vínculo de pago del período. SIEMPRE presente, también cuando no hay vínculo: en ese caso trae la ausencia explícita y qué le falta. */
+            payment: components["schemas"]["F29PaymentLinkSchema"];
             /** Payment Evidence */
             payment_evidence?: {
                 [key: string]: unknown;
             } | null;
             /**
              * Payment State
-             * @description paid | pending | deferred | unknown
+             * @description paid | partial | pending | deferred | unknown. `partial` es expresable desde la migración 0248 (#440); antes el CHECK no lo admitía.
              * @default unknown
              */
             payment_state: string;
@@ -15995,6 +16942,36 @@ export interface components {
              * @description Períodos YYYY-MM con F29 legacy sin sociedad y sin fila de la sociedad.
              */
             unattributed_periods?: string[];
+        };
+        /**
+         * F29DeclarationReceiptSchema
+         * @description El comprobante F29: lo que el SII publicó. No es evidencia de pago.
+         *
+         *     #440 pide explícitamente distinguir el comprobante de la evidencia bancaria.
+         *     Esto es el comprobante: identidad y total oficial de la declaración. Que exista
+         *     significa que la empresa DECLARÓ, no que PAGÓ.
+         */
+        F29DeclarationReceiptSchema: {
+            /**
+             * Declaration Total
+             * @description Código 91 observado en el PDF. Es el total oficial a pagar.
+             */
+            declaration_total?: number | null;
+            /** Folio */
+            folio: number;
+            /**
+             * Presented At
+             * @description Fecha de presentación informada por el SII.
+             */
+            presented_at?: string | null;
+            /**
+             * Source
+             * @description Procedencia del comprobante.
+             * @default sii_f29_pdf
+             */
+            source: string;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * F29EstadoResponse
@@ -16243,6 +17220,105 @@ export interface components {
             remanente?: number | null;
             /** Total A Pagar */
             total_a_pagar?: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * F29PaymentApplicationSchema
+         * @description Una aplicación DECLARADA contra un F29: una cuota (#440, migración 0256).
+         *
+         *     Un F29 pagado en dos cuotas publica DOS de estos objetos. Antes de 0256 la
+         *     segunda no tenía dónde ir: el vínculo era una columna escalar.
+         */
+        F29PaymentApplicationSchema: {
+            /**
+             * Application Kind
+             * @description `bank_movement` = evidencia bancaria: hay un movimiento que salió. `declaration_receipt` = comprobante del F29: el SII acusa el pago y el movimiento todavía no se identificó. Son dos hechos distintos y ninguno implica el otro.
+             */
+            application_kind: string;
+            /**
+             * Applied Amount
+             * @description Lo que esta cuota aplicó. Siempre mayor que 0.
+             */
+            applied_amount: string;
+            /**
+             * Applied At
+             * Format: date-time
+             * @description Cuándo se aplicó la plata: la fecha del hecho.
+             */
+            applied_at: string;
+            /**
+             * Bank Movement Id
+             * @description El movimiento declarado, o `null` cuando la aplicación es un comprobante. Nunca se elige el movimiento más parecido por monto o fecha.
+             */
+            bank_movement_id?: string | null;
+            /**
+             * Currency
+             * @description Moneda de esta cuota.
+             */
+            currency: string;
+            /**
+             * Declared At
+             * Format: date-time
+             * @description Cuándo alguien lo declaró: la fecha del registro.
+             */
+            declared_at: string;
+            /**
+             * Provenance
+             * @description bank_movement_declared | manual_receipt_declared. Sin valor por omisión.
+             */
+            provenance: string;
+            /**
+             * Receipt Reference
+             * @description Identidad del comprobante (número de operación del SII, folio del recibo).
+             */
+            receipt_reference?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * F29PaymentLinkSchema
+         * @description #440: estado de pago del período, con la ausencia explícita incluida.
+         *
+         *     Este objeto está SIEMPRE presente. La ausencia de vínculo no se representa
+         *     omitiendo el campo ni con una etiqueta de confianza: se representa con
+         *     `evidence_declared = 0`, `evidence_required = 1`, el `residual_amount` que
+         *     sigue pendiente y los `missing_requirements` que lo explican. Siempre hay un
+         *     número y la descripción de qué cubre.
+         */
+        F29PaymentLinkSchema: {
+            /**
+             * Applications
+             * @description Cada cuota declarada, en orden de aplicación (#440, migración 0256). Un F29 pagado en dos veces trae DOS entradas, y `applied_amount` de cada una dice cuánto cubrió. La suma es `bank_evidence.applied_amount`, y `residual_amount` es `declaration_receipt.declaration_total` menos esa suma: una resta entre hechos declarados, nunca una estimación. Lista vacía = nadie declaró ninguna aplicación todavía, y `residual_amount` es el total completo.
+             */
+            applications?: components["schemas"]["F29PaymentApplicationSchema"][];
+            bank_evidence: components["schemas"]["F29BankPaymentEvidenceSchema"];
+            declaration_receipt: components["schemas"]["F29DeclarationReceiptSchema"];
+            /**
+             * Evidence Declared
+             * @description Cuántas evidencias bancarias hay declaradas para este período.
+             */
+            evidence_declared: number;
+            /**
+             * Evidence Required
+             * @description Cuántas se exigen para poder afirmar el pago.
+             */
+            evidence_required: number;
+            /**
+             * Missing Requirements
+             * @description Tokens cerrados de lo que falta: `bank_movement_declared`, `declaration_total_observation`. Vacío cuando el vínculo está completo. Son tokens para que el consumidor arme su propia copy, no texto de UI.
+             */
+            missing_requirements?: string[];
+            /**
+             * Payment State
+             * @description paid | partial | pending | deferred | unknown
+             */
+            payment_state: string;
+            /**
+             * Residual Amount
+             * @description Lo que falta para cubrir el total oficial. Sin vínculo, es el total completo. Con `paid` es 0; con `partial` es mayor que 0. `null` sólo cuando el código 91 todavía no está observado, y entonces `missing_requirements` incluye `declaration_total_observation`.
+             */
+            residual_amount?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -17237,7 +18313,8 @@ export interface components {
          *
          *     Invariantes del contrato (verificadas en `test_financial_readiness`):
          *
-         *     - `minimum_cash` y `days_covered` SIEMPRE vienen con valor. Nunca null, nunca ausentes.
+         *     - `minimum_cash` y `essential_outflow_days_covered` SIEMPRE vienen con valor. Nunca
+         *       null, nunca ausentes.
          *     - `statement` siempre contiene un número y siempre dice qué cubre.
          *     - Ningún texto publicado acá contiene las palabras de `FORBIDDEN_UI_WORDS`.
          */
@@ -17259,10 +18336,10 @@ export interface components {
              */
             currency?: string | null;
             /**
-             * Days Covered
-             * @description Días de gasto esencial que cubre la caja de hoy. Siempre un entero.
+             * Essential Outflow Days Covered
+             * @description Días de GASTO ESENCIAL (nómina, arriendo, lo que no se posterga) que cubre la caja de hoy. Siempre un entero. **No es `days_of_cash`**: el divisor es un subconjunto del egreso total, así que esta cifra es estructuralmente más chica y contesta '¿tengo colchón?', no '¿hasta cuándo me alcanza?'. Se llamaba `days_covered` y el nombre no lo decía (#564).
              */
-            days_covered: number;
+            essential_outflow_days_covered: number;
             /** @description Nivel alcanzado, nombrado por la decisión que habilita. */
             level: components["schemas"]["ReadinessLevel"];
             /**
@@ -18302,6 +19379,25 @@ export interface components {
             reason: string;
         };
         /**
+         * IncompleteRuleRef
+         * @description Regla activa que SÍ matchea el movimiento pero no puede clasificarlo (le falta un campo).
+         *
+         *     Se publica junto a `suggestion=None` para que "no hay sugerencia" no se lea como "no hay
+         *     regla": la regla existe, la enseñó la persona, y está incompleta. El sistema no le inventa
+         *     el campo que falta — pedirlo es una decisión de quien clasifica.
+         */
+        IncompleteRuleRef: {
+            /**
+             * Missing
+             * @description Campo que falta: 'canonical_category' o 'management_account_id'.
+             */
+            missing: string;
+            /** Name */
+            name?: string | null;
+            /** Rule Id */
+            rule_id: string;
+        };
+        /**
          * IndustryTemplate
          * @description Una plantilla del catálogo global de tipos de negocio (§13.2).
          */
@@ -18448,6 +19544,33 @@ export interface components {
         IndustryTemplatesListResponse: {
             /** Items */
             items: components["schemas"]["IndustryTemplate"][];
+        };
+        /**
+         * InertRuleDetail
+         * @description Una regla que matchea movimientos y no puede clasificarlos: le falta algo.
+         */
+        InertRuleDetail: {
+            /**
+             * Falta
+             * @description Qué hay que completar para que esta regla aplique. El sistema no elige la categoría ni la cuenta: elegirlas por la empresa sería inventar un hecho financiero.
+             * @enum {string}
+             */
+            falta: "categoria" | "cuenta" | "categoria_y_cuenta";
+            /**
+             * Movimientos Que Matchea
+             * @description Movimientos sin resolver que esta regla alcanza hoy.
+             */
+            movimientos_que_matchea: number;
+            /**
+             * Name
+             * @description Nombre de la regla, tal como la empresa la escribió.
+             */
+            name: string;
+            /**
+             * Rule Id
+             * Format: uuid
+             */
+            rule_id: string;
         };
         /**
          * IngestAccountResult
@@ -18629,6 +19752,84 @@ export interface components {
             state: "abstained";
         };
         /**
+         * JobRunHealthResponse
+         * @description El libro de ejecuciones de UN job programado: `audit.job_runs`.
+         *
+         *     Es la señal que las huellas colaterales no pueden dar, y la diferencia está en una palabra:
+         *     es **incondicional**. La escribe el invocador (`app/jobs/runner.py`) antes de empezar, así
+         *     que un job que corrió y no encontró nada que hacer deja fila igual. Con eso «no corrió» y
+         *     «corrió y no había nada que hacer» dejan de leerse igual, que es el modo de falla que costó
+         *     mes y medio de pantallas en cero.
+         */
+        JobRunHealthResponse: {
+            /** Age Evaluated Seconds */
+            age_evaluated_seconds?: number | null;
+            /**
+             * Basis
+             * @description `job_runs`, `no_history`, `oldest_row` o `informative`.
+             * @default job_runs
+             */
+            basis: string;
+            /**
+             * Cron
+             * @description La cadencia declarada del Container Apps Job.
+             */
+            cron: string;
+            /**
+             * Enforced
+             * @default false
+             */
+            enforced: boolean;
+            /**
+             * Key
+             * @description La llave del job en `app/jobs/catalog.py`.
+             */
+            key: string;
+            /** Last Ok Age Seconds */
+            last_ok_age_seconds?: number | null;
+            /**
+             * Last Ok At
+             * @description Último cierre sin excepción. Viejo con `last_started_at` fresco = el job se invoca y revienta, que es otro problema y lo grita el estado `Failed` de la ejecución. Informativo acá, sin umbral.
+             */
+            last_ok_at?: string | null;
+            /** Last Started Age Seconds */
+            last_started_age_seconds?: number | null;
+            /**
+             * Last Started At
+             * @description **La señal de invocación.** Incondicional: se escribe antes del trabajo. `None` = nunca se invocó este job.
+             */
+            last_started_at?: string | null;
+            /** Last Work Age Seconds */
+            last_work_age_seconds?: number | null;
+            /**
+             * Last Work At
+             * @description Último cierre que TOCÓ algo, según el predicado que el job declara en el catálogo. **Sin umbral a propósito**: un drenador que no encuentra nada que hacer durante horas está sano, y un umbral acá nacería rojo cada fin de semana tranquilo. Lo que se mira es que no sea `None` para siempre.
+             */
+            last_work_at?: string | null;
+            /**
+             * Max Age Seconds
+             * @description Umbral sobre `last_started_age_seconds`.
+             */
+            max_age_seconds?: number | null;
+            /**
+             * Open Runs
+             * @description Corridas con `started_at` y sin `finished_at`. Una es la que está corriendo ahora. Varias viejas significan que el replica muere sin cerrar — `replicaTimeout` corto, OOM o SIGKILL—, y eso no lo dice ninguna otra señal.
+             * @default 0
+             */
+            open_runs: number;
+            /**
+             * Runs
+             * @description Corridas registradas. `0` = nunca se invocó, que NO es un atasco: es el estado del día del deploy y de cualquier base restaurada.
+             * @default 0
+             */
+            runs: number;
+            /**
+             * Silent
+             * @description `True` = nadie lo invoca desde más allá del umbral. `None` = **no se afirma** (sin historia, o sin umbral). `None` no es `False`.
+             */
+            silent?: boolean | null;
+        };
+        /**
          * LearningCandidateItem
          * @description Observed candidate with no permission to mutate a model or policy.
          */
@@ -18740,6 +19941,33 @@ export interface components {
         LegalEntitiesResponse: {
             /** Entities */
             entities: components["schemas"]["LegalEntityView"][];
+        };
+        /** LegalEntityActivityStartItem */
+        LegalEntityActivityStartItem: {
+            /**
+             * Declared
+             * @description True sólo si la empresa declaró esta fecha en el onboarding.
+             */
+            declared: boolean;
+            /**
+             * Effective From
+             * Format: date
+             * @description Fecha desde la que la sociedad existe para la atribución de su historia.
+             */
+            effective_from: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Legal Name */
+            legal_name: string;
+            /**
+             * Provenance
+             * @description Cómo se obtuvo la fecha: declarada por la empresa, heredada del backfill de 0222, o puesta por omisión de la plataforma.
+             * @enum {string}
+             */
+            provenance: "declared_by_company" | "inherited_from_backfill" | "platform_default";
         };
         /**
          * LegalEntityCheck
@@ -19543,6 +20771,19 @@ export interface components {
              */
             state: "complete" | "partial" | "stale" | "unknown";
         };
+        /** MoraEstructural */
+        MoraEstructural: {
+            /**
+             * N
+             * @description Documentos en ese estado.
+             */
+            n: number;
+            /**
+             * Total
+             * @description Σ de lo que lleva más de `desde_dias` vencido.
+             */
+            total: string;
+        };
         /**
          * MoveDimensionValueRequest
          * @description Body de `POST /api/management/dimension-values/{value_id}/move`.
@@ -19907,6 +21148,52 @@ export interface components {
             /** Items */
             items?: components["schemas"]["ObligationListItem"][];
         };
+        /** OffboardResponse */
+        OffboardResponse: {
+            /** Access Rows Revoked */
+            access_rows_revoked: {
+                [key: string]: number;
+            };
+            /** Api Keys Revoked */
+            api_keys_revoked: number;
+            /**
+             * Evidence Intent Id
+             * Format: uuid
+             */
+            evidence_intent_id: string;
+            /**
+             * Evidence Outcome Id
+             * Format: uuid
+             */
+            evidence_outcome_id: string;
+            /**
+             * Financial Data Preserved
+             * @description Siempre `true` en el modo `revoke_access`: la baja no borra ni un pagadero, ni un movimiento bancario, ni un F29, y es reversible. Desde acá empieza a correr el plazo de retención (90 días declarados, configurable) después del cual `POST /platform/tenants/{id}/purge` puede destruirlos; el aviso de qué empresas lo cumplieron es `GET /platform/tenants/purge-due`.
+             */
+            financial_data_preserved: boolean;
+            /** Mode */
+            mode: string;
+            /** Previous Status */
+            previous_status: string;
+            /**
+             * Secret Rows Removed
+             * @description Filas de secretos destruidas, por tabla.
+             */
+            secret_rows_removed: {
+                [key: string]: number;
+            };
+            /** Secret Rows Removed Total */
+            secret_rows_removed_total: number;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * OmittedPeriodLine
          * @description Una fila real que no puede convertirse a CLP; nunca se materializa como cero.
@@ -19940,6 +21227,41 @@ export interface components {
             source: "foreign_purchase" | "obligation";
             /** Source Id */
             source_id: string;
+        };
+        /** OnboardingActivityStartRequest */
+        OnboardingActivityStartRequest: {
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             * @description Sociedad que declara su fecha de inicio.
+             */
+            legal_entity_id: string;
+            /**
+             * Start Date
+             * Format: date
+             * @description Fecha de inicio que la empresa declara. Sin cota: puede ser de 2017.
+             */
+            start_date: string;
+        };
+        /** OnboardingActivityStartResponse */
+        OnboardingActivityStartResponse: {
+            /** Declared Count */
+            declared_count: number;
+            /** Entities */
+            entities: components["schemas"]["LegalEntityActivityStartItem"][];
+            /** @description Deuda viva sin sociedad. Exenta de la compuerta por fecha: sigue contando. */
+            live_debt_protected: components["schemas"]["ActivityStartLiveDebt"];
+            /** @description Las dos fechas que se parecen, juntas, y qué pasa donde se contradicen. */
+            opening_cutoff_overlap: components["schemas"]["ActivityStartOpeningCutoffOverlap"];
+            /**
+             * Summary
+             * @description La cifra en prosa. Siempre un número con qué cubre, nunca una abstención.
+             */
+            summary: string;
+            /** @description Documento histórico sin sociedad que la atribución fechada no alcanza. */
+            unattributed_history: components["schemas"]["ActivityStartUnattributed"];
+            /** Undeclared Count */
+            undeclared_count: number;
         };
         /** OnboardingImportWindowRequest */
         OnboardingImportWindowRequest: {
@@ -20013,6 +21335,12 @@ export interface components {
         };
         /** OnboardingSteps */
         OnboardingSteps: {
+            /**
+             * Activity Start Declared
+             * @description Todas las sociedades declararon su fecha de inicio en el onboarding, que es desde cuándo Qavante atribuye su historia (decisión de Fernando, 2026-10-04: 'desde la misma fecha de inicio en el onboarding, para todo es así, salvo para las deudas'). Se lee de la declaración y no se infiere de ningún dato: una fecha que puso el backfill de la migración 0222 desde `created_at`, o el `DEFAULT` 1970-01-01 de la plataforma, no son declaraciones. Con 0 sociedades el paso NO está cumplido: cero pendientes sobre cero sociedades daría el paso por hecho sin que nadie declarara nada. Se declara con `PUT /api/onboarding/activity-start`, y `GET /api/onboarding/activity-start` informa cuántas faltan y con cuánta plata.
+             * @default false
+             */
+            activity_start_declared: boolean;
             /**
              * Bank Connected
              * @description Fuente bancaria conectada y fresca.
@@ -22590,6 +23918,37 @@ export interface components {
             targets?: components["schemas"]["PlanTarget"][];
         };
         /**
+         * PlanDePago
+         * @description CÓMO SE CONECTA EL STOCK EXIGIBLE CON LA CURVA, en cifras.
+         *
+         *     Desde que lo vencido salió de la colocación, la ÚNICA forma en que una deuda vencida
+         *     produce un egreso proyectado es que alguien declare cuándo se paga. Hoy esa declaración
+         *     existe y tiene un nombre: `Postergar` escribe `due_date_source = 'postponed'` con la fecha
+         *     nueva, que es una procedencia confirmada, y el documento deja de estar vencido y vuelve a
+         *     la curva ese día.
+         *
+         *     `compromiso_vigente` es esa mitad —fecha declarada que todavía no llegó, y por lo tanto NO
+         *     está en este stock, está en la curva—. `compromiso_incumplido` es la otra: se declaró una
+         *     fecha y esa fecha también pasó, así que el documento volvió al stock. Juntas dicen qué
+         *     parte de la deuda tiene una decisión detrás y qué parte no tiene ninguna.
+         */
+        PlanDePago: {
+            /**
+             * Compromiso Incumplido
+             * @description Σ del stock cuya fecha de pago declarada también venció.
+             */
+            compromiso_incumplido: string;
+            /** Compromiso Incumplido N */
+            compromiso_incumplido_n: number;
+            /**
+             * Compromiso Vigente
+             * @description Σ de los pagos con fecha de pago declarada aún futura (están en la curva).
+             */
+            compromiso_vigente: string;
+            /** Compromiso Vigente N */
+            compromiso_vigente_n: number;
+        };
+        /**
          * PlanEvidence
          * @description Dato observable que respalda el plan.
          */
@@ -22681,6 +24040,63 @@ export interface components {
             label: string;
             /** Reason */
             reason: string;
+        };
+        /** PlatformTenantItem */
+        PlatformTenantItem: {
+            /**
+             * Active Api Keys
+             * @description Api keys sin revocar.
+             */
+            active_api_keys: number;
+            /**
+             * Certificates
+             * @description Filas vivas en core.certificates de esta empresa.
+             */
+            certificates: number;
+            /**
+             * Credentials
+             * @description Filas vivas en core.credentials de esta empresa.
+             */
+            credentials: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Legal Name */
+            legal_name: string;
+            /**
+             * Members
+             * @description Membresías.
+             */
+            members: number;
+            /** Onboarding Completed At */
+            onboarding_completed_at?: string | null;
+            /** Rut */
+            rut?: string | null;
+            /**
+             * Sessions
+             * @description Filas en core.user_sessions.
+             */
+            sessions: number;
+            /** Slug */
+            slug: string;
+            /**
+             * Status
+             * @description `active` o `disabled`.
+             */
+            status: string;
+            /** Updated At */
+            updated_at?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PlatformTenantsResponse */
+        PlatformTenantsResponse: {
+            /** Tenants */
+            tenants: components["schemas"]["PlatformTenantItem"][];
+        } & {
+            [key: string]: unknown;
         };
         /**
          * PorCobrarVencido
@@ -23305,6 +24721,54 @@ export interface components {
             /** Score */
             score: number;
         };
+        /**
+         * PuntoMasBajo
+         * @description El día en que la caja toca su piso, y cuánto le falta al mínimo (#281 C03).
+         *
+         *     NO es `punto_quiebre`, y confundirlos era la divergencia que #281 cierra: el quiebre es el
+         *     PRIMER día bajo el mínimo y es `null` cuando la curva no cruza; el punto más bajo es el día
+         *     del PISO y existe SIEMPRE. Cuando la caja no baja del mínimo, `brecha` es `"0"` y
+         *     `bajo_minimo` es `false` — nunca una ausencia: la pantalla puede decir "tu piso en N días
+         *     es $X sobre un mínimo de $Y" en todos los casos.
+         */
+        PuntoMasBajo: {
+            /**
+             * Bajo Minimo
+             * @description True si ese piso queda bajo la caja mínima.
+             */
+            bajo_minimo: boolean;
+            /**
+             * Brecha
+             * @description Cuánto falta para no bajar del mínimo ese día; 0 si alcanza.
+             */
+            brecha: string;
+            /**
+             * Fecha
+             * @description Día del piso (YYYY-MM-DD). `as_of` si el piso es hoy.
+             */
+            fecha: string;
+            /**
+             * Horizon Days
+             * @description Ventana que se miró para encontrar el piso.
+             */
+            horizon_days: number;
+            /**
+             * Minimo
+             * @description Caja mínima configurada contra la que se compara.
+             */
+            minimo: string;
+            /**
+             * Saldo
+             * @description Saldo al cierre de ese día (string-decimal).
+             */
+            saldo: string;
+            /**
+             * Vencido Exigible Excluido
+             * @description LA DEUDA YA VENCIDA QUE ESTE PISO NO INCLUYE (string-decimal, magnitud positiva). Desde la decisión del BO del 2026-10-04 lo vencido no se coloca en ningún día de la curva, así que no está en este piso: la pantalla tiene que poder decir 'tu piso es $X y además hay $Y exigibles hoy'. 0 significa que no hay deuda vencida. El desglose por antigüedad está en `vencido_exigible`.
+             * @default 0
+             */
+            vencido_exigible_excluido: string;
+        };
         /** PuntoQuiebre */
         PuntoQuiebre: {
             /**
@@ -23322,6 +24786,192 @@ export interface components {
              * @description Saldo al cierre de ese día (string-decimal).
              */
             saldo: string;
+        };
+        /** PurgeClock */
+        PurgeClock: {
+            /** Days Elapsed */
+            days_elapsed: number | null;
+            /** Days Remaining */
+            days_remaining: number | null;
+            /** Eligible */
+            eligible: boolean;
+            /** Legal Name */
+            legal_name: string;
+            /** Protected */
+            protected: boolean;
+            /**
+             * Purgeable From
+             * @description Desde cuándo la purga queda habilitada.
+             */
+            purgeable_from: string | null;
+            /**
+             * Retention Days
+             * @description El plazo de retención en vigor, en días. 90 declarado; configurable.
+             */
+            retention_days: number;
+            /**
+             * Revoked At
+             * @description Cuándo se consumó la baja, leído de la evidencia append-only. Es el origen del plazo.
+             */
+            revoked_at: string | null;
+            /** Slug */
+            slug: string;
+            /**
+             * State
+             * @description `active_not_subject_to_purge` | `disabled_without_recorded_offboarding` | `within_retention` | `purgeable`. El plazo cumplido es un estado, no un disparador: nadie purga por llegar a `purgeable`.
+             */
+            state: string;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PurgeDueResponse */
+        PurgeDueResponse: {
+            /** Active Not Subject To Purge */
+            active_not_subject_to_purge: number;
+            /** Disabled Without Recorded Offboarding */
+            disabled_without_recorded_offboarding: number;
+            /** Purgeable Now */
+            purgeable_now: number;
+            /** Retention Days */
+            retention_days: number;
+            /**
+             * Summary
+             * @description La misma información en una frase, con un número por cada estado. Existe para que un cero se lea como «ninguna empresa» y no como «no se pudo mirar».
+             */
+            summary: string;
+            /**
+             * Tenants
+             * @description El detalle de las empresas que no están activas. Las activas no se listan —son el estado normal y no hay nada que mirar en ellas— pero sí están contadas arriba, así que el total cierra.
+             */
+            tenants: components["schemas"]["PurgeClock"][];
+            /** Tenants Reviewed */
+            tenants_reviewed: number;
+            /**
+             * Trigger Bypass Available
+             * @description Si el rol del pool admin puede desactivar los triggers `BEFORE DELETE` para su sesión. En `false` la purga se niega con 503 antes de borrar nada, así que esto es lo que hay que mirar antes de contar con el mecanismo.
+             */
+            trigger_bypass_available: boolean;
+            /** Within Retention */
+            within_retention: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PurgePreviewResponse */
+        PurgePreviewResponse: {
+            /**
+             * Children By Parent
+             * @description Filas de tablas sin `tenant_id` que cuelgan de un padre que sí lo tiene, contadas por su padre. La purga las barre explícitamente.
+             */
+            children_by_parent: {
+                [key: string]: number;
+            };
+            clock: components["schemas"]["PurgeClock"];
+            /**
+             * Inventory Digest
+             * @description SHA-256 del inventario. La purga lo exige de vuelta: no se destruye lo que no se miró, y si cambió entre la mirada y la ejecución, la purga se niega.
+             */
+            inventory_digest: string;
+            /**
+             * People Left Without Any Company
+             * @description Cuántas personas quedan sin ninguna empresa después de la purga. La purga NO borra cuentas de personas —una persona puede estar en varias empresas—, así que esto es lo que queda por decidir aparte, dicho con su número en vez de omitido.
+             */
+            people_left_without_any_company: number;
+            /** Rows Total */
+            rows_total: number;
+            /**
+             * Tables
+             * @description Por tabla con al menos una fila: `filas`, `montos` por columna de monto y `periodo` con la columna usada y su rango. Las tablas vacías no se listan; `tables_scanned` dice cuántas se miraron.
+             */
+            tables: {
+                [key: string]: unknown;
+            };
+            /**
+             * Tables Scanned
+             * @description Cuántas tablas con `tenant_id` se recorrieron, descubiertas de la base.
+             */
+            tables_scanned: number;
+            /** Tables With Rows */
+            tables_with_rows: number;
+            /**
+             * Tables With Rows Without Any Date Column
+             * @description Tablas con filas de las que no hay período que informar porque no tienen ninguna columna de fecha en el esquema. Se nombran en vez de omitirse: una clave ausente se lee como «el inventario no las miró», y sí las miró.
+             */
+            tables_with_rows_without_any_date_column: string[];
+            /** Trigger Bypass Available */
+            trigger_bypass_available: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PurgeRequest */
+        PurgeRequest: {
+            /**
+             * Confirm Slug
+             * @description El slug exacto de la empresa, escrito a mano. Cierra el dedo gordo sobre la empresa de al lado.
+             */
+            confirm_slug: string;
+            /**
+             * Expected Inventory Digest
+             * @description El `inventory_digest` que devolvió `purge-preview`.
+             */
+            expected_inventory_digest: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PurgeResponse */
+        PurgeResponse: {
+            /**
+             * Evidence Intent Id
+             * Format: uuid
+             */
+            evidence_intent_id: string;
+            /**
+             * Evidence Outcome Id
+             * Format: uuid
+             */
+            evidence_outcome_id: string;
+            /**
+             * Evidence Table
+             * @description Dónde quedó el inventario de lo destruido. Sobrevive a la purga: append-only por trigger, sin FK al sujeto y con la columna de empresa fuera del barrido.
+             */
+            evidence_table: string;
+            /** Inventory Digest */
+            inventory_digest: string;
+            /** Legal Name */
+            legal_name: string;
+            /** Retention Days */
+            retention_days: number;
+            /** Retention Elapsed Days */
+            retention_elapsed_days: number;
+            /**
+             * Rows Deleted
+             * @description Filas destruidas, por tabla.
+             */
+            rows_deleted: {
+                [key: string]: number;
+            };
+            /** Rows Deleted Total */
+            rows_deleted_total: number;
+            /** Slug */
+            slug: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Tenant Row Deleted
+             * @description Si la fila de `core.tenants` se borró. `true` es lo que vuelve la purga irreversible: `revoke_access` deliberadamente no la toca.
+             */
+            tenant_row_deleted: boolean;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * PutBankCredentialRequest
@@ -23492,10 +25142,12 @@ export interface components {
          * @description `GET /api/sii/rcv/d08-gate`: estado observable de la compuerta del dual-write D08.
          *
          *     `overall=unobserved` cuando no hay observación (ausencia nunca es `enabled`). `enabled` sólo
-         *     dice que el dual-write prospectivo corrió: no autoriza backfill, shadow-read ni consumidores.
+         *     dice que el dual-write prospectivo corrió: no autoriza backfill, shadow-read ni consumidores,
+         *     y **no dice que el grafo haya publicado algo** — eso lo dice `graph_publication`.
          */
         RcvD08GateResponse: {
             d07_prerequisite: components["schemas"]["RcvD08Prerequisite"];
+            graph_publication: components["schemas"]["RcvD08GraphPublication"];
             identity_gate: components["schemas"]["RcvD08GateState"] | null;
             /**
              * Overall
@@ -23565,15 +25217,58 @@ export interface components {
              */
             status: "enabled" | "disabled";
         };
-        /** RcvD08Prerequisite */
+        /**
+         * RcvD08GraphPublication
+         * @description Qué publicó el grafo canónico, medido — no qué le está permitido publicar.
+         *
+         *     Existe porque `overall=enabled` dice sólo que al productor **se le permite** escribir, y se
+         *     leía como que el grafo está funcionando. En producción, el 2026-10-04, la compuerta estaba
+         *     `enabled` desde el 2026-10-01 y el grafo tenía cero versiones, cero identificadores y cero
+         *     aliases: el dual-write corría a diario y no publicaba nada. Un permiso no es un resultado,
+         *     así que el resultado se publica al lado.
+         */
+        RcvD08GraphPublication: {
+            /**
+             * Graph Version
+             * @description Versión del head del grafo del tenant. 0 = nunca se publicó una versión.
+             */
+            graph_version: number;
+            /**
+             * Published Aliases
+             * @description Aliases de presentación publicados.
+             */
+            published_aliases: number;
+            /**
+             * Published Identifiers
+             * @description Identificadores fuertes vigentes. Es lo que permite resolver una identidad.
+             */
+            published_identifiers: number;
+            /**
+             * Seeded
+             * @description Hay al menos un identificador fuerte publicado. Mientras sea `false`, el dual-write no puede publicar: sólo agrega aliases a contrapartes que ya resuelven por un identificador, y el producto no tiene un escritor que asierte el primero. Ver ADR-0123 §3.
+             */
+            seeded: boolean;
+        };
+        /**
+         * RcvD08Prerequisite
+         * @description Paso 1 de ADR-0116 §9 (cerrar D07), que gobierna todos los pasos siguientes.
+         */
         RcvD08Prerequisite: {
-            /** Reason Code */
-            reason_code: string;
+            /**
+             * Credited On
+             * @description Fecha (YYYY-MM-DD) en que se verificó el cierre de D07.
+             */
+            credited_on?: string | null;
+            /**
+             * Reason Code
+             * @description Código del motivo mientras no está acreditado; null cuando `credited`.
+             */
+            reason_code?: string | null;
             /**
              * Status
-             * @constant
+             * @enum {string}
              */
-            status: "not_credited";
+            status: "credited" | "not_credited";
         };
         /**
          * RcvDocumento
@@ -24448,8 +26143,14 @@ export interface components {
         /** ReconcileRunAllResponse */
         ReconcileRunAllResponse: {
             /**
+             * Classification Errors
+             * @description Tenants que no pudieron clasificar. Contador propio: antes una falla de conciliación arrastraba a la clasificación y el resumen mostraba `errors: 1`, que se lee como un tropiezo y no como un tenant que no clasificó nada.
+             * @default 0
+             */
+            classification_errors: number;
+            /**
              * Errors
-             * @description Errores best-effort (no abortan el resto).
+             * @description Errores de CONCILIACIÓN, best-effort (no abortan el resto).
              */
             errors: number;
             /**
@@ -24462,6 +26163,12 @@ export interface components {
              * @description Sugerencias encoladas para revisión (60-90 confianza).
              */
             review: number;
+            /**
+             * Rules Classified
+             * @description Movimientos clasificados por una regla que el usuario ya había enseñado. Antes este paso sólo corría al apretar el botón de la pantalla: una regla creada quedaba sin aplicarse a los movimientos que llegaban después.
+             * @default 0
+             */
+            rules_classified: number;
             /**
              * Skipped Missing Functional Currency Entities
              * @description Sociedades omitidas explícitamente por no tener moneda funcional declarada.
@@ -24732,16 +26439,51 @@ export interface components {
             reclaimed: number;
         };
         /**
+         * RefreshFailureAggregate
+         * @description Fallas del último run exitoso, agregadas por fuente y motivo. SIN id de tenant.
+         *
+         *     Esta lectura la imprime un check en un resumen público, así que no lleva identidad: dice
+         *     QUÉ está roto y en qué fuente. El detalle con el tenant se pide con el run POR ID, que ya
+         *     exige `SERVER_API_KEY`.
+         */
+        RefreshFailureAggregate: {
+            /** Count */
+            count: number;
+            /** Reason */
+            reason: string;
+            /** Source */
+            source: string;
+        };
+        /**
          * RefreshQueueHealthResponse
          * @description Estado agregado de la cola durable. Sólo metadata operacional.
          */
         RefreshQueueHealthResponse: {
             /** Dead Letter */
             dead_letter: number;
+            /**
+             * Dead Letter Retired
+             * @default 0
+             */
+            dead_letter_retired: number;
+            /** Last Clean Succeeded Age Seconds */
+            last_clean_succeeded_age_seconds?: number | null;
+            /** Last Clean Succeeded At */
+            last_clean_succeeded_at?: string | null;
             /** Last Succeeded Age Seconds */
             last_succeeded_age_seconds?: number | null;
             /** Last Succeeded At */
             last_succeeded_at?: string | null;
+            /**
+             * Last Succeeded Failure Count
+             * @default 0
+             */
+            last_succeeded_failure_count: number;
+            /**
+             * Last Succeeded Failures
+             * @default []
+             */
+            last_succeeded_failures: components["schemas"]["RefreshFailureAggregate"][];
             /** Oldest Queued Age Seconds */
             oldest_queued_age_seconds?: number | null;
             /** Oldest Queued At */
@@ -24757,6 +26499,18 @@ export interface components {
             queued_eligible: number;
             /** Running */
             running: number;
+        };
+        /**
+         * RefreshRetireResponse
+         * @description Resultado del retiro de encargos encolados que `claim_next` ya no va a reclamar.
+         */
+        RefreshRetireResponse: {
+            /** Applied */
+            applied: boolean;
+            /** Candidates */
+            candidates: number;
+            /** Retired */
+            retired: number;
         };
         /**
          * RejectDocumentSuggestionResponse
@@ -24787,10 +26541,24 @@ export interface components {
             version: string;
         };
         /**
+         * ReleaseImageResponse
+         * @description Which OCI artefact the control plane says it started for this revision.
+         */
+        ReleaseImageResponse: {
+            /** Digest */
+            digest?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "unavailable";
+        };
+        /**
          * ReleaseProvenanceResponse
          * @description Public release provenance; unavailable means the artefact is not certified.
          */
         ReleaseProvenanceResponse: {
+            image: components["schemas"]["ReleaseImageResponse"];
             release?: components["schemas"]["ReleaseIdentityResponse"] | null;
             /**
              * Status
@@ -25035,6 +26803,17 @@ export interface components {
             document_kind: string;
         };
         /**
+         * RevertReconciliationRequest
+         * @description Body OPCIONAL de la reversa. Sólo existe para declarar la autoría (#1012).
+         */
+        RevertReconciliationRequest: {
+            /**
+             * Actor User Id
+             * @description Humano con rol financiero de escritura que AUTORIZA la reversa. Obligatorio con X-Api-Key (un runbook no es una persona); con cookie de sesión se omite, y declarar a otro usuario es 403.
+             */
+            actor_user_id?: string | null;
+        };
+        /**
          * RevertReconciliationResponse
          * @description Resultado de desasignar una conciliación aplicada: cuántos docs se re-abrieron.
          */
@@ -25201,6 +26980,41 @@ export interface components {
             roles?: components["schemas"]["RoleResponse"][];
         } & {
             [key: string]: unknown;
+        };
+        /** SaldadoSinEvidenciaEjemplo */
+        SaldadoSinEvidenciaEjemplo: {
+            /** Documento Id */
+            documento_id: string;
+            /**
+             * Fecha Emision
+             * Format: date
+             */
+            fecha_emision: string;
+            /**
+             * Folio
+             * @description Referencia del documento tal como la trae su fuente.
+             */
+            folio: string | null;
+            /** Monto */
+            monto: string;
+        };
+        /** SaldadoSinEvidenciaLado */
+        SaldadoSinEvidenciaLado: {
+            /** Ejemplos Despues Del Corte */
+            ejemplos_despues_del_corte: components["schemas"]["SaldadoSinEvidenciaEjemplo"][];
+            /**
+             * Lado
+             * @enum {string}
+             */
+            lado: "payable" | "receivable";
+            /** Monto Despues Del Corte */
+            monto_despues_del_corte: string;
+            /** Monto Hasta El Corte */
+            monto_hasta_el_corte: string;
+            /** Sin Evidencia Despues Del Corte */
+            sin_evidencia_despues_del_corte: number;
+            /** Sin Evidencia Hasta El Corte */
+            sin_evidencia_hasta_el_corte: number;
         };
         /** SaldoResponse */
         SaldoResponse: {
@@ -25738,6 +27552,78 @@ export interface components {
             keep_last_n_by_pattern?: {
                 [key: string]: number;
             };
+        };
+        /** SettlePayableWithObligationRequest */
+        SettlePayableWithObligationRequest: {
+            /**
+             * Obligation Id
+             * Format: uuid
+             * @description Obligación (compra en cuotas, crédito) que ya le pagó a este proveedor. Tiene que ser de la MISMA sociedad y la MISMA moneda que el documento.
+             */
+            obligation_id: string;
+        };
+        /** SettlePayableWithObligationResponse */
+        SettlePayableWithObligationResponse: {
+            /**
+             * Action Id
+             * @description Renglón de bitácora (ADR-0113). Se deshace con POST /api/reversible-actions/{action_id}/revert, que reabre el documento con el saldo que tenía y borra la evidencia.
+             */
+            action_id: string;
+            /** Currency Code */
+            currency_code: string;
+            /**
+             * Obligation Counterparty
+             * @description Comercio con el que se originó la obligación, tal como lo declaró su origen. Viene vacío para las obligaciones que nacieron sin él.
+             */
+            obligation_counterparty: string | null;
+            /** Obligation Id */
+            obligation_id: string;
+            /** Payable Id */
+            payable_id: string;
+            /**
+             * Settled Amount
+             * @description Saldo que la obligación cerró: lo que el documento tenía pendiente.
+             */
+            settled_amount: string;
+            /**
+             * Settlement Id
+             * @description Fila de evidencia en `treasury.external_document_settlements`: quién liquidó qué, por cuánto y cuándo.
+             */
+            settlement_id: string;
+            /** Supplier Name */
+            supplier_name: string;
+        };
+        /**
+         * SettlementIntegrityResponse
+         * @description El censo de documentos saldados que no dicen qué los respalda.
+         */
+        SettlementIntegrityResponse: {
+            /**
+             * Arrastre Antes Del Corte
+             * @description Documentos saldados sin evidencia emitidos HASTA el corte: la historia que la empresa trajo de antes. Se cuenta aparte porque es lo que el corte de apertura retira, no una falla del período que la empresa declaró que iba a llevar bien.
+             */
+            arrastre_antes_del_corte: number;
+            /**
+             * Corte Declarado
+             * @description True si esta empresa declaró su corte de apertura. Sin corte no hay período nuevo contra el que medir, y todo el arrastre se cuenta como anterior al corte.
+             */
+            corte_declarado: boolean;
+            /**
+             * Fecha Corte
+             * @description La línea de esta empresa, leída de su configuración; nunca inferida.
+             */
+            fecha_corte: string | null;
+            /**
+             * Huecos En El Periodo Nuevo
+             * @description Documentos saldados sin evidencia emitidos DESPUÉS del corte. Después de la migración 0245 este número es cero por construcción: el trigger rechaza la transición. Un número distinto de cero significa que el guard se desarmó o que el corte se movió hacia atrás, y las dos cosas hay que ir a mirarlas.
+             */
+            huecos_en_el_periodo_nuevo: number;
+            /** Lados */
+            lados: components["schemas"]["SaldadoSinEvidenciaLado"][];
+            /** Monto Arrastre Antes Del Corte */
+            monto_arrastre_antes_del_corte: string;
+            /** Monto En El Periodo Nuevo */
+            monto_en_el_periodo_nuevo: string;
         };
         /**
          * SignalsClassifyResponse
@@ -26499,6 +28385,33 @@ export interface components {
             version: string;
         };
         /**
+         * StockPorInstrumento
+         * @description El stock exigible partido por instrumento, porque el acreedor no es el mismo.
+         *
+         *     `"documento"` es una cuenta por pagar: se le debe a un proveedor y se negocia con él.
+         *     `"cuota"` es una cuota de `treasury.obligation_installments` — tarjeta o préstamo—: se le
+         *     debe al banco emisor, porque cuando se compra en N cuotas la tarjeta ya le pagó al
+         *     comercio (decisión del BO 2026-10-04, ver `committed_installments`). Un stock que no
+         *     distingue las dos cosas no le dice al dueño con quién tiene que hablar.
+         *
+         *     Los dos salen SIEMPRE, también en cero, y la suma de sus `total` cuadra con el `total`
+         *     del stock.
+         */
+        StockPorInstrumento: {
+            /**
+             * Instrumento
+             * @description 'documento' | 'cuota'.
+             */
+            instrumento: string;
+            /** N */
+            n: number;
+            /**
+             * Total
+             * @description Σ del instrumento (magnitud positiva), string-decimal.
+             */
+            total: string;
+        };
+        /**
          * SuggestedCategory
          * @description Cuenta sugerida para un movimiento por las reglas activas del tenant (#794-4 ask a).
          */
@@ -26530,9 +28443,12 @@ export interface components {
         /**
          * SuggestedCategoryResponse
          * @description `GET /api/treasury/bank-movements/{id}/suggested-category` — sugerencia read-only de categoría
-         *     (mismo matcher que apply-rules). `suggestion=None` si ninguna regla activa matchea (honesto).
+         *     (mismo matcher que apply-rules). `suggestion=None` si ninguna regla activa matchea (honesto);
+         *     si la que matchea está incompleta, `incomplete_rule` dice cuál y qué le falta.
          */
         SuggestedCategoryResponse: {
+            /** @description Regla activa que matchea la glosa pero no puede clasificar (le falta categoría canónica o cuenta). Presente sólo cuando `suggestion` es null por esa causa. */
+            incomplete_rule?: components["schemas"]["IncompleteRuleRef"] | null;
             /** Movement Id */
             movement_id: string;
             suggestion?: components["schemas"]["SuggestedCategory"] | null;
@@ -27094,6 +29010,41 @@ export interface components {
              */
             total: string | null;
         };
+        /**
+         * TramoAntiguedad
+         * @description Un tramo del desglose por antigüedad del stock exigible.
+         *
+         *     Los bordes son INCLUSIVOS en los dos extremos y `hasta_dias` es `null` sólo en el tramo
+         *     abierto. Los tramos salen SIEMPRE todos, también los que están en cero: un tramo ausente
+         *     obliga al consumidor a decidir si el dato no existe o si el tramo está vacío.
+         */
+        TramoAntiguedad: {
+            /**
+             * Desde Dias
+             * @description Días de atraso mínimos (inclusive).
+             */
+            desde_dias: number;
+            /**
+             * Hasta Dias
+             * @description Días de atraso máximos (inclusive); null = tramo abierto.
+             */
+            hasta_dias: number | null;
+            /**
+             * N
+             * @description Documentos del tramo.
+             */
+            n: number;
+            /**
+             * Total
+             * @description Σ del tramo (magnitud positiva), string-decimal.
+             */
+            total: string;
+            /**
+             * Tramo
+             * @description Nombre estable del tramo ('v1_30', 'v31_60', …).
+             */
+            tramo: string;
+        };
         /** UnclassifiedComposition */
         UnclassifiedComposition: {
             /** Foreign Purchases */
@@ -27115,6 +29066,11 @@ export interface components {
         /**
          * UpdateClassificationRuleRequest
          * @description Body de `PATCH /api/treasury/classification-rules/{id}` (opcionales).
+         *
+         *     `management_account_id` es editable a propósito: el barrido de clasificación exige
+         *     `canonical_category` Y `management_account_id` para tocar un movimiento, así que una regla
+         *     nacida sin cuenta es INERTE — matchea y no clasifica nada. Sin este campo acá la única salida
+         *     era desactivarla y crearla de nuevo, y la regla se quedaba inerte para siempre.
          */
         UpdateClassificationRuleRequest: {
             canonical_category?: components["schemas"]["CanonicalCategory"] | null;
@@ -27124,6 +29080,8 @@ export interface components {
             condition_value?: string | null;
             /** Confidence */
             confidence?: number | null;
+            /** Management Account Id */
+            management_account_id?: string | null;
             /** Name */
             name?: string | null;
             /** Operator */
@@ -27645,6 +29603,57 @@ export interface components {
              */
             total: string;
         };
+        /**
+         * VencidoExigible
+         * @description EL STOCK EXIGIBLE: la deuda vencida como stock con antigüedad, NO como punto de la curva.
+         *
+         *     Decisión del BO del 2026-10-04 (cierra #564). Una proyección de caja proyecta cuándo va a
+         *     salir la plata, no cuándo debió salir: el vencimiento de una factura vencida ya pasó y
+         *     dejó de tener valor predictivo. Antes este motor repartía la deuda lineal en 30 días y el
+         *     del Inicio la amontonaba en `as_of + 1`; ninguna de las dos fechas correspondía a una
+         *     conducta observada ni a una decisión tomada.
+         *
+         *     `en_la_curva` es SIEMPRE `false` y está en el payload a propósito: un consumidor que sume
+         *     `total` a `serie` lo contaría dos veces, y esta clave es lo que le permite saber que no
+         *     tiene que hacerlo.
+         *
+         *     `total` es la MISMA magnitud que `por_pagar_vencido.total` (acá en positivo); lo que este
+         *     bloque agrega es la antigüedad y el estado del plan de pago. El Inicio publica este mismo
+         *     bloque, con la misma forma y los mismos tramos, y un test de equivalencia lo fija.
+         */
+        VencidoExigible: {
+            /** Antiguedad */
+            antiguedad?: components["schemas"]["TramoAntiguedad"][];
+            /**
+             * Desde Dias
+             * @description Umbral de `mora_estructural` en días de atraso (90): desde ahí el atraso deja de ser un retraso de gestión.
+             */
+            desde_dias: number;
+            /**
+             * En La Curva
+             * @description Siempre `false`: este monto NO está en ningún día de `serie`.
+             */
+            en_la_curva: boolean;
+            /**
+             * Moneda
+             * @description Unidad de `total` y de los tramos. No se convierte nada.
+             */
+            moneda: string;
+            mora_estructural: components["schemas"]["MoraEstructural"];
+            /**
+             * N
+             * @description Documentos vencidos.
+             */
+            n: number;
+            plan_de_pago: components["schemas"]["PlanDePago"];
+            /** Por Instrumento */
+            por_instrumento?: components["schemas"]["StockPorInstrumento"][];
+            /**
+             * Total
+             * @description Σ exigible hoy (magnitud positiva), string-decimal.
+             */
+            total: string;
+        };
         /** VencidoItem */
         VencidoItem: {
             /**
@@ -27679,6 +29688,11 @@ export interface components {
              * @description 'pago_vencido' | 'cobro_vencido'. Desde #564 sólo llegan acá documentos con procedencia de vencimiento CONFIRMADA: una fecha estimada o sin origen verificable no acredita mora. `cobro_sin_fecha` ya no se emite — un documento sin `due_date` se declara en `fuentes.cobertura.sin_fecha_excluidos`.
              */
             tipo: string;
+            /**
+             * Tramo Antiguedad
+             * @description Tramo de antigüedad del atraso ('v1_30' | 'v31_60' | 'v61_90' | 'v91_180' | 'v180_mas'), con los MISMOS cortes que `vencido_exigible.antiguedad`. `null` en los cobros vencidos, que no forman parte del stock exigible.
+             */
+            tramo_antiguedad?: string | null;
         };
         /** VerifyEmailRequest */
         VerifyEmailRequest: {
@@ -28655,6 +30669,26 @@ export interface operations {
             };
         };
     };
+    admin_crons_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CronHealthResponse"];
+                };
+            };
+        };
+    };
     admin_f29_remanente_seed_get: {
         parameters: {
             query: {
@@ -28828,6 +30862,244 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PermissionsListResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_platform_tenants_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformTenantsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_platform_tenants_purge_due: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurgeDueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_platform_tenant_offboard: {
+        parameters: {
+            query?: {
+                /** @description `revoke_access`. `purge_data` responde 400 nombrando su propia ruta: la purga existe (90 días desde la baja, configurable) pero exige tres confirmaciones que no caben en un flag de modo — el plazo cumplido, el slug escrito y el digest del inventario previsualizado. */
+                mode?: string;
+            };
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OffboardResponse"];
+                };
+            };
+            /** @description `mode=purge_data`: la purga existe y tiene su propia ruta, `POST /api/admin/platform/tenants/{tenant_id}/purge`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No es administrador de plataforma, o la empresa está protegida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La empresa no existe. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description El modo pedido no existe. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    admin_platform_tenant_purge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurgeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurgeResponse"];
+                };
+            };
+            /** @description `confirm_slug` no coincide con el slug de la empresa. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No es administrador de plataforma, o la empresa está protegida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La empresa no existe. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La empresa no está dada de baja, no hay baja registrada, el plazo no se cumplió, o el inventario cambió desde la previsualización. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description El rol de la base no puede desactivar los triggers `BEFORE DELETE`, así que la purga no puede completarse. No se borró ninguna fila. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    admin_platform_tenant_purge_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurgePreviewResponse"];
+                };
+            };
+            /** @description La empresa no existe. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -29014,6 +31286,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RefreshDrainResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_sii_refresh_cache_retire_superseded: {
+        parameters: {
+            query?: {
+                /** @description Sin esto corre en seco y no toca una sola fila. */
+                apply?: boolean;
+                /** @description Encargos recientes que no se tocan. */
+                keep_newest?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefreshRetireResponse"];
                 };
             };
             /** @description Validation Error */
@@ -30120,6 +32426,47 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    admin_payroll_worker_outstanding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Período YYYYMM. */
+                period: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Rol sin permiso (owner/admin/technical_admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El período no tiene forma YYYYMM. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -34881,6 +37228,91 @@ export interface operations {
             };
         };
     };
+    onboarding_activity_start_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Censo con su cifra. Nunca cero mudo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingActivityStartResponse"];
+                };
+            };
+            /** @description Hay una sociedad seleccionada; el censo es de todas. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    onboarding_activity_start_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingActivityStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Declaración guardada; devuelve el censo actualizado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingActivityStartResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La sociedad no es de esta empresa. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La fecha no puede ser una declaración. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     onboarding_complete: {
         parameters: {
             query?: never;
@@ -38251,6 +40683,65 @@ export interface operations {
             };
         };
     };
+    treasury_accounts_payable_settled_by_obligation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del payable que la obligación liquidó. */
+                payable_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettlePayableWithObligationRequest"];
+            };
+        };
+        responses: {
+            /** @description Documento cerrado y evidencia registrada. El egreso sigue vivo en las cuotas de la obligación. `action_id` lo deshace. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlePayableWithObligationResponse"];
+                };
+            };
+            /** @description Rol sin permiso de escritura. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe ese pago para este tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La liquidación no procede. `detail.code`: `documento_no_vivo` (ya cerrado o anulado) · `sin_saldo` (no tiene saldo pendiente) · `documento_sin_identidad` (no trae el identificador de su origen) · `obligacion_no_encontrada` · `obligacion_no_vigente` · `sociedad_distinta` · `moneda_distinta` · `documento_ya_liquidado` · `obligacion_ya_liquido_un_documento`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_accounts_receivable: {
         parameters: {
             query?: never;
@@ -38623,6 +41114,60 @@ export interface operations {
             };
         };
     };
+    treasury_bank_movements_accept_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptSuggestionsRequest"];
+            };
+        };
+        responses: {
+            /** @description Lote aplicado. `por_categoria` dice qué categoría necesita que se elija una cuenta de gestión antes de poder confirmarse. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptSuggestionsResponse"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Un movimiento o una cuenta de gestión no existe en la sociedad. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe un FinancialScope verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Body inválido (ids o categorías repetidas). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     treasury_bank_movements_apply_rules: {
         parameters: {
             query?: never;
@@ -38665,6 +41210,91 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    treasury_bank_movements_classification_mode_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `modo` es `review`, `automatic` o `sin_declarar`. `sin_declarar` significa que esta sociedad todavía no eligió: el barrido propone y espera, y la pantalla tiene que pedir la decisión. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationModeResponse"];
+                };
+            };
+            /** @description No existe un FinancialScope verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_bank_movements_classification_mode_declare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclareClassificationModeRequest"];
+            };
+        };
+        responses: {
+            /** @description Modo declarado, con la persona que lo declaró. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationModeResponse"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe un FinancialScope verificable, o el scope llegó sin sociedad concreta (`legal_entity_scope_required`): una configuración por sociedad necesita la Empresa elegida. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `modo` no es `review` ni `automatic`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -39868,6 +42498,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClassificationRule"];
                 };
+            };
+            /** @description La regla no existe en la Empresa activa, o el management_account_id no existe en ella. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Sin Empresa activa demostrable (`missing_scope:legal_entity`): el catálogo de gestión y las reglas son por sociedad y no existe versión tenant-wide. */
             409: {
@@ -43710,6 +46347,44 @@ export interface operations {
             };
         };
     };
+    treasury_reconciliation_settlement_integrity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementIntegrityResponse"];
+                };
+            };
+            /** @description No existe un scope financiero verificable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_reconciliation_cases_list: {
         parameters: {
             query?: never;
@@ -43745,9 +46420,9 @@ export interface operations {
     };
     treasury_reconciliation_confirm: {
         parameters: {
-            query: {
-                /** @description Sociedad del movimiento a confirmar. */
-                legal_entity_id: string;
+            query?: {
+                /** @description Sociedad del movimiento. OPCIONAL: sin ella se usa la sociedad activa de la sesión (header X-Qavante-Company-Id o la default), que es la autoridad igual. Si viene, tiene que coincidir con esa sociedad. */
+                legal_entity_id?: string | null;
             };
             header?: never;
             path: {
@@ -43998,7 +46673,11 @@ export interface operations {
                 qavante_session?: string | null;
             };
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RevertReconciliationRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -44008,6 +46687,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RevertReconciliationResponse"];
                 };
+            };
+            /** @description Rol sin permiso de escritura, o `actor_user_id` no autorizado. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

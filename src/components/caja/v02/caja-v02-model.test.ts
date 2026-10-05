@@ -16,8 +16,10 @@ import {
   sumarDiasISO,
 } from "./caja-v02-model";
 import {
+  COBERTURA_SIN_EXCLUSIONES,
   HOY,
   PROYECCION_BAJO_CERO,
+  PROYECCION_BAJO_EL_MINIMO,
   cobranza,
   pagos,
   proyeccion,
@@ -205,41 +207,96 @@ describe("sale14d — due_14d del backend + su agregado no postergable, sin suma
 });
 
 describe("puntoMasBajo + semanas — la proyección del backend, sin reinventarla", () => {
-  it("el piso es el mínimo de la serie (incluido hoy), con su fecha corta", () => {
+  it("el piso lo publica el servidor, con su fecha corta; `dia` sólo lo coloca en una barra", () => {
     const piso = puntoMasBajo(PROYECCION_BAJO_CERO)!;
     expect(piso.saldo).toBe(-1_121_250);
-    expect(piso.fecha).toBe("2026-09-07"); // primer día en que la serie toca el mínimo
+    expect(piso.fecha).toBe("2026-09-07"); // `punto_mas_bajo.fecha`, no una búsqueda en la serie
     expect(piso.fechaLabel).toBe("7 sep");
     expect(piso.dia).toBe(8);
+    expect(piso.bajoMinimo).toBe(true);
   });
 
-  it("Ley 2: bajoCero es true SÓLO con el mínimo bajo cero (gemelos con el mismo módulo)", () => {
-    expect(puntoMasBajo(PROYECCION_BAJO_CERO)!.bajoCero).toBe(true);
-    // La misma proyección, corrida +2M hacia arriba: mínimo +878.750 → no hay rojo.
+  /* EL CASO QUE ANTES SE PINTABA VERDE. El front comparaba el piso contra CERO; el servidor lo
+     compara contra la caja mínima DECLARADA. Con mínimo $5.000.000 y piso $1.200.000 el piso está
+     sobre cero (verde con la regla vieja) y bajo el mínimo (rojo con la del servidor). */
+  it("bajoMinimo lo decide el servidor contra la caja mínima declarada, no una comparación local contra cero", () => {
+    const piso = puntoMasBajo(PROYECCION_BAJO_EL_MINIMO)!;
+    expect(piso.saldo).toBe(1_200_000);
+    expect(piso.saldo).toBeGreaterThan(0); // la regla vieja no habría pintado nada
+    expect(piso.minimo).toBe(5_000_000);
+    expect(piso.bajoMinimo).toBe(true);
+    expect(piso.brecha).toBe(3_800_000);
+  });
+
+  it("gemelo: con el piso sobre el mínimo declarado no hay rojo y la brecha es cero", () => {
     const arriba = proyeccion({
-      ...PROYECCION_BAJO_CERO,
-      saldo_hoy: String(5_078_750 + 2_000_000),
-      serie: PROYECCION_BAJO_CERO.serie!.map((p) => ({
-        ...p,
-        saldo_cierre: String(Number(p.saldo_cierre) + 2_000_000),
-      })),
+      minimo: "5000000",
+      punto_mas_bajo: {
+        fecha: "2026-09-07",
+        saldo: "6200000",
+        minimo: "5000000",
+        horizon_days: 28,
+        bajo_minimo: false,
+        brecha: "0",
+        vencido_exigible_excluido: "0",
+      },
     });
     const piso = puntoMasBajo(arriba)!;
-    expect(piso.saldo).toBe(878_750);
-    expect(piso.bajoCero).toBe(false);
+    expect(piso.bajoMinimo).toBe(false);
+    expect(piso.brecha).toBe(0);
   });
 
-  it("si el saldo de HOY ya es el mínimo, el piso es hoy (día 0)", () => {
-    const p = proyeccion({ saldo_hoy: "-500000", serie: serie(14, () => 100_000) });
-    const piso = puntoMasBajo(p)!;
-    expect(piso.dia).toBe(0);
-    expect(piso.saldo).toBe(-500_000);
-    expect(piso.bajoCero).toBe(true);
+  /* Un piso sin la deuda vencida al lado se lee como holgura: el productor declara que, desde la
+     decisión del 2026-10-04, lo vencido no se coloca en ningún día de la curva. */
+  it("el piso viaja con la deuda ya vencida que NO incluye; ausente no es cero", () => {
+    const conVencido = proyeccion({
+      punto_mas_bajo: {
+        fecha: "2026-09-07",
+        saldo: "1200000",
+        minimo: "0",
+        horizon_days: 28,
+        bajo_minimo: false,
+        brecha: "0",
+        vencido_exigible_excluido: "39600000",
+      },
+    });
+    expect(puntoMasBajo(conVencido)!.vencidoExigibleExcluido).toBe(39_600_000);
+    // Cero MEDIDO es un hecho: no hay deuda vencida.
+    expect(puntoMasBajo(proyeccion())!.vencidoExigibleExcluido).toBe(0);
+    // Ausente es otra cosa, y no se traduce a cero.
+    const sinCampo = proyeccion();
+    const piso = puntoMasBajo({
+      ...sinCampo,
+      punto_mas_bajo: { ...sinCampo.punto_mas_bajo, vencido_exigible_excluido: null },
+    } as unknown as Parameters<typeof puntoMasBajo>[0])!;
+    expect(piso.vencidoExigibleExcluido).toBeNull();
   });
 
-  it("sin serie → null: no se inventa una curva", () => {
+  /* `dia` sólo ubica el piso en una barra. Si la fecha del piso no se puede medir contra
+     `as_of`, un día que no se pudo calcular NO es el día 0: ninguna barra se marca, en vez de
+     marcar la primera y afirmar que el piso cae esta semana. */
+  it("fecha de piso no ubicable → dia null y NINGUNA barra marcada como piso", () => {
+    const p = proyeccion({
+      punto_mas_bajo: {
+        fecha: "no-es-una-fecha",
+        saldo: "1200000",
+        minimo: "0",
+        horizon_days: 28,
+        bajo_minimo: false,
+        brecha: "0",
+        vencido_exigible_excluido: "0",
+      },
+    });
+    expect(puntoMasBajo(p)!.dia).toBeNull();
+    expect(semanas(p).some((s) => s.esPiso)).toBe(false);
+    // Gemelo: con fecha ubicable, exactamente una barra queda marcada.
+    expect(semanas(PROYECCION_BAJO_CERO).filter((s) => s.esPiso)).toHaveLength(1);
+  });
+
+  it("sin `punto_mas_bajo` del servidor → null: el mínimo NO se busca en la serie", () => {
     expect(puntoMasBajo(null)).toBeNull();
-    expect(puntoMasBajo(proyeccion({ serie: [] }))).toBeNull();
+    const sinPiso = { ...proyeccion(), punto_mas_bajo: undefined };
+    expect(puntoMasBajo(sinPiso as unknown as Parameters<typeof puntoMasBajo>[0])).toBeNull();
     expect(semanas(proyeccion({ serie: [] }))).toEqual([]);
   });
 
@@ -353,20 +410,7 @@ describe("exclusiones — lo que la proyección deja afuera, con conteo", () => 
           fuentes: {
             saldo_synced_at: "2026-08-30T08:12:00Z",
             calidad_fechas: { con_fecha_real: 0, items_totales: 1 },
-            cobertura: {
-              f29_legacy_unattributed: false,
-              f29_omitido_por_moneda: false,
-              moneda_distinta_excluidos: "0",
-              payables_fecha_asumida_excluidos: "0",
-              payables_fecha_asumida_excluidos_count: "0",
-              payables_fecha_no_verificada_excluidos: "0",
-              payables_fecha_no_verificada_excluidos_count: "0",
-              receivables_fecha_asumida_excluidos: "0",
-              receivables_fecha_asumida_excluidos_count: "0",
-              receivables_fecha_no_verificada_excluidos: "0",
-              receivables_fecha_no_verificada_excluidos_count: "0",
-              sin_fecha_excluidos: "0",
-            },
+            cobertura: COBERTURA_SIN_EXCLUSIONES,
           },
         }),
       ),
@@ -432,7 +476,7 @@ describe("comoSeCalcula — definición, incluye/excluye, fuente y frescura (§1
 
   it('sin proyección: frescura honesta y el "no sé" explícito, no una afirmación de exclusiones', () => {
     const c = comoSeCalcula(null, HOY);
-    expect(c.frescura).toBe("Fecha de actualización no disponible");
+    expect(c.frescura).toBe("La proyección no informó cuándo se calculó");
     // "no declara exclusiones" afirmaría que la proyección CORRIÓ y no encontró nada que excluir;
     // acá no hay proyección, así que no hay ni "sí" ni "no" que declarar (remanente #82.2).
     expect(c.excluye).toEqual(["Sin proyección no hay exclusiones que declarar"]);
