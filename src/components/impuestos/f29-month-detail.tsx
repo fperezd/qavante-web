@@ -15,6 +15,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
 import { useSiiF29Impuesto, useSiiF29Giros, siiF29PdfUrl, siiKeys } from "@/lib/api/sii";
+import { f29MesPresentacion } from "./f29-month-decision";
 
 /* Detalle F29 de un mes (handoff CC-API): dos montos lado a lado — pagar todo
    (`total_con_iva`) vs postergar el IVA (`total_sin_iva`) — + desglose e input
@@ -49,10 +50,21 @@ export function F29MonthDetail({
      ante error → si `giros` falla, no mostramos badge (estado base). */
   const giros = useSiiF29Giros(anio, mes);
   const girosData = giros.isError ? undefined : giros.data;
-  /* Postergado: primero el dato PERSISTIDO y autoritativo (`iva_postergado` del F29 declarado, #716);
+  /* Qué le ofrece esta tarjeta al dueño: una decisión de pago hacia adelante, o la historia de una
+     decisión ya tomada. La regla vive pura en `f29MesPresentacion` y la fija su propio test (#202):
+     un período ya pagado — o uno declarado cuya Consulta de Giros no respondió — NO vuelve a recibir
+     una orden de pago.
+
+     Postergado: primero el dato PERSISTIDO y autoritativo (`iva_postergado` del F29 declarado, #716);
      cae a la Consulta de Giros en vivo como respaldo. Así el badge se ve aunque el SII esté caído. */
-  const postergado = (data?.iva_postergado ?? 0) > 0 || girosData?.postergado_iva === true;
-  const pagado = girosData?.estado === "sin_giro" && data?.declarado === true;
+  const presentacion = f29MesPresentacion({
+    ivaPostergado: data?.iva_postergado,
+    girosEstado: girosData?.estado,
+    girosPostergadoIva: girosData?.postergado_iva,
+    declarado: data?.declarado === true,
+  });
+  const postergado = presentacion === "postergado";
+  const pagado = presentacion === "pagado";
 
   /* El PDF del F29 lo baja el backend del SII EN VIVO cada vez (medido: 1,9s a 22s, sin cache). Un
      `<a target=_blank>` dejaba una pestaña en blanco sin feedback → parecía colgado. Abrimos la pestaña
@@ -166,8 +178,73 @@ export function F29MonthDetail({
                 incluye, el IVA se debe aparte.
               </p>
             </div>
+          ) : pagado ? (
+            /* El período está declarado y la Consulta de Giros no encontró giros pendientes, que el
+               contrato define como pagado. La decisión ya se tomó: acá va la historia, nunca una
+               orden de pago (#202). */
+            <div className="rounded-xl border border-success-500/30 bg-success-500/5 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-success-700">
+                Este período ya está pagado
+              </p>
+              {data.total_con_iva != null ? (
+                <>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-success-700">
+                    {formatClp(data.total_con_iva)}
+                  </p>
+                  <p className="mt-1 text-xs text-success-700">
+                    Es el total que declaró el F29 de este período
+                    {data.folio ? ` (folio ${data.folio})` : ""}, y el SII no tiene giros pendientes
+                    por cobrar. No queda nada por pagar ni por postergar acá.
+                  </p>
+                </>
+              ) : (
+                /* Sin `total_con_iva` NO se pinta un $0 como si fuera el total declarado: el cero que
+                   sí es verdad acá es el que queda por pagar, y eso es lo que dice. */
+                <>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-success-700">
+                    {formatClp(0)}
+                  </p>
+                  <p className="mt-1 text-xs text-success-700">
+                    Es lo que queda por pagar: el F29 de este período está presentado
+                    {data.folio ? ` (folio ${data.folio})` : ""} y el SII no tiene giros pendientes
+                    por cobrar. El total que declaró no viene en esta respuesta; el desglose de
+                    abajo cubre lo que sí publica.
+                  </p>
+                </>
+              )}
+            </div>
+          ) : presentacion === "historia" ? (
+            /* Período declarado cuya Consulta de Giros no respondió. No sabemos si está pagado, así
+               que mostramos lo que el F29 declaró y la acción que lo resuelve — ofrecer "Pagar todo"
+               convertiría el silencio del SII en una deuda (#202). */
+            <div className="rounded-xl border border-border bg-surface-muted p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                Lo que declaró este F29
+              </p>
+              {data.total_con_iva != null ? (
+                <p className="mt-1 text-2xl font-bold tabular-nums text-brand-deep">
+                  {formatClp(data.total_con_iva)}
+                </p>
+              ) : null}
+              <p className="mt-1 text-xs text-neutral-mid">
+                {data.total_con_iva != null
+                  ? "Es el total del F29 presentado"
+                  : "El desglose de abajo cubre lo que publica el F29 presentado"}
+                {data.folio ? ` (folio ${data.folio})` : ""}. Cuánto de eso sigue por cobrar lo
+                informa la Consulta de Giros del SII, que no respondió en este momento.
+              </p>
+              <QavanteButton
+                variant="secondary"
+                size="sm"
+                className="mt-3"
+                onClick={() => giros.refetch()}
+                disabled={giros.isFetching}
+              >
+                {giros.isFetching ? "Consultando al SII…" : "Consultar los giros del SII"}
+              </QavanteButton>
+            </div>
           ) : (
-            /* Aún no postergó: dos opciones de pago (decisión hacia adelante). */
+            /* Aún no postergó y hay algo pendiente: dos opciones de pago (decisión hacia adelante). */
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <PayOption
                 tone="full"

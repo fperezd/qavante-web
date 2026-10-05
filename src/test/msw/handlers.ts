@@ -2513,12 +2513,19 @@ const siiHandlers = [
   /* Estado de pago/postergación de un período (Consulta de Giros). Antes de :folio. */
   http.get("*/api/sii/f29/giros", ({ request }) => {
     const mes = Number(new URL(request.url).searchParams.get("mes")) || 1;
-    const postergado = mes % 2 === 0; // par → postergado; impar → pagado
+    /* Tres casos, porque los tres se ven distinto en el detalle del mes (#202):
+         · par            → postergado: el período difirió el IVA y lo debe aparte.
+         · marzo          → GIRO PENDIENTE: el único mes que ofrece las dos opciones de pago.
+                            Existe para que un test que afirme "acá NO se ofrece pagar" tenga su
+                            gemelo positivo y no pase por vacuidad.
+         · resto de impar → `sin_giro` con el período declarado, que el contrato define como pagado. */
+    const postergado = mes % 2 === 0;
+    const giroPendiente = mes === 3;
     return HttpResponse.json({
       status: "ok",
       periodo: `2026-${String(mes).padStart(2, "0")}`,
-      tiene_giros: postergado,
-      estado: postergado ? "postergado" : "sin_giro",
+      tiene_giros: postergado || giroPendiente,
+      estado: postergado ? "postergado" : giroPendiente ? "giro_no_determinado" : "sin_giro",
       postergado_iva: postergado,
       iva_postergado: postergado ? 400000 : null,
       vencimiento_postergado: postergado ? "2026-08-12" : null,
