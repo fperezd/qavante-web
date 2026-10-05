@@ -68,6 +68,64 @@ const meTenantsState: Array<{
   },
 ];
 
+/* Fecha de inicio DECLARADA por sociedad. Las seis sociedades medidas en producción el
+   2026-10-04, todas con la fecha heredada de una carga anterior y ninguna declarada. */
+const activityStartState: Array<{
+  legal_entity_id: string;
+  legal_name: string;
+  effective_from: string;
+  declared: boolean;
+  provenance: "declared_by_company" | "inherited_from_backfill" | "platform_default";
+}> = [
+  "Tooxs Digital SpA",
+  "Tooxs Servicios SpA",
+  "Tooxs Retail SpA",
+  "Tooxs Holding SpA",
+  "Tooxs Logistica SpA",
+  "Tooxs Consultoria SpA",
+].map((legal_name, i) => ({
+  legal_entity_id: `a58a2ea8-0000-0000-0000-00000000000${i + 1}`,
+  legal_name,
+  effective_from: "2024-07-02",
+  declared: false,
+  provenance: "inherited_from_backfill" as const,
+}));
+
+function activityStartCensus() {
+  const declared = activityStartState.filter((e) => e.declared).length;
+  return {
+    entities: activityStartState.map((e) => ({ ...e })),
+    declared_count: declared,
+    undeclared_count: activityStartState.length - declared,
+    unattributed_history: {
+      documents: 395,
+      amount: "610236099.00",
+      payables_documents: 220,
+      payables_periods: 15,
+      payables_amount: "175878842.00",
+      receivables_documents: 175,
+      receivables_periods: 12,
+      receivables_amount: "434357257.00",
+    },
+    live_debt_protected: {
+      payables_count: 93,
+      payables_amount: "48200100.00",
+      receivables_count: 41,
+      receivables_amount: "12750000.00",
+    },
+    opening_cutoff_overlap: {
+      active: true,
+      cutoff_date: "2026-08-31",
+      import_start_date: "2026-03-01",
+      overlap_months: 5,
+      detail:
+        "La ventana de importación parte el 2026-03-01 y el corte quedó al 2026-08-31: 5 meses.",
+    },
+    summary:
+      "6 de 6 sociedades no declararon su fecha de inicio en el onboarding. 220 documentos de compra en 15 períodos por $175878842.00 y 175 de venta en 12 períodos por $434357257.00 quedan sin atribuir.",
+  };
+}
+
 const legalEntitiesState: Array<{
   id: string;
   legal_name: string;
@@ -278,6 +336,42 @@ export const authHandlers = [
       ],
     }),
   ),
+
+  /* `GET` / `PUT /api/onboarding/activity-start` — la fecha de inicio que la empresa DECLARA
+     por sociedad, con su procedencia y la cifra de lo que queda sin atribuir.
+
+     Las cifras son las medidas en producción el 2026-10-04: 6 de 6 sociedades con la fecha
+     heredada de una carga anterior y cero declaradas, 220 compras en 15 períodos por
+     $175.878.842 y 175 ventas en 12 períodos por $434.357.257 sin atribuir, y el caso del
+     corte de Fernando (importación desde el 2026-03-01 con corte al 2026-08-31 → 5 meses).
+
+     Es CON ESTADO a propósito: declarar mueve la procedencia a `declared_by_company` y baja
+     `undeclared_count`, que es justo lo que la pantalla tiene que mostrar moviéndose. */
+  http.get("*/api/onboarding/activity-start", () => HttpResponse.json(activityStartCensus())),
+
+  http.put("*/api/onboarding/activity-start", async ({ request }) => {
+    const body = (await request.json()) as { legal_entity_id?: string; start_date?: string };
+    if (body?.start_date === "1970-01-01") {
+      return HttpResponse.json(
+        errorBody(
+          "invalid_activity_start_date",
+          "1970-01-01 es el valor que puso la plataforma por omisión, no una fecha declarada.",
+        ),
+        { status: 422 },
+      );
+    }
+    const entidad = activityStartState.find((e) => e.legal_entity_id === body?.legal_entity_id);
+    if (!entidad) {
+      return HttpResponse.json(
+        errorBody("legal_entity_not_found", "La sociedad no pertenece a esta empresa."),
+        { status: 404 },
+      );
+    }
+    entidad.effective_from = body!.start_date!;
+    entidad.declared = true;
+    entidad.provenance = "declared_by_company";
+    return HttpResponse.json(activityStartCensus());
+  }),
 
   http.post("*/api/auth/accept-invitation", async ({ request }) => {
     const body = (await request.json()) as AcceptInvitationBody;

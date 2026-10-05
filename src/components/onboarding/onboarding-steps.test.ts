@@ -17,8 +17,8 @@ import {
 } from "./onboarding-steps";
 
 describe("onboarding-steps — modelo del wizard", () => {
-  it("tiene 10 pasos en orden, ids únicos", () => {
-    expect(TOTAL_ONBOARDING_STEPS).toBe(10);
+  it("tiene 11 pasos en orden, ids únicos", () => {
+    expect(TOTAL_ONBOARDING_STEPS).toBe(11);
     const ids = ONBOARDING_STEPS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual([
@@ -31,6 +31,7 @@ describe("onboarding-steps — modelo del wizard", () => {
       "payroll-system",
       "opening-balance",
       "import",
+      "activity-start",
       "ready",
     ]);
   });
@@ -51,10 +52,12 @@ describe("onboarding-steps — modelo del wizard", () => {
   it("stepIndex / stepNumber", () => {
     expect(stepIndex("signup")).toBe(0);
     expect(stepIndex("import")).toBe(8);
-    expect(stepIndex("ready")).toBe(9);
+    expect(stepIndex("activity-start")).toBe(9);
+    expect(stepIndex("ready")).toBe(10);
     expect(stepNumber("signup")).toBe(1);
     expect(stepNumber("import")).toBe(9);
-    expect(stepNumber("ready")).toBe(10);
+    expect(stepNumber("activity-start")).toBe(10);
+    expect(stepNumber("ready")).toBe(11);
   });
 
   it("stepByRoute matchea por ruta exacta y por prefijo", () => {
@@ -64,15 +67,16 @@ describe("onboarding-steps — modelo del wizard", () => {
     expect(stepByRoute("/otra-cosa")).toBeUndefined();
   });
 
-  it("progressPct: 1/10 = 10, último = 100", () => {
-    expect(progressPct("signup")).toBe(10);
+  it("progressPct: 1/11 = 9, último = 100", () => {
+    expect(progressPct("signup")).toBe(9);
     expect(progressPct("ready")).toBe(100);
   });
 
   it("nextStep / prevStep en los bordes", () => {
     expect(prevStep("signup")).toBeNull();
     expect(nextStep("signup")?.id).toBe("verify-email");
-    expect(nextStep("import")?.id).toBe("ready");
+    expect(nextStep("import")?.id).toBe("activity-start");
+    expect(nextStep("activity-start")?.id).toBe("ready");
     expect(nextStep("ready")).toBeNull();
     expect(prevStep("import")?.id).toBe("opening-balance");
   });
@@ -83,7 +87,8 @@ describe("onboarding-steps — modelo del wizard", () => {
     expect(routeAfter("payroll-system")).toBe("/onboarding/saldo-apertura");
     /* `import` ya NO es el último: cierra en la primera decisión, no en el panel. Si
        alguien revierte el paso `ready`, este assert cae y no pasa en silencio. */
-    expect(routeAfter("import")).toBe("/onboarding/listo");
+    expect(routeAfter("import")).toBe("/onboarding/inicio-de-sociedades");
+    expect(routeAfter("activity-start")).toBe("/onboarding/listo");
     expect(routeAfter("ready")).toBe(ONBOARDING_DONE_ROUTE);
   });
 
@@ -95,6 +100,8 @@ describe("onboarding-steps — modelo del wizard", () => {
        diferible al hub de conexiones (CC-API ADR-0122). */
     expect(stepById("payroll-system")?.source).toBeUndefined();
     expect(stepById("import")?.source).toBeUndefined();
+    /* La fecha de inicio se DECLARA, no se conecta: tampoco es una fuente diferible. */
+    expect(stepById("activity-start")?.source).toBeUndefined();
     expect(stepById("ready")?.source).toBeUndefined();
   });
 

@@ -27,6 +27,7 @@ export type OnboardingStepId =
   | "payroll-system"
   | "opening-balance"
   | "import"
+  | "activity-start"
   | "ready";
 
 export interface OnboardingStep {
@@ -111,6 +112,31 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     label: "Traer datos",
     title: "Traemos tus datos",
     route: "/onboarding/sincronizar",
+    phase: "post-auth",
+  },
+  {
+    /* La empresa DECLARA desde cuándo existe cada sociedad. Decisión de Fernando
+       (2026-10-04): "Desde la misma fecha de inicio en el onboarding, recuerda que para
+       todo es así, salvo para las deudas." Esa fecha ancla la atribución de toda la
+       historia de la sociedad —impuestos, ventas, compras, remuneraciones,
+       clasificación— salvo la deuda viva, que se exige hoy sin importar cuándo nació.
+
+       NO es el paso de la ventana de importación, aunque se parezcan: ese dice desde
+       cuándo IMPORTAR, está acotado a seis meses antes del alta y se elige en el paso del
+       SII. Esta fecha es un hecho histórico por sociedad y no tiene tope.
+
+       Va DESPUÉS de `import` por la misma razón que la previsualización de un corte: la
+       cifra de lo que queda sin atribuir se mide sobre los documentos ya traídos, así que
+       antes de importar marcaría cero, y un cero limpio acá se lee como "no queda nada
+       que declarar". Declararla después no llega tarde: la fecha se consulta al atribuir,
+       no al ingestar, así que repara la historia que ya entró.
+
+       Es un paso de DECLARACIÓN, no de conexión (como el rubro y las remuneraciones): no
+       conecta ninguna fuente, así que no es diferible al hub de conexiones. */
+    id: "activity-start",
+    label: "Inicio de tus sociedades",
+    title: "¿Desde cuándo existe cada sociedad?",
+    route: "/onboarding/inicio-de-sociedades",
     phase: "post-auth",
   },
   /* El paso que cierra el hueco: conectar fuentes no es una decisión, y el wizard
