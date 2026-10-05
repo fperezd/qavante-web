@@ -64,9 +64,27 @@ export interface DashboardKeyObligation {
   coverage: ObligationCoverage;
 }
 
+/** `cash_forecast` MÁS la cifra que los días de caja dejan afuera.
+ *
+ *  `days_of_cash_vencido_exigible_excluido` es la deuda YA VENCIDA que la curva de proyección no
+ *  coloca en ningún día (decisión del dueño del 2026-10-04: ponerla en un día sería inventarle
+ *  fecha de pago). Por eso los días de caja contestan "hasta cuándo me alcanza si NO pago lo que
+ *  ya debo", y esa cifra tiene que viajar pegada al número — un "te alcanza 26 días" sin ella es
+ *  el número tranquilizador incompleto.
+ *
+ *  Va como ENSANCHE OPCIONAL y no por el snapshot regenerado a propósito: en el productor el campo
+ *  es OBLIGATORIO, pero sincronizar el snapshot versionado en esta pasada arrastra otros cambios de
+ *  contrato que dejan fixtures de `caja` e `inicio` sin compilar (medido en el PR del corte de
+ *  apertura). El ensanche es el mismo patrón que este repo ya usa para esos casos; cuando el
+ *  snapshot entre, esta declaración se borra y el campo pasa a requerido sin tocar los lectores. */
+export type DashboardCashForecastV2 = NonNullable<DashboardSummaryResponse["cash_forecast"]> & {
+  days_of_cash_vencido_exigible_excluido?: string | null;
+};
+
 /** Respuesta extendida del v2 = la base + los campos nuevos (todos opcionales,
    degradan solos si el backend aún no los manda). */
-export interface DashboardSummaryV2 extends DashboardSummaryResponse {
+export interface DashboardSummaryV2 extends Omit<DashboardSummaryResponse, "cash_forecast"> {
+  cash_forecast?: DashboardCashForecastV2 | null;
   /** Hasta 3 obligaciones clave del mes, por fecha. */
   key_obligations?: DashboardKeyObligation[] | null;
   /** Puntos para el sparkline de caja (más reciente último). */

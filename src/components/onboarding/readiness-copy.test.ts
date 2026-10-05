@@ -25,7 +25,7 @@ function fin(over: Partial<FinancialReadiness> = {}): FinancialReadiness {
     currency: "CLP",
     minimum_cash: "6000000",
     cash_today: "9000000",
-    days_covered: 45,
+    essential_outflow_days_covered: 45,
     basis: {
       rung: "egresos_conciliados",
       label: "egresos operacionales conciliados del banco",
@@ -57,7 +57,12 @@ describe("readiness-copy — siempre un número, y siempre qué cubre", () => {
     /* La rama que más importa. Un tenant recién registrado llega acá y la pantalla
        tiene que mostrar un número con su acción, nunca una pantalla sin cifra. */
     const h = readinessHeadline(
-      fin({ level: "arranque", minimum_cash: "0", days_covered: 0, currency: null }),
+      fin({
+        level: "arranque",
+        minimum_cash: "0",
+        essential_outflow_days_covered: 0,
+        currency: null,
+      }),
     );
     expect(h.title).toContain("0");
     expect(h.covers).toContain("gastos esenciales");

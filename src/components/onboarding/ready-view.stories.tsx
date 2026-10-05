@@ -23,7 +23,7 @@ const COMPLETO: FinancialReadiness = {
   currency: "CLP",
   minimum_cash: "6000000",
   cash_today: "9000000",
-  days_covered: 45,
+  essential_outflow_days_covered: 45,
   basis: {
     rung: "egresos_conciliados",
     label: "egresos operacionales conciliados del banco",
@@ -57,7 +57,7 @@ const CONSERVADOR: FinancialReadiness = {
   unlocked_decision: "Cuánto efectivo mantener y cuántos días cubre tu caja.",
   minimum_cash: "6000000",
   cash_today: "9000000",
-  days_covered: 90,
+  essential_outflow_days_covered: 90,
   basis: {
     rung: "saldo_declarado",
     label: "saldo en caja declarado",

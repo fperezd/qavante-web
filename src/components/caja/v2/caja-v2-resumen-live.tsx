@@ -186,7 +186,15 @@ function CajaV2Contenido({
   const dias = null;
   // Caja en cero o negativa → tono crítico honesto (no un ✓ verde "alcanza ~0 días").
   const negativa = saldoHoy <= 0;
-  const tono = negativa ? "crit" : cruceIdx != null ? "warn" : "ok";
+  /* SIN MÍNIMO DECLARADO NO HAY "TODO BIEN".
+     `primerCruceFuturo` devuelve `null` en dos situaciones que no se parecen: la curva no cruza el
+     mínimo, y NO HAY MÍNIMO contra el que medirla (`cajaMinimoCLP` da `null` cuando la sociedad no
+     declaró umbral en pesos). Colapsarlas dejaba el ✓ verde y "La caja cubre el período
+     proyectado" sobre una caja que nadie comparó con nada — una ausencia convertida en buena
+     noticia, que es el mismo agujero de insolvencia que el productor cerró del lado de los días de
+     caja. Las dos se distinguen acá y el copy de abajo dice qué falta, con la cifra que sí hay. */
+  const sinMinimo = minimo == null;
+  const tono = negativa ? "crit" : cruceIdx != null || sinMinimo ? "warn" : "ok";
 
   // Caja v3 (gated `cajaV3`): reemplaza la curva histórica por el medidor de días + cascada, derivados
   // de los VENCIMIENTOS (no del cash-flow histórico, que no proyecta el futuro). El flag lo resuelve
@@ -283,6 +291,24 @@ function buildRunway(
       <>
         El <b>{serie[cruceIdx]?.label}</b> la caja cae bajo tu mínimo
         {minimo != null ? ` (${formatClp(minimo)})` : ""}.
+      </>
+    );
+  }
+  /* SIN MÍNIMO DECLARADO NO SE AFIRMA COBERTURA.
+     `cruceIdx == null` con `minimo == null` NO dice que la caja cubra el período: dice que no hubo
+     contra qué compararla. La frase de abajo afirmaba cobertura igual, en verde, y era una ausencia
+     disfrazada de buena noticia. Lo que la reemplaza es la cifra que SÍ existe —el punto más bajo
+     de la trayectoria proyectada— más lo que falta para poder avisar del cruce. */
+  if (minimo == null) {
+    const piso = serie.length > 0 ? Math.min(...serie.map((p) => p.saldo)) : null;
+    return (
+      <>
+        {piso != null ? (
+          <>
+            El punto más bajo del período proyectado es <b>{formatClp(piso)}</b>.{" "}
+          </>
+        ) : null}
+        Declara tu caja mínima para que esta pantalla te avise el día que la cruces.
       </>
     );
   }

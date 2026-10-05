@@ -68,6 +68,70 @@ function subtituloCaja(cash: DashboardSummaryV2["cash_today"]): string {
   return "Caja hoy";
 }
 
+/** Horizonte que el bloque `cash_forecast` acredita por sí solo.
+ *
+ *  `days_of_cash` sólo se puede leer contra su horizonte: `null` significa "no cruza el mínimo en
+ *  el horizonte mirado", y sin el horizonte esa frase no acota nada. El productor de este bloque
+ *  proyecta 30 días (`PROJECTION_HORIZON_DAYS`), pero **el bloque NO publica su horizonte**: lo
+ *  único que viaja al lado de la cifra es `min_30d`, el mínimo del saldo proyectado sobre los
+ *  próximos 30. Así que 30 es exactamente el tramo que esta pantalla puede afirmar con lo que
+ *  recibe, y no un número copiado del productor que mentiría en silencio el día que él lo cambie.
+ *  Cuando `cash_forecast` publique su `horizon_days` —como ya lo hace `/api/treasury/cash-projection`,
+ *  donde el horizonte viaja al lado de la cifra— se lee de ahí y esta constante se va. */
+export const HORIZONTE_ACREDITADO_DIAS = 30;
+
+/** Los días de caja como UNA fila honesta.
+ *
+ *  SEMÁNTICA DEL CONTRATO (qavante-api #564/#1050, `cash_forecast.days_of_cash`): es el PRIMER DÍA
+ *  en que la caja proyectada cierra bajo el mínimo configurado. **No** es el cociente del ritmo de
+ *  quema, que es lo que medía antes. La diferencia cambia la lectura de cada valor:
+ *
+ *  - `null` → la curva NO cruza el mínimo en el horizonte. No es "está sana": más allá del tramo
+ *    acreditado no hay dato, así que se afirma el tramo y no la salud.
+ *  - `0` → la caja ya está bajo el mínimo HOY.
+ *  - `n > 0` → cruza el día `n`. **ES UNA ADVERTENCIA**, y cuanto menor el número, más urgente.
+ *
+ *  LO QUE ESTO ARREGLA: la fila se pintaba `f.days_of_cash <= 0 ? "neg" : "pos"`, una regla escrita
+ *  para la definición VIEJA. Bajo la nueva, todo valor no nulo es un cruce, así que esa regla
+ *  pintaba en verde exactamente los casos que son advertencia. Con la cartera productiva del
+ *  2026-10-04 la pantalla mostraba "Días de caja ~26" en tono positivo sobre un cruce real.
+ *  Nada rompía en tipos y nada fallaba en CI: quedaba sólo una pantalla tranquilizadora.
+ *
+ *  Y LA FILA DECLARA QUÉ DEJA AFUERA. La curva no coloca la deuda ya vencida en ningún día
+ *  (poner una fecha de pago que nadie fijó sería inventarla), así que la cifra contesta "hasta
+ *  cuándo me alcanza si NO pago lo que ya debo". El monto excluido viaja en el mismo bloque y se
+ *  muestra pegado al número: sin él, 26 días se lee como 26 días de holgura. El CONTEO de
+ *  documentos de esa deuda NO está en este bloque, así que no se nombra — cruzarlo del bloque de
+ *  brecha sería pegarle a este monto el conteo de OTRO monto distinto. */
+export function filaDiasDeCaja(f: NonNullable<DashboardSummaryV2["cash_forecast"]>): CajaFila {
+  const excluido = parseAmount(f.days_of_cash_vencido_exigible_excluido ?? null);
+  const dejaAfuera =
+    excluido > 0
+      ? ` Deja afuera ${formatClp(excluido)} de deuda ya vencida, que la curva no pone en ningún día.`
+      : "";
+  const d = f.days_of_cash;
+  if (d == null)
+    return {
+      label: "Días de caja",
+      valor: `más de ${HORIZONTE_ACREDITADO_DIAS}`,
+      tono: "pos",
+      nota: `Tu caja proyectada no baja de tu mínimo en los próximos ${HORIZONTE_ACREDITADO_DIAS} días.${dejaAfuera}`,
+    };
+  if (d <= 0)
+    return {
+      label: "Días de caja",
+      valor: "0",
+      tono: "neg",
+      nota: `Tu caja ya está bajo el mínimo que configuraste.${dejaAfuera}`,
+    };
+  return {
+    label: "Días de caja",
+    valor: String(d),
+    tono: "warn",
+    nota: `El día ${d} tu caja proyectada cierra bajo tu mínimo.${dejaAfuera}`,
+  };
+}
+
 export function mapCaja(s: DashboardSummaryV2): CajaProyeccionProps | null {
   if (!s.cash_today && !s.cash_forecast) return null;
   // Faltante ≠ 0: sin bloque `cash_today` el saldo es DESCONOCIDO (null), no cero.
@@ -87,13 +151,7 @@ export function mapCaja(s: DashboardSummaryV2): CajaProyeccionProps | null {
       valor: formatClp(parseAmount(f.min_30d)),
       tono: t(f.min_30d),
     });
-    if (f.days_of_cash != null) {
-      filas.push({
-        label: "Días de caja",
-        valor: `~${f.days_of_cash}`,
-        tono: f.days_of_cash <= 0 ? "neg" : "pos",
-      });
-    }
+    filas.push(filaDiasDeCaja(f));
   }
   return {
     cajaHoy,

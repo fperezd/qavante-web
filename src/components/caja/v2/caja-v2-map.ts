@@ -145,7 +145,21 @@ export function serieAnclada(
 /** Índice del primer período NO pasado cuyo saldo cae ESTRICTAMENTE bajo el mínimo — el cruce
  *  ACCIONABLE. La serie anclada reconstruye períodos pasados; un dip reconstruido en una semana
  *  que ya terminó NO es un cruce a advertir ("adelanta una cobranza" no aplica al pasado). Solo
- *  cuenta de hoy en adelante. `null` si no hay mínimo o no hay cruce futuro. */
+ *  cuenta de hoy en adelante.
+ *
+ *  **ESTO NO SON LOS DÍAS DE CAJA Y NO PUEDE USARSE COMO TALES.** Devuelve un ÍNDICE DE BUCKET
+ *  —semanal o mensual según la granularidad elegida— sobre los buckets del reporte de flujo de
+ *  caja, que es una agregación histórica por período. No es un número de días, y no mira la curva
+ *  de proyección por vencimientos de la que sale `days_of_cash`. Su único trabajo es marcar en
+ *  QUÉ BARRA de la curva está el cruce; los días de caja los publica el contrato
+ *  (`cash_forecast.days_of_cash`) desde un solo helper, y rederivarlos acá es cómo la misma cifra
+ *  llegó a decir 8 en una pantalla y 26 en otra.
+ *
+ *  `null` tiene DOS causas que el llamador tiene que distinguir: no hay cruce futuro, o **no hay
+ *  mínimo declarado** y por lo tanto no hubo contra qué comparar. Leer ese `null` como "no cruza"
+ *  es convertir una ausencia en buena noticia: con el mínimo en null —y el default del umbral es
+ *  cero— una caja en el piso devolvía `null` y la pantalla lo pintaba como período cubierto. Ver
+ *  el tratamiento en `caja-v2-resumen-live`. */
 export function primerCruceFuturo(
   serie: SaldoPunto[],
   buckets: CashFlowBucket[],

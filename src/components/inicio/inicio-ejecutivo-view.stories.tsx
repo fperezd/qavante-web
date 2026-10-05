@@ -30,7 +30,8 @@ const FIXTURE = {
   cash_forecast: {
     min_14d: "5400000",
     min_30d: "2100000",
-    days_of_cash: 42,
+    days_of_cash: 26,
+    days_of_cash_vencido_exigible_excluido: "73641695",
     last_updated: "2026-06-02T08:00:00Z",
     source: "banco",
   },

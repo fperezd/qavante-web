@@ -4,6 +4,8 @@ import type { CollectionForecastResponse, CashCycleResponse } from "@/lib/api/tr
 import {
   mapPulso,
   mapCaja,
+  filaDiasDeCaja,
+  HORIZONTE_ACREDITADO_DIAS,
   mapBrechaTotal,
   mapEstadoBrecha,
   respuestaEstadoBrecha,
@@ -89,7 +91,9 @@ describe("mapCaja", () => {
     expect(c.cajaHoy).toBe(-1518883);
     expect(c.filas).toHaveLength(3);
     expect(c.filas[0]!.tono).toBe("neg");
-    expect(c.filas[2]).toEqual({ label: "Días de caja", valor: "~0", tono: "neg" });
+    expect(c.filas[2]!.label).toBe("Días de caja");
+    expect(c.filas[2]!.valor).toBe("0");
+    expect(c.filas[2]!.tono).toBe("neg");
     expect(c.serie).toEqual([100, -50, -200]);
   });
 
@@ -127,6 +131,106 @@ describe("mapCaja", () => {
     expect(con("available")).toBe("Caja hoy");
     expect(con("stale")).toBe("Caja hoy · desactualizada");
     expect(con("estimated")).toBe("Caja hoy · estimada");
+  });
+});
+
+/* LOS DÍAS DE CAJA SON UN CRUCE, NO UN RITMO DE QUEMA.
+ *
+ * `cash_forecast.days_of_cash` cambió de significado sin cambiar de nombre (qavante-api #1050):
+ * dejó de ser `saldo ÷ quema trailing 30d` y pasó a ser el PRIMER DÍA en que la caja proyectada
+ * cierra bajo el mínimo configurado. Nada rompió en tipos y nada falló en CI — y ahí está el
+ * riesgo: la regla de tono `days_of_cash <= 0 ? "neg" : "pos"`, escrita para la definición vieja,
+ * pasó a pintar en VERDE exactamente los casos que bajo la nueva son advertencia.
+ *
+ * CONTRASTE MEDIDO (tenant productivo, 2026-10-04): `days_of_cash: 26` con $73.641.695 exigibles
+ * ese mismo día sobre una caja de $6,7M. La pantalla mostraba "Días de caja ~26" en tono positivo.
+ * Estos tests fijan las tres lecturas del contrato y el monto excluido que viaja al lado. */
+describe("filaDiasDeCaja — cualquier n > 0 es un CRUCE, o sea una advertencia", () => {
+  const forecast = (over: Record<string, unknown>) =>
+    ({
+      min_14d: "5400000",
+      min_30d: "2100000",
+      days_of_cash_vencido_exigible_excluido: "0",
+      ...over,
+    }) as unknown as NonNullable<DashboardSummaryV2["cash_forecast"]>;
+
+  it("el caso de producción (26 días) NO se pinta como buena noticia", () => {
+    const f = filaDiasDeCaja(forecast({ days_of_cash: 26 }));
+    expect(f.tono).not.toBe("pos"); // ← el defecto exacto: 26 iba en verde
+    expect(f.tono).toBe("warn");
+    expect(f.valor).toBe("26");
+  });
+
+  it("sin el `~`: la cifra es un día concreto, no una aproximación de un ritmo", () => {
+    expect(filaDiasDeCaja(forecast({ days_of_cash: 26 })).valor).not.toMatch(/~/);
+  });
+
+  it("cuanto MENOR el número, sigue siendo advertencia (1 día también cruza)", () => {
+    for (const d of [1, 3, 7, 14, 29, 30]) {
+      const f = filaDiasDeCaja(forecast({ days_of_cash: d }));
+      expect(f.tono, `days_of_cash=${d}`).toBe("warn");
+      expect(f.valor).toBe(String(d));
+    }
+  });
+
+  it("0 = ya está bajo el mínimo HOY → crítico, y lo DICE (no es 'te queda un día')", () => {
+    const f = filaDiasDeCaja(forecast({ days_of_cash: 0 }));
+    expect(f.tono).toBe("neg");
+    expect(f.valor).toBe("0");
+    expect(f.nota).toMatch(/ya está bajo el mínimo/i);
+  });
+
+  it("null = no cruza en el horizonte: afirma el TRAMO acreditado, no la salud", () => {
+    const f = filaDiasDeCaja(forecast({ days_of_cash: null }));
+    expect(f.tono).toBe("pos");
+    // Siempre un número: `null` no se convierte en un cartel sin cifra.
+    expect(f.valor).toContain(String(HORIZONTE_ACREDITADO_DIAS));
+    expect(f.nota).toMatch(new RegExp(`${HORIZONTE_ACREDITADO_DIAS} días`));
+    // Y no afirma nada más allá del tramo que el bloque acredita.
+    expect(f.nota).not.toMatch(/siempre|indefinid|sin riesgo/i);
+  });
+
+  it("la fila SIEMPRE existe, incluso con `days_of_cash` ausente (antes se omitía)", () => {
+    const s = {
+      ...emptySummary(),
+      cash_today: { total: "6700000", last_updated: "2026-10-04", data_state: "available" },
+      cash_forecast: forecast({ days_of_cash: null }),
+    } as unknown as DashboardSummaryV2;
+    const labels = mapCaja(s)!.filas.map((x) => x.label);
+    expect(labels).toContain("Días de caja");
+  });
+
+  it("DECLARA LO QUE DEJA AFUERA: el monto de deuda vencida viaja pegado a la cifra", () => {
+    const f = filaDiasDeCaja(
+      forecast({ days_of_cash: 26, days_of_cash_vencido_exigible_excluido: "73641695" }),
+    );
+    expect(f.nota).toContain("$73.641.695");
+    expect(f.nota).toMatch(/vencida/i);
+  });
+
+  it("sin deuda vencida no se inventa la frase de exclusión", () => {
+    const f = filaDiasDeCaja(
+      forecast({ days_of_cash: 26, days_of_cash_vencido_exigible_excluido: "0" }),
+    );
+    expect(f.nota).not.toMatch(/deja afuera/i);
+  });
+
+  it("el campo ausente (snapshot viejo) NO publica un '$0 excluido' fabricado", () => {
+    const f = filaDiasDeCaja(forecast({ days_of_cash: 26 }));
+    expect(f.nota).not.toMatch(/\$0/);
+  });
+
+  /* La regla de copy del dueño: nunca una etiqueta de desconfianza ni una ausencia nombrada como
+     tal. Se recorre TODO lo que esta función emite, en los tres estados del contrato. */
+  it("ninguna palabra prohibida en ningún estado del contrato", () => {
+    const PROHIBIDAS =
+      /no disponible|sin dato|no hay dato|preliminar|estimad|no evaluable|confianza (alta|media|baja)/i;
+    for (const d of [null, 0, 1, 26, 30]) {
+      const f = filaDiasDeCaja(
+        forecast({ days_of_cash: d, days_of_cash_vencido_exigible_excluido: "73641695" }),
+      );
+      expect(`${f.label} ${f.valor} ${f.nota ?? ""}`, `days_of_cash=${d}`).not.toMatch(PROHIBIDAS);
+    }
   });
 });
 

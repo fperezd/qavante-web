@@ -26,6 +26,7 @@ import {
   margenOperacionalPct,
   resultadoConfiable,
   resultAbstained,
+  fuentesPendientes,
   tendenciaConfiable,
   type Comparativo,
 } from "./gestion-v2-map";
@@ -335,15 +336,6 @@ function MesEnCurso({ mes, period }: { mes: OperationalResultResponse; period: s
       </div>
     </section>
   );
-}
-
-/** Nombre legible de las fuentes que todavía no cubren el mes, para decir QUÉ falta en vez de
- *  cuán seguros estamos. `missing_sources` ya viene en es-CL y legible desde el productor. */
-function fuentesPendientes(mes: OperationalResultResponse): string | null {
-  const fuentes = (mes.missing_sources ?? []).filter(Boolean);
-  if (fuentes.length === 0) return null;
-  if (fuentes.length === 1) return fuentes[0] ?? null;
-  return `${fuentes.slice(0, -1).join(", ")} y ${fuentes[fuentes.length - 1]}`;
 }
 
 /** ABSTENCIÓN del productor (`result: null` + `abstention_reason`, qavante-api#888): una fuente

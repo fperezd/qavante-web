@@ -13,7 +13,12 @@ export interface CajaFila {
   label: string;
   /** Ya formateado por el data layer (permite "~0" y "96 días" además de plata). */
   valor: string;
-  tono?: "neg" | "pos" | "neutral";
+  /** `warn` = la cifra es una ADVERTENCIA sin ser todavía el peor caso (ej. la caja proyectada
+   *  cruza el mínimo el día N). Pintarla como `pos` es convertir un cruce en buena noticia. */
+  tono?: "neg" | "warn" | "pos" | "neutral";
+  /** Qué cubre la cifra y qué deja afuera, en una línea bajo el valor. Una cifra de dinero sin
+   *  su alcance es la mitad del dato; acá viaja pegada, no en otra pantalla. */
+  nota?: string;
 }
 
 export interface CajaProyeccionProps {
@@ -35,6 +40,7 @@ export interface CajaProyeccionProps {
 
 const FILA_TEXT: Record<NonNullable<CajaFila["tono"]>, string> = {
   neg: "text-danger-500",
+  warn: "text-warning-700",
   pos: "text-success-700",
   neutral: "text-neutral-dark",
 };
@@ -78,11 +84,16 @@ export function CajaProyeccion({
       />
 
       {filas.map((f, i) => (
-        <div key={i} className="flex items-baseline justify-between py-1 text-[13.5px]">
-          <span className="text-neutral-mid">{f.label}</span>
-          <span className={cn("font-bold tabular-nums", FILA_TEXT[f.tono ?? "neutral"])}>
-            {f.valor}
-          </span>
+        <div key={i} className="py-1 text-[13.5px]">
+          <div className="flex items-baseline justify-between">
+            <span className="text-neutral-mid">{f.label}</span>
+            <span className={cn("font-bold tabular-nums", FILA_TEXT[f.tono ?? "neutral"])}>
+              {f.valor}
+            </span>
+          </div>
+          {f.nota ? (
+            <p className="mt-0.5 text-[11.5px] leading-snug text-neutral-mid">{f.nota}</p>
+          ) : null}
         </div>
       ))}
 

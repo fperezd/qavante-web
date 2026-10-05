@@ -56,8 +56,14 @@ export interface FinancialReadiness {
   /** SIEMPRE un monto decimal como string. Nunca ausente, nunca null. */
   minimum_cash: string;
   cash_today: string | null;
-  /** SIEMPRE un entero ≥ 0. */
-  days_covered: number;
+  /** Días de GASTO ESENCIAL (nómina, arriendo, lo que no se posterga) que cubre la caja de hoy.
+   *  SIEMPRE un entero ≥ 0.
+   *
+   *  **No es `cash_forecast.days_of_cash`.** El divisor acá es un SUBCONJUNTO del egreso total, así
+   *  que esta cifra es estructuralmente más chica y contesta "¿tengo colchón?", no "¿hasta cuándo me
+   *  alcanza?". Se llamaba `days_covered` y el nombre no lo decía: tres lecturas distintas venían
+   *  compartiendo nombres, y el productor las separó. El valor NO cambió, sólo el nombre. */
+  essential_outflow_days_covered: number;
   basis: ReadinessBasis;
   next_action: ReadinessNextAction;
   missing: string[];

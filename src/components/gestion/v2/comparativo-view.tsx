@@ -12,7 +12,7 @@ import {
 import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
-import { resultadoConfiable } from "./gestion-v2-map";
+import { resultadoConfiable, resultAbstained, fuentesPendientes } from "./gestion-v2-map";
 import {
   baseIncompleta,
   mapRangoResumen,
@@ -74,6 +74,31 @@ const METRICAS = [
   { key: "gross_margin", label: "Margen bruto" },
   { key: "result", label: "Resultado" },
 ] as const;
+
+/** Las métricas que un mes ACREDITA. Con el resultado abstenido se cae la de "Resultado" y quedan
+ *  las dos que el contrato publica igual (`revenue` y `gross_margin`).
+ *
+ *  Sin esto, la baldosa de Resultado mostraba `formatClp(parseAmount(null))` = **$0** en tono
+ *  neutro, al lado de dos cifras medidas y con el mismo formato: un "no sé" con la cara de un mes
+ *  que vendió y no ganó nada. Es el defecto de web#318 en la superficie más visible de esta
+ *  pantalla, y su `hint` además derivaba los % de variación contra ese cero. */
+export function metricasAcreditadas(mes: OperationalResultResponse | undefined) {
+  if (!mes || !resultAbstained(mes)) return METRICAS;
+  return METRICAS.filter((m) => m.key !== "result");
+}
+
+/** La línea que dice qué fuente cierra el resultado del mes, o `null` si el mes lo acredita.
+ *  Reemplaza al cero fabricado: una sola frase, con la fuente nombrada, sin etiqueta de estado. */
+function ResultadoPendienteLinea({ mes }: { mes: OperationalResultResponse | undefined }) {
+  if (!mes || !resultAbstained(mes)) return null;
+  const pendientes = fuentesPendientes(mes);
+  return (
+    <p className="mt-2 rounded-lg border border-brand-primary/25 bg-brand-primary/[.05] px-3 py-2 text-[12.5px] leading-snug text-neutral-dark">
+      Las ventas y el costo de ventas del mes ya están acreditados. El resultado del mes y sus
+      comparaciones se publican cuando {pendientes ?? "la fuente pendiente"} cubra el período.
+    </p>
+  );
+}
 
 export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
   const [period, setPeriod] = React.useState(initialPeriod);
@@ -138,6 +163,12 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
   // Se mide contra la estructura de costos del año ACTUAL (rYtd) — así una micro-PYME lean real (gastos
   // bajos en ambos períodos) NO se marca; solo se marca la base cuyo gasto es ínfimo frente al negocio
   // de hoy (ej.: 2025 sin planilla → "−46%" falso).
+  /* ¿El período de REFERENCIA tiene el resultado abstenido? Se consulta el contrato (no se
+     rederiva): con `result: null` su `parseAmount` da 0, y ese 0 no puede entrar como base de una
+     comparación ni mostrarse como la cifra del mes. */
+  const abstenidoPrev = prev.data ? resultAbstained(prev.data) : false;
+  const abstenidoYoy = yoy.data ? resultAbstained(yoy.data) : false;
+  const abstenidoBaseYoy = baseYoy.data ? resultAbstained(baseYoy.data) : false;
   const ytdLyIncompleto = rangoIncompleto(rYtdLy, rYtd);
   const qLyIncompleto = rangoIncompleto(rQLy, rYtd);
   const yoyIncompleto =
@@ -185,7 +216,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
             }
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {METRICAS.map((mt) => {
+              {metricasAcreditadas(cur.data).map((mt) => {
                 const a = parseAmount(cur.data![mt.key]);
                 return (
                   <QavanteStatTile
@@ -195,24 +226,28 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                     tone={a >= 0 ? "default" : "danger"}
                     hint={
                       enCurso ? (
-                        <span className="text-[11px] text-neutral-mid">
-                          {mesAntLabel} completo:{" "}
-                          <b className="tabular-nums text-neutral-dark">
-                            {formatClp(parseAmount(prev.data?.[mt.key]))}
-                          </b>
-                        </span>
+                        mt.key === "result" && abstenidoPrev ? null : (
+                          <span className="text-[11px] text-neutral-mid">
+                            {mesAntLabel} completo:{" "}
+                            <b className="tabular-nums text-neutral-dark">
+                              {formatClp(parseAmount(prev.data?.[mt.key]))}
+                            </b>
+                          </span>
+                        )
                       ) : (
                         <span className="flex flex-col gap-1">
                           <RefLinea
                             label="vs mes anterior"
                             base={parseAmount(prev.data?.[mt.key])}
                             actual={a}
+                            baseAbstenida={mt.key === "result" && abstenidoPrev}
                           />
                           <RefLinea
                             label="vs año anterior"
                             base={parseAmount(yoy.data?.[mt.key])}
                             actual={a}
                             incompleto={mt.key === "result" && yoyIncompleto}
+                            baseAbstenida={mt.key === "result" && abstenidoYoy}
                           />
                         </span>
                       )
@@ -221,6 +256,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                 );
               })}
             </div>
+            <ResultadoPendienteLinea mes={cur.data} />
           </Bloque>
 
           {/* 1b) Al MISMO TRAMO (solo si el mes va en curso): agosto 1→hoy vs julio 1→hoy, la
@@ -317,7 +353,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
             subtitulo={`${baseLabel} vs el promedio de los últimos 12 meses y el mismo mes de ${y - 1}`}
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {METRICAS.map((mt) => {
+              {metricasAcreditadas(baseMes.data).map((mt) => {
                 const a = parseAmount(baseMes.data?.[mt.key]);
                 const prom = pick(rAvg12, mt.key) / nAvg12;
                 const anioAnt = parseAmount(baseYoy.data?.[mt.key]);
@@ -335,6 +371,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                           base={anioAnt}
                           actual={a}
                           incompleto={mt.key === "result" && baseYoyIncompleto}
+                          baseAbstenida={mt.key === "result" && abstenidoBaseYoy}
                         />
                       </span>
                     }
@@ -342,6 +379,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                 );
               })}
             </div>
+            <ResultadoPendienteLinea mes={baseMes.data} />
           </Bloque>
 
           {/* 5) Trimestre móvil (últimos 3 meses) */}
@@ -423,12 +461,19 @@ function RefLinea({
   base,
   actual,
   incompleto,
+  baseAbstenida,
 }: {
   label: string;
   base: number;
   actual: number;
   incompleto?: boolean;
+  /** El período de referencia tiene el resultado ABSTENIDO. Entonces `base` es un
+   *  `parseAmount(null)` = 0 fabricado, y mostrarlo publica "el mes pasado dio $0" sobre un mes
+   *  que nadie midió, con un "sin base" al lado que se lee como si el cero fuera el dato. La
+   *  referencia no se pinta: lo que falta ya se dice una vez en el bloque, con la fuente. */
+  baseAbstenida?: boolean;
 }) {
+  if (baseAbstenida) return null;
   const v = varPct(actual, base);
   const up = (v ?? 0) >= 0;
   const color = v == null ? "text-neutral-light" : up ? "text-success-700" : "text-danger-500";
@@ -453,8 +498,22 @@ function RefLinea({
   );
 }
 
-/** Puente: resultado del mes anterior → Δingresos → Δcosto de ventas → Δgastos → resultado actual. */
-function PuenteVariacion({
+/** Puente: resultado del mes anterior → Δingresos → Δcosto de ventas → Δgastos → resultado actual.
+ *
+ *  LA CASCADA SE CORTA EN EL ÚLTIMO NIVEL QUE ACREDITAN LOS DOS MESES (web#366).
+ *
+ *  `Δ gastos operacionales` se deriva de `gmC - resC - (gmP - resP)`, o sea del `result` de ambos
+ *  meses. Con un mes abstenido (`result: null`) `parseAmount` devuelve `0`, así que ese cero
+ *  fabricado hacía que el paso de gastos absorbiera TODO el margen bruto y se pintara como un
+ *  salto de gasto que no ocurrió — con color favorable/desfavorable incluido. No era el dato
+ *  ausente ni el dato real: era una tercera cosa que produjo la aritmética, con la cara de una
+ *  cifra normal. Lo mismo con las dos filas de resultado del puente.
+ *
+ *  `revenue` y `gross_margin` SÍ los publica el contrato incluso cuando se abstiene del resultado
+ *  (es lo que el hero de Gestión muestra en ese caso, web#318), así que `Δ ingresos` y
+ *  `Δ costo de ventas` se mantienen: la comparación llega hasta donde los dos meses acreditan, y
+ *  se dice qué cubre y qué fuente la cierra. Nunca un cartel ni un cero en su lugar. */
+export function PuenteVariacion({
   cur,
   prev,
 }: {
@@ -465,11 +524,16 @@ function PuenteVariacion({
   const revP = parseAmount(prev.revenue);
   const gmC = parseAmount(cur.gross_margin);
   const gmP = parseAmount(prev.gross_margin);
-  const resC = parseAmount(cur.result);
-  const resP = parseAmount(prev.result);
   const dRev = revC - revP;
   const dCosto = revC - gmC - (revP - gmP); // Δ costo de ventas
-  const dGasto = gmC - resC - (gmP - resP); // Δ gastos operacionales
+  // El `result` sólo se LEE cuando los DOS meses lo acreditan. Derivarlo de un mes abstenido es el
+  // defecto; chequear la abstención del contrato (no rederivarla) es el mecanismo que ya usa el
+  // resto de Gestión.
+  const abstenido = resultAbstained(cur) || resultAbstained(prev);
+  const resC = abstenido ? null : parseAmount(cur.result);
+  const resP = abstenido ? null : parseAmount(prev.result);
+  const dGasto = resC != null && resP != null ? gmC - resC - (gmP - resP) : null;
+  const pendientes = resultAbstained(cur) ? fuentesPendientes(cur) : fuentesPendientes(prev);
   const paso = (label: string, monto: number, favorable: boolean) => (
     <div className="flex items-center justify-between border-t border-dashed border-border py-1.5 text-sm">
       <span className="text-neutral-mid">{label}</span>
@@ -483,26 +547,37 @@ function PuenteVariacion({
   );
   return (
     <div className="rounded-xl border border-border bg-surface p-5">
-      <div className="flex items-center justify-between py-1 text-sm">
-        <span className="text-neutral-mid">Resultado mes anterior</span>
-        <span className="font-semibold tabular-nums text-neutral-dark">{formatClp(resP)}</span>
-      </div>
+      {resP != null && (
+        <div className="flex items-center justify-between py-1 text-sm">
+          <span className="text-neutral-mid">Resultado mes anterior</span>
+          <span className="font-semibold tabular-nums text-neutral-dark">{formatClp(resP)}</span>
+        </div>
+      )}
       {paso("Cambio en ingresos", dRev, dRev >= 0)}
       {paso("Cambio en costo de ventas", -dCosto, dCosto <= 0)}
-      {paso("Cambio en gastos", -dGasto, dGasto <= 0)}
-      <div className="mt-1 flex items-center justify-between border-t-2 border-border-strong py-1.5 text-sm">
-        <span className="font-medium text-neutral-dark">Resultado este mes</span>
-        <span
-          className={`font-bold tabular-nums ${resC >= 0 ? "text-success-700" : "text-danger-500"}`}
-        >
-          {formatClp(resC)}
-        </span>
-      </div>
+      {dGasto != null && paso("Cambio en gastos", -dGasto, dGasto <= 0)}
+      {resC != null && (
+        <div className="mt-1 flex items-center justify-between border-t-2 border-border-strong py-1.5 text-sm">
+          <span className="font-medium text-neutral-dark">Resultado este mes</span>
+          <span
+            className={`font-bold tabular-nums ${resC >= 0 ? "text-success-700" : "text-danger-500"}`}
+          >
+            {formatClp(resC)}
+          </span>
+        </div>
+      )}
+      {dGasto == null && (
+        <p className="mt-2.5 border-t border-dashed border-border pt-2.5 text-[12.5px] leading-snug text-neutral-mid">
+          Esto compara las ventas y el costo de ventas de los dos meses. El cambio en gastos y el
+          resultado del mes entran a la comparación cuando {pendientes ?? "la fuente pendiente"}{" "}
+          cubra los dos períodos.
+        </p>
+      )}
     </div>
   );
 }
 
-function Eficiencia({
+export function Eficiencia({
   cur,
   prev,
   yoy,
@@ -511,30 +586,56 @@ function Eficiencia({
   prev?: OperationalResultResponse;
   yoy?: OperationalResultResponse;
 }) {
+  /** Margen neto % — `null` cuando NO se puede calcular, y son dos casos distintos:
+   *
+   *  1. El productor se ABSTUVO del resultado del mes (`result: null`). Antes esta función no
+   *     consultaba la abstención, así que `parseAmount(null)` daba `0` y la pantalla publicaba
+   *     `0%` de margen neto para ese mes: el mismo defecto de web#318 en formato porcentaje, y
+   *     pintado como una cifra medida. El `0%` es la peor lectura posible — dice "vendiste y no
+   *     ganaste nada", que es una afirmación, no una ausencia.
+   *  2. Ingresos ≤ 0: el % no tiene sentido y dividir invertiría el signo (guarda que ya estaba).
+   *
+   *  En los dos casos la celda se OMITE en vez de rotularse. Un "sin información" ahí es
+   *  exactamente la etiqueta de desconfianza que no corresponde: lo que falta se dice una vez,
+   *  abajo, nombrando la fuente, y las cifras que sí están medidas quedan limpias. */
   const netoPct = (r?: OperationalResultResponse) => {
-    if (!r) return null;
+    if (!r || resultAbstained(r)) return null;
     const rev = parseAmount(r.revenue);
     return rev > 0 ? (parseAmount(r.result) / rev) * 100 : null;
   };
-  const fila = (label: string, a: number | null, p: number | null, yy: number | null) => (
-    <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-dashed border-border py-2 text-sm">
-      <span className="text-neutral-mid">{label}</span>
-      <span className="flex items-center gap-3">
-        <span className="font-bold tabular-nums text-neutral-dark">
-          {a === null ? "Sin información" : formatPct(a)}
+  const fila = (label: string, a: number | null, p: number | null, yy: number | null) => {
+    // Sin la cifra del mes la fila entera no tiene qué decir: no se rendea.
+    if (a === null) return null;
+    const refs = [
+      p !== null ? `mes ant. ${formatPct(p)}` : null,
+      yy !== null ? `año ant. ${formatPct(yy)}` : null,
+    ].filter(Boolean);
+    return (
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-dashed border-border py-2 text-sm">
+        <span className="text-neutral-mid">{label}</span>
+        <span className="flex items-center gap-3">
+          <span className="font-bold tabular-nums text-neutral-dark">{formatPct(a)}</span>
+          {refs.length > 0 && (
+            <span className="text-[11px] text-neutral-mid">{refs.join(" · ")}</span>
+          )}
         </span>
-        <span className="text-[11px] text-neutral-mid">
-          mes ant. {p === null ? "Sin información" : formatPct(p)} · año ant.{" "}
-          {yy === null ? "Sin información" : formatPct(yy)}
-        </span>
-      </span>
-    </div>
-  );
+      </div>
+    );
+  };
   const gm = (r?: OperationalResultResponse) => (r ? parseAmount(r.gross_margin_pct) : null);
+  const netoCur = netoPct(cur);
+  const pendientes = resultAbstained(cur) ? fuentesPendientes(cur) : null;
   return (
     <div className="rounded-xl border border-border bg-surface p-5">
       {fila("Margen bruto %", gm(cur), gm(prev), gm(yoy))}
-      {fila("Margen neto %", netoPct(cur), netoPct(prev), netoPct(yoy))}
+      {fila("Margen neto %", netoCur, netoPct(prev), netoPct(yoy))}
+      {netoCur === null && (
+        <p className="mt-1 border-t border-dashed border-border pt-2.5 text-[12.5px] leading-snug text-neutral-mid">
+          El margen bruto cubre las ventas y el costo de ventas del mes. El margen neto resta además
+          las remuneraciones, los honorarios y los gastos recurrentes, y entra acá cuando{" "}
+          {pendientes ?? "la fuente pendiente"} cubra el período.
+        </p>
+      )}
     </div>
   );
 }

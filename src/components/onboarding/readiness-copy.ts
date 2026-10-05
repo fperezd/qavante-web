@@ -11,8 +11,9 @@
    ## Las dos reglas que este módulo hace cumplir
 
    1. **Siempre un número, y siempre qué cubre ese número.** Nunca una pantalla con
-      un texto y sin cifra. La API garantiza que `minimum_cash` y `days_covered`
-      vienen con valor; acá se garantiza que se muestran.
+      un texto y sin cifra. La API garantiza que `minimum_cash` y
+      `essential_outflow_days_covered` vienen con valor; acá se garantiza que se
+      muestran.
    2. **Ninguna palabra que traslade al dueño la duda del sistema.** «Preliminar»,
       «estimado», «confianza baja», «no disponible» le dan permiso para no decidir.
       El nivel de confianza existe —viaja en `basis`— pero no se imprime.
@@ -74,7 +75,7 @@ export function readinessHeadline(fin: FinancialReadiness): ReadinessHeadline {
   return {
     title: `Mantén ${monto} en caja`,
     covers: `cubre ${readinessDays(fin.basis.buffer_days)} de tus gastos esenciales`,
-    coverage: `Tu caja de hoy cubre ${readinessDays(fin.days_covered)} de tus gastos esenciales`,
+    coverage: `Tu caja de hoy cubre ${readinessDays(fin.essential_outflow_days_covered)} de tus gastos esenciales`,
   };
 }
 

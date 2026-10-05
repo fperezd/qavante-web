@@ -20,7 +20,7 @@ import { readinessHeadline, readinessStep } from "./readiness-copy";
 
    ## Las reglas de esta pantalla
 
-   - **Siempre un número.** La API garantiza `minimum_cash` y `days_covered` con
+   - **Siempre un número.** La API garantiza `minimum_cash` y `essential_outflow_days_covered` con
      valor en cualquier estado del tenant; acá nunca hay una rama sin cifra. Mientras
      la lectura viaja se muestra el esqueleto de la cifra, no un texto de espera que
      reemplace al número.

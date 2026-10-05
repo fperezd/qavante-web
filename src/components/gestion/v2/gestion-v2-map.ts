@@ -83,6 +83,20 @@ export function resultAbstained(resp: OperationalResultResponse): boolean {
   return resp.result == null || resp.abstention_reason != null;
 }
 
+/** Las fuentes que al período le faltan, en una frase ("remuneraciones", "la nómina y los
+ *  honorarios"). `null` si el contrato no nombró ninguna.
+ *
+ *  Vive acá y no en cada vista porque es la ÚNICA cosa accionable que una abstención publica: el
+ *  encabezado de cada superficie abstenida se arma con esto, y tres copias de la misma frase es
+ *  cómo tres pantallas acaban nombrando distinto lo mismo. `missing_sources` ya viene en es-CL y
+ *  legible desde el productor, así que no se traduce. */
+export function fuentesPendientes(resp: OperationalResultResponse): string | null {
+  const fuentes = (resp.missing_sources ?? []).filter(Boolean);
+  if (fuentes.length === 0) return null;
+  if (fuentes.length === 1) return fuentes[0] ?? null;
+  return `${fuentes.slice(0, -1).join(", ")} y ${fuentes[fuentes.length - 1]}`;
+}
+
 export interface HeroData {
   titulo: string;
   resultado: number;
