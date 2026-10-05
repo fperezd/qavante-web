@@ -77,6 +77,13 @@ export const FEATURE_FLAGS = [
   "pagarV05",
   "bandejaV07",
   "cobrarV04",
+  /* Directorio operativo de deudores en Cobrar (issue #207). Separa "los 5 mayores" de "todos
+     los clientes con saldo": la búsqueda, los filtros, el orden y la paginación los resuelve
+     `GET /api/treasury/accounts-receivable/debtors`, y el conteo sale de su `items_total`.
+
+     Con OFF, Cobrar queda exactamente como está: los tres recuadros y la lista de documentos.
+     No hay media medida ni lista topeada que quede a la vista — ése es el rollback. */
+  "cobrarDirectorioDeudores",
   "gestionV08",
   "administracionV12",
   "remuneracionesV16",
@@ -387,6 +394,14 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      `sin_destinatario`, `skipped` y `error` se muestran como tales, nunca como éxito. Con OFF, el
      Cobrar actual (v2 en producción) queda intacto → cero regresión. */
   cobrarV04: "/api/treasury/collection-reminders/send",
+  /* El directorio canónico paginado de deudores. Es LA capacidad que faltaba y que ningún otro
+     flag consume: publica `search`, `state`, `due_state`, `document_status`, `currency`,
+     `currency_status`, `sort` y `cursor` server-side, `items_total` ("deudores que cumplen los
+     filtros, sin paginar") y `ranking_bridge[]` con `top_five_total` / `remainder_total` /
+     `directory_total` por moneda. Está en el contrato desde el 2026-09-16 y hasta este cambio
+     tenía cero consumidores: la pantalla armaba la cartera desde `top_debtors`, que es un top 5,
+     y buscaba y paginaba en memoria sobre esas cinco filas. */
+  cobrarDirectorioDeudores: "/api/treasury/accounts-receivable/debtors",
   /* V08 · Gestión — "¿gano o pierdo?" en SEIS tabs (ESPECIFICACION §V08, issue #72). Unifica las
      nueve páginas de `/gestion` en una vista con tabs Resultado / Márgenes / Tendencia /
      Comparativo / Clientes 360 / Proveedores 360; Costos y gastos entra como sección del Resultado

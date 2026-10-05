@@ -38,6 +38,7 @@ import {
 import { DECISION_BRIEF_E2E_FIXTURE } from "./decision-brief-fixture";
 import { SEED_SESSION_USER } from "./fixtures";
 import { cashProjectionRunHandlers } from "./cash-projection-runs";
+import { receivableDebtorsHandlers } from "./receivable-debtors";
 
 const SESSION_COOKIE = "qavante_session=msw-mock-token; Path=/; SameSite=Lax";
 
@@ -5278,6 +5279,7 @@ export const handlers = [
   ...obligationsHandlers,
   ...managementHandlers,
   ...gestionHandlers,
+  ...receivableDebtorsHandlers,
   ...cobranzaHandlers,
   ...preferencesHandlers,
   ...pagosHandlers,

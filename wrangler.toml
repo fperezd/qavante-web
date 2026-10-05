@@ -146,7 +146,21 @@ NEXT_PUBLIC_FF_BANDEJA_V07 = "true"
 # clásico. Volver al clásico = poner en "false".
 NEXT_PUBLIC_FF_COBRAR_V2 = "true"
 # V04 Cobrar del rediseño — ON (autorizado por BO 2026-09-03).
+#
+# OJO: este flag está declarado y puesto en "true" acá y en el Dockerfile, pero NINGÚN
+# componente lo consulta. `src/app/(app)/cobrar/page.tsx` monta `GestionCobrosLive` sin leer
+# `cobrarV04`, y `CobrarV04Live` sólo se importa desde sus propias stories y tests. O sea: hoy
+# este "true" no enciende nada. Medido el 2026-10-05 (issue #207); queda escrito acá para que el
+# próximo que lo lea no deduzca de este valor que V04 está en pantalla.
 NEXT_PUBLIC_FF_COBRAR_V04 = "true"
+# Directorio operativo de deudores en Cobrar (issue #207) — ON.
+# Enciende la sección "Clientes con saldo" que consume
+# `GET /api/treasury/accounts-receivable/debtors`: búsqueda, filtros, orden y paginación los
+# resuelve el servidor sobre la cartera completa, y el conteo sale de `items_total`. Antes la
+# cartera se armaba desde `top_debtors` (un top 5) y se filtraba en memoria sobre esas cinco
+# filas, así que un deudor fuera del top era inalcanzable y el conteo decía 5 teniendo 200.
+# Apagar = "false": Cobrar vuelve a los tres recuadros + la lista de documentos, sin la sección.
+NEXT_PUBLIC_FF_COBRAR_DIRECTORIO_DEUDORES = "true"
 # (Gestión v2 dejó de ser un flag: la vista clásica se retiró y v2 es la única. Antes vivía acá
 # NEXT_PUBLIC_FF_GESTION_V2; se removió al retirar el clásico — el flag quedaba muerto.)
 # Cola de conciliación (ADR-0036/0042) — pantalla /caja/conciliacion + card en la landing de Caja.
