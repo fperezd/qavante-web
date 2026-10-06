@@ -46,7 +46,13 @@ NEXT_PUBLIC_FF_FINANCIAL_DECISION_HOME = "true"
 # recomendaciones competidoras: la evidencia y la auditoría de cada pantalla se
 # mantienen debajo del envelope, en el orden que publica la fuente.
 # Rollback inmediato: volver esta línea a "false" y desplegar el release.
-NEXT_PUBLIC_FF_DECISION_BRIEF = "true"
+# APAGADO EN PRODUCCION, y este archivo lo decia al reves hasta el 2026-10-06.
+# Quien despliega produccion es el `Dockerfile` (`deploy-azure-prod.yml` hace `docker build`
+# y `az containerapp update`), y ahi este flag estaba AUSENTE, o sea `false`. El envelope de
+# decision financiera cubria cero usuarios mientras este archivo afirmaba lo contrario.
+# Queda declarado `false` en los dos archivos: encenderlo es cambiar esta palabra y la del
+# Dockerfile, y es una decision del dueno (web#280).
+NEXT_PUBLIC_FF_DECISION_BRIEF = "false"
 # Inicio Ejecutivo v2 (rediseño aprobado 2026-07-12) — ON (encendido 2026-08-08 por Fernando para
 # probar el framework de widgets + la agenda). Cableado a los contratos que ya existen, con degradación
 # honesta (algunos campos Fase 2 —key_obligations/cash_sparkline/tendencia del Pulso— aún caen a lo del

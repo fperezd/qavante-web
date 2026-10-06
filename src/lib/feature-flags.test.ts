@@ -140,6 +140,80 @@ describe("resolveFeatureFlags", () => {
   });
 });
 
+/* LOS DOS ARCHIVOS DE FLAGS NO PUEDEN DISCREPAR EN SILENCIO.
+   `wrangler.toml` y el `Dockerfile` declaran los mismos flags, pero SOLO UNO gobierna
+   produccion: `deploy-azure-prod.yml` hace `docker build` y `az containerapp update`, asi que
+   **manda el Dockerfile**. `wrangler.toml` quedo del despliegue por Worker.
+
+   Medido el 2026-10-06: `NEXT_PUBLIC_FF_DECISION_BRIEF` esta en `"true"` en `wrangler.toml` y
+   **ausente del Dockerfile**, o sea APAGADO en produccion. Un epic de seis superficies sobre el
+   envelope de decision financiera, con E2E en cuatro superficies por tres viewports, cubriendo
+   **cero** usuarios — mientras el archivo que lo documenta afirma lo contrario.
+
+   Nadie lo noto porque los dos archivos se leen igual de autoritativos y nada los compara. Este
+   guard los compara: o declaran lo mismo, o CI lo dice por su nombre.
+
+   Si en algun momento se decide que `wrangler.toml` ya no describe nada, la salida correcta es
+   borrarlo, no dejarlo mintiendo. */
+describe("wrangler.toml y Dockerfile declaran los mismos flags", () => {
+  const RAIZ = path.resolve(__dirname, "../..");
+  const PATRON = /NEXT_PUBLIC_FF_([A-Z0-9_]+)\s*=\s*"?(true|false)"?/g;
+
+  function declarados(archivo: string): Map<string, string> {
+    const texto = fs.readFileSync(path.join(RAIZ, archivo), "utf8");
+    const encontrados = new Map<string, string>();
+    for (const m of texto.matchAll(PATRON)) {
+      /* El patron garantiza los dos grupos, pero `noUncheckedIndexedAccess` no lo sabe:
+         desestructurar y comprobar es mas honesto que una asercion de no-nulo. */
+      const [, nombre, valor] = m;
+      if (nombre && valor) encontrados.set(nombre, valor);
+    }
+    return encontrados;
+  }
+
+  const wrangler = declarados("wrangler.toml");
+  const dockerfile = declarados("Dockerfile");
+
+  it("ninguno queda declarado en un archivo y ausente del otro", () => {
+    const soloWrangler = [...wrangler.keys()].filter((f) => !dockerfile.has(f)).sort();
+    const soloDockerfile = [...dockerfile.keys()].filter((f) => !wrangler.has(f)).sort();
+    expect(
+      { soloWrangler, soloDockerfile },
+      "Un flag declarado en uno solo de los dos archivos esta APAGADO en produccion si falta en " +
+        "el Dockerfile, porque el deploy construye la imagen con ese archivo. Declaralo en los " +
+        "dos, o sacalo de los dos.",
+    ).toEqual({ soloWrangler: [], soloDockerfile: [] });
+  });
+
+  it("ninguno queda con un valor distinto entre los dos", () => {
+    const discrepan = [...wrangler.entries()]
+      .filter(([f, v]) => dockerfile.has(f) && dockerfile.get(f) !== v)
+      .map(([f, v]) => `${f}: wrangler=${v} Dockerfile=${dockerfile.get(f)}`)
+      .sort();
+    expect(
+      discrepan,
+      "Manda el Dockerfile: wrangler.toml estaria documentando un estado que produccion no tiene.",
+    ).toEqual([]);
+  });
+
+  it("el gemelo: el guard si ve una discrepancia cuando la hay", () => {
+    /* Sin esto, un guard que leyera mal los archivos —un patron que no matchea nada, una ruta
+       equivocada— daria dos listas vacias y pasaria siempre. Dos mapas sembrados a mano, con la
+       misma forma de comparacion que arriba. */
+    const a = new Map([["UNO", "true"], ["DOS", "true"]]);
+    const b = new Map([["UNO", "false"]]);
+    expect([...a.keys()].filter((f) => !b.has(f))).toEqual(["DOS"]);
+    expect([...a.entries()].filter(([f, v]) => b.has(f) && b.get(f) !== v).map(([f]) => f)).toEqual(
+      ["UNO"],
+    );
+  });
+
+  it("y los dos archivos declaran algo: un patron roto no puede pasar por acuerdo", () => {
+    expect(wrangler.size).toBeGreaterThan(20);
+    expect(dockerfile.size).toBeGreaterThan(20);
+  });
+});
+
 describe("consistencia interna FEATURE_FLAGS ↔ FLAG_GATING_ENDPOINT", () => {
   /* Anti-regresión: si alguien agrega un flag al array pero olvida el
      endpoint correspondiente (o viceversa), estos tests fallan. También
