@@ -7,6 +7,47 @@ import { apiErrorToUserMessage, unknownErrorToUserMessage } from "./error-messag
 import { ApiError } from "./errors";
 
 describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
+  /* LOS 403 QUE NO SON FALTA DE PERMISOS.
+     Medido el 2026-10-05 en el paso "Tu RUT" del onboarding: los cinco caían al genérico
+     "No tienes permisos para realizar esta acción", que es el `case 403` de
+     `fallbackUserMessage`. El usuario SÍ tenía permisos, y el mensaje además borró la pista
+     de cuál de los 403 había sido.
+
+     Cada caso exige dos cosas: que el mensaje nombre su causa, y que NO sea el genérico. Sin
+     la segunda mitad, una implementación que devolviera el genérico para todos pasaría igual
+     cualquier assert que sólo buscara "no vacío". */
+  const GENERICO_403 = "No tienes permisos para realizar esta acción.";
+
+  it.each([
+    ["csrf_origin_required", "app.qavante.com"],
+    ["csrf_origin_invalid", "app.qavante.com"],
+    ["csrf_origin_rejected", "app.qavante.com"],
+  ])("%s nombra la verificación de seguridad, no los permisos", (code, pista) => {
+    const mensaje = apiErrorToUserMessage(new ApiError("forbidden", 403, code));
+    expect(mensaje).not.toBe(GENERICO_403);
+    expect(mensaje).toContain(pista);
+    expect(mensaje).toContain("seguridad");
+  });
+
+  it("no_active_membership manda a iniciar sesión, no a reintentar", () => {
+    const mensaje = apiErrorToUserMessage(new ApiError("forbidden", 403, "no_active_membership"));
+    expect(mensaje).not.toBe(GENERICO_403);
+    expect(mensaje).toContain("acceso a esta empresa");
+    // El backend REVOCA la sesión en ese 403: reintentar choca con lo mismo.
+    expect(mensaje).not.toContain("Vuelve a intentarlo");
+  });
+
+  it("api_key_required nombra la credencial de integración", () => {
+    const mensaje = apiErrorToUserMessage(new ApiError("forbidden", 403, "api_key_required"));
+    expect(mensaje).not.toBe(GENERICO_403);
+    expect(mensaje).toContain("credencial de integración");
+  });
+
+  it("el gemelo: un 403 SIN código conocido sigue mostrando el genérico", () => {
+    // Si esto cambiara, el arreglo estaría tapando todos los 403 en vez de los cinco medidos.
+    expect(apiErrorToUserMessage(new ApiError("forbidden", 403))).toBe(GENERICO_403);
+  });
+
   it("network error (status 0) no atribuye la causa a internet del usuario", () => {
     const err = new ApiError("network", 0, "network_error");
     expect(apiErrorToUserMessage(err)).toBe(

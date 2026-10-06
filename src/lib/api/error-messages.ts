@@ -35,6 +35,34 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
   if (err.code === "rut_already_set") {
     return err.message || "Esta cuenta ya tiene un RUT.";
   }
+
+  /* LOS 403 QUE NO SON FALTA DE PERMISOS.
+     Medido el 2026-10-05 en el paso "Tu RUT" del onboarding: el usuario vio "No tienes permisos
+     para realizar esta acción" —el genérico de CUALQUIER 403, `fallbackUserMessage`— cuando el
+     problema no tenía nada que ver con sus permisos. Y como el mensaje no nombra la causa, no
+     quedó forma de saber cuál de los 403 posibles había sido: la pantalla fue el único testigo y
+     dijo algo falso.
+
+     Los tres `csrf_origin_*` los emite el middleware global de la API, que exige un `Origin`
+     confiable en toda mutación que viaje con cookie de sesión. La acción que sirve es recargar,
+     porque suele ser una pestaña vieja o abierta desde otra dirección; reintentar el mismo envío
+     no cambia nada.
+
+     `no_active_membership` es distinto: la sesión es válida pero ya no autoriza esa empresa, y
+     la API además revoca la sesión. Mandar a reintentar sería mandar a chocar con lo mismo. */
+  if (
+    err.code === "csrf_origin_required" ||
+    err.code === "csrf_origin_invalid" ||
+    err.code === "csrf_origin_rejected"
+  ) {
+    return "No se guardó: la verificación de seguridad rechazó la dirección desde la que llegó la operación. Recarga la página desde app.qavante.com y repítela; si la tenías abierta hace rato, vuelve a entrar.";
+  }
+  if (err.code === "no_active_membership") {
+    return "Tu acceso a esta empresa ya no está activo, así que la operación no se guardó. Vuelve a iniciar sesión y, si sigue igual, pide que reactiven tu acceso.";
+  }
+  if (err.code === "api_key_required") {
+    return "Esta operación necesita una credencial de integración, no tu sesión del navegador.";
+  }
   if (err.code === "signup_conflict") {
     return "Esa cuenta ya existe. Inicia sesión o usa otro correo.";
   }

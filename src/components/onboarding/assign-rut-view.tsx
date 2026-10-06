@@ -33,7 +33,7 @@ export function AssignRutView() {
       if (err instanceof ApiError) {
         setSubmitError(apiErrorToUserMessage(err));
       } else {
-        setSubmitError("No pudimos guardar tu RUT. Reintentá.");
+        setSubmitError("No pudimos guardar tu RUT. Vuelve a intentarlo.");
       }
     }
   }
