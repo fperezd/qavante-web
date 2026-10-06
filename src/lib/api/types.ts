@@ -1455,6 +1455,9 @@ export interface paths {
          *     para que un pago asumido no se lea como uno observado. A diferencia de
          *     `GET /treasury/payroll-settlements/{period}`, esta lectura no hace `seed` ni escribe nada,
          *     y no exige una sola sociedad legal: las tablas de evidencia de 0173 son tenant-wide.
+         *
+         *     La respuesta está TIPADA (`PayrollWorkerOutstandingResponse`): antes salía al OpenAPI como
+         *     un objeto abierto y la pantalla no tenía con qué consumirla sin inventarse la forma.
          */
         get: operations["admin_payroll_worker_outstanding"];
         put?: never;
@@ -23793,6 +23796,172 @@ export interface components {
              */
             total_liquido: number;
         };
+        /**
+         * PayrollWorkerOutstandingResponse
+         * @description Saldo por trabajador de un período, contado sólo desde evidencia D14.
+         */
+        PayrollWorkerOutstandingResponse: {
+            /**
+             * Abstention Reasons
+             * @description Por qué el período no puede afirmar más de lo que afirma. Vacío significa que no hay nada que declarar, no que falte información.
+             */
+            abstention_reasons?: string[];
+            /**
+             * Batch Allocated Amount
+             * @description Pago asignado al período como lote, con o sin reparto por trabajador.
+             */
+            batch_allocated_amount: string;
+            /**
+             * Confirmed Outstanding Amount
+             * @description Lo que falta pagar según la evidencia: obligación menos lo repartido por trabajador. `None` cuando el período no tiene sello.
+             */
+            confirmed_outstanding_amount?: string | null;
+            /**
+             * Currency Code
+             * @description Moneda del sello de la obligación.
+             */
+            currency_code?: string | null;
+            /**
+             * Distribution Gap Amount
+             * @description `batch_allocated_amount` menos `worker_allocated_amount`: pago que bajó el total del período y todavía no alcanza para nombrar a nadie.
+             */
+            distribution_gap_amount: string;
+            /**
+             * Legacy Assumed Paid Amount
+             * @description De lo legado, lo dado por pagado sin un solo enlace que lo respalde.
+             */
+            legacy_assumed_paid_amount: string;
+            /**
+             * Legacy Divergence Amount
+             * @description El payable mensual menos la suma por trabajador. Distinto de cero significa que las dos capas legadas no cuentan lo mismo.
+             */
+            legacy_divergence_amount?: string | null;
+            /**
+             * Legacy Outstanding Quality
+             * @description Etiqueta fija de la cifra legada: no la respalda evidencia trazable.
+             */
+            legacy_outstanding_quality: string;
+            /**
+             * Legacy Payable Outstanding Amount
+             * @description Saldo del payable mensual legado del período.
+             */
+            legacy_payable_outstanding_amount?: string | null;
+            /**
+             * Legacy Worker Outstanding Amount
+             * @description Saldo que suma la capa legada trabajador por trabajador.
+             */
+            legacy_worker_outstanding_amount: string;
+            /**
+             * Obligation Amount
+             * @description Obligación sellada del período, sumando sus líneas. `None` cuando el período no tiene sello: entonces `abstention_reasons` trae `obligation_snapshot_missing`.
+             */
+            obligation_amount?: string | null;
+            /**
+             * Obligation Observed At
+             * @description Cuándo el origen observó la obligación que se está contando.
+             */
+            obligation_observed_at?: string | null;
+            /**
+             * Period
+             * @description Período YYYYMM.
+             */
+            period: string;
+            /**
+             * Snapshot Id
+             * @description Sello de obligación contra el que se contó.
+             */
+            snapshot_id?: string | null;
+            /**
+             * Superseded Obligation Allocated Amount
+             * @description Pago asignado a un sello ANTERIOR del mismo período. No se suma en las cifras de arriba —se imputó a montos que el origen ya restató— y se declara acá.
+             */
+            superseded_obligation_allocated_amount: string;
+            /**
+             * Worker Allocated Amount
+             * @description De ese lote, lo que está repartido trabajador por trabajador.
+             */
+            worker_allocated_amount: string;
+            /**
+             * Workers
+             * @description Un elemento por RUT de la obligación sellada.
+             */
+            workers?: components["schemas"]["PayrollWorkerOutstandingWorker"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PayrollWorkerOutstandingWorker
+         * @description Un trabajador del período: su obligación sellada y lo que la evidencia confirma pagado.
+         */
+        PayrollWorkerOutstandingWorker: {
+            /**
+             * Confirmed Paid Amount
+             * @description Pagado con evidencia trazable: asignaciones individuales colgadas de un pago confirmado y vigente. Un lote asignado al período sin repartir NO entra acá.
+             */
+            confirmed_paid_amount: string;
+            /**
+             * Currency Code
+             * @description Moneda del sello de la obligación.
+             */
+            currency_code?: string | null;
+            /**
+             * Legacy Bank Evidenced Amount
+             * @description De lo legado, la parte con movimiento bancario enlazado.
+             */
+            legacy_bank_evidenced_amount?: string | null;
+            /**
+             * Legacy Evidence Quality
+             * @description Qué respalda la cifra legada de este trabajador: respaldo bancario, ajuste manual declarado, o pagado sin ningún enlace que lo explique.
+             */
+            legacy_evidence_quality?: string | null;
+            /**
+             * Legacy Manual Adjustment Amount
+             * @description De lo legado, la parte declarada por una persona fuera del banco.
+             */
+            legacy_manual_adjustment_amount?: string | null;
+            /**
+             * Legacy Paid Amount
+             * @description Lo que la capa legada dice pagado. No es evidencia por sí solo.
+             */
+            legacy_paid_amount?: string | null;
+            /**
+             * Legacy Status
+             * @description Estado de la liquidación legada.
+             */
+            legacy_status?: string | null;
+            /**
+             * Line Count
+             * @description Líneas selladas que se agruparon bajo este RUT.
+             */
+            line_count: number;
+            /**
+             * Obligation Amount
+             * @description Obligación sellada del trabajador en el período, sumando sus líneas.
+             */
+            obligation_amount: string;
+            /**
+             * Outstanding Amount
+             * @description `obligation_amount` menos `confirmed_paid_amount`.
+             */
+            outstanding_amount: string;
+            /**
+             * State
+             * @description `unallocated` (la evidencia no confirma ningún pago), `partially_confirmed` o `confirmed_paid` (la evidencia cubre la obligación completa).
+             */
+            state: string;
+            /**
+             * Worker Name
+             * @description Nombre tal como lo selló el origen.
+             */
+            worker_name?: string | null;
+            /**
+             * Worker Rut
+             * @description RUT tal como lo trae la obligación sellada. `None` cuando el origen selló la línea sin RUT: esa línea no se le puede atribuir a nadie y el período lo declara en `abstention_reasons` con `obligation_lines_without_worker`.
+             */
+            worker_rut?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** PayrollWorkersResponse */
         PayrollWorkersResponse: {
             /**
@@ -32551,9 +32720,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PayrollWorkerOutstandingResponse"];
                 };
             };
             /** @description Rol sin permiso (owner/admin/technical_admin). */

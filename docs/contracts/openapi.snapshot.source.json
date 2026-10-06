@@ -1,8 +1,8 @@
 {
   "repo": "tooxs-digital/qavante-api",
   "ref": "main",
-  "sha": "b7cbad2a2ed8a051737ea17e747c0cce03f369d9",
+  "sha": "132d7a278d89f853db6a442e7a9c66b26cfc2178",
   "path": "docs/contracts/openapi.snapshot.json",
-  "sha256": "b6157f25ad59f0fe977a21ff705f4aabcd50dd2978c86ba67b0997042ca6d780",
-  "fetched_at": "2026-10-05T15:44:04.473Z"
+  "sha256": "338f26cb246cae354d1655fc06337415f0813632d291cac23506735856000465",
+  "fetched_at": "2026-10-06T04:59:31.504Z"
 }

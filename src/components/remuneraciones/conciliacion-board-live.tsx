@@ -14,6 +14,7 @@ import { ApiError } from "@/lib/api/errors";
 import { usePayrollWorkers } from "@/lib/api/payroll-workers";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { ConciliacionBoardView } from "./conciliacion-board-view";
+import { EvidenciaPagosLive } from "./evidencia-pagos-live";
 import {
   normalizeBoard,
   debitosCandidatos,
@@ -199,6 +200,16 @@ export function ConciliacionBoardLive({
           revertPendingId={revertingId}
         />
       )}
+
+      {/* La evidencia D14 del período (api#422 / #203), al lado del board accionable y no en su
+          lugar: el board es la herramienta para ASIGNAR —cuenta la capa legada, y ahí alguien
+          puede figurar pagado porque se cerró el payable del mes— y esta lectura dice qué está
+          respaldado por un pago trazable. Van juntas porque la pregunta de quien concilia es
+          justamente en qué se diferencian.
+
+          Se monta aunque el board devuelva 403: son dos lecturas distintas y una puede
+          responder sin la otra. Lo que no se monta es sin período. */}
+      {period && <EvidenciaPagosLive period={period} />}
     </div>
   );
 }

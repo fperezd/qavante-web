@@ -34606,6 +34606,318 @@
         "title": "PayrollTotales",
         "type": "object"
       },
+      "PayrollWorkerOutstandingResponse": {
+        "additionalProperties": true,
+        "description": "Saldo por trabajador de un período, contado sólo desde evidencia D14.",
+        "properties": {
+          "abstention_reasons": {
+            "description": "Por qué el período no puede afirmar más de lo que afirma. Vacío significa que no hay nada que declarar, no que falte información.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Abstention Reasons",
+            "type": "array"
+          },
+          "batch_allocated_amount": {
+            "description": "Pago asignado al período como lote, con o sin reparto por trabajador.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Batch Allocated Amount",
+            "type": "string"
+          },
+          "confirmed_outstanding_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que falta pagar según la evidencia: obligación menos lo repartido por trabajador. `None` cuando el período no tiene sello.",
+            "title": "Confirmed Outstanding Amount"
+          },
+          "currency_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda del sello de la obligación.",
+            "title": "Currency Code"
+          },
+          "distribution_gap_amount": {
+            "description": "`batch_allocated_amount` menos `worker_allocated_amount`: pago que bajó el total del período y todavía no alcanza para nombrar a nadie.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Distribution Gap Amount",
+            "type": "string"
+          },
+          "legacy_assumed_paid_amount": {
+            "description": "De lo legado, lo dado por pagado sin un solo enlace que lo respalde.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Legacy Assumed Paid Amount",
+            "type": "string"
+          },
+          "legacy_divergence_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El payable mensual menos la suma por trabajador. Distinto de cero significa que las dos capas legadas no cuentan lo mismo.",
+            "title": "Legacy Divergence Amount"
+          },
+          "legacy_outstanding_quality": {
+            "description": "Etiqueta fija de la cifra legada: no la respalda evidencia trazable.",
+            "title": "Legacy Outstanding Quality",
+            "type": "string"
+          },
+          "legacy_payable_outstanding_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo del payable mensual legado del período.",
+            "title": "Legacy Payable Outstanding Amount"
+          },
+          "legacy_worker_outstanding_amount": {
+            "description": "Saldo que suma la capa legada trabajador por trabajador.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Legacy Worker Outstanding Amount",
+            "type": "string"
+          },
+          "obligation_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Obligación sellada del período, sumando sus líneas. `None` cuando el período no tiene sello: entonces `abstention_reasons` trae `obligation_snapshot_missing`.",
+            "title": "Obligation Amount"
+          },
+          "obligation_observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo el origen observó la obligación que se está contando.",
+            "title": "Obligation Observed At"
+          },
+          "period": {
+            "description": "Período YYYYMM.",
+            "title": "Period",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sello de obligación contra el que se contó.",
+            "title": "Snapshot Id"
+          },
+          "superseded_obligation_allocated_amount": {
+            "description": "Pago asignado a un sello ANTERIOR del mismo período. No se suma en las cifras de arriba —se imputó a montos que el origen ya restató— y se declara acá.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Superseded Obligation Allocated Amount",
+            "type": "string"
+          },
+          "worker_allocated_amount": {
+            "description": "De ese lote, lo que está repartido trabajador por trabajador.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Worker Allocated Amount",
+            "type": "string"
+          },
+          "workers": {
+            "description": "Un elemento por RUT de la obligación sellada.",
+            "items": {
+              "$ref": "#/components/schemas/PayrollWorkerOutstandingWorker"
+            },
+            "title": "Workers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "period",
+          "batch_allocated_amount",
+          "worker_allocated_amount",
+          "distribution_gap_amount",
+          "superseded_obligation_allocated_amount",
+          "legacy_worker_outstanding_amount",
+          "legacy_assumed_paid_amount",
+          "legacy_outstanding_quality"
+        ],
+        "title": "PayrollWorkerOutstandingResponse",
+        "type": "object"
+      },
+      "PayrollWorkerOutstandingWorker": {
+        "additionalProperties": true,
+        "description": "Un trabajador del período: su obligación sellada y lo que la evidencia confirma pagado.",
+        "properties": {
+          "confirmed_paid_amount": {
+            "description": "Pagado con evidencia trazable: asignaciones individuales colgadas de un pago confirmado y vigente. Un lote asignado al período sin repartir NO entra acá.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Confirmed Paid Amount",
+            "type": "string"
+          },
+          "currency_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda del sello de la obligación.",
+            "title": "Currency Code"
+          },
+          "legacy_bank_evidenced_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "De lo legado, la parte con movimiento bancario enlazado.",
+            "title": "Legacy Bank Evidenced Amount"
+          },
+          "legacy_evidence_quality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Qué respalda la cifra legada de este trabajador: respaldo bancario, ajuste manual declarado, o pagado sin ningún enlace que lo explique.",
+            "title": "Legacy Evidence Quality"
+          },
+          "legacy_manual_adjustment_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "De lo legado, la parte declarada por una persona fuera del banco.",
+            "title": "Legacy Manual Adjustment Amount"
+          },
+          "legacy_paid_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que la capa legada dice pagado. No es evidencia por sí solo.",
+            "title": "Legacy Paid Amount"
+          },
+          "legacy_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estado de la liquidación legada.",
+            "title": "Legacy Status"
+          },
+          "line_count": {
+            "description": "Líneas selladas que se agruparon bajo este RUT.",
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "obligation_amount": {
+            "description": "Obligación sellada del trabajador en el período, sumando sus líneas.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Obligation Amount",
+            "type": "string"
+          },
+          "outstanding_amount": {
+            "description": "`obligation_amount` menos `confirmed_paid_amount`.",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Outstanding Amount",
+            "type": "string"
+          },
+          "state": {
+            "description": "`unallocated` (la evidencia no confirma ningún pago), `partially_confirmed` o `confirmed_paid` (la evidencia cubre la obligación completa).",
+            "title": "State",
+            "type": "string"
+          },
+          "worker_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nombre tal como lo selló el origen.",
+            "title": "Worker Name"
+          },
+          "worker_rut": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RUT tal como lo trae la obligación sellada. `None` cuando el origen selló la línea sin RUT: esa línea no se le puede atribuir a nadie y el período lo declara en `abstention_reasons` con `obligation_lines_without_worker`.",
+            "title": "Worker Rut"
+          }
+        },
+        "required": [
+          "obligation_amount",
+          "confirmed_paid_amount",
+          "outstanding_amount",
+          "line_count",
+          "state"
+        ],
+        "title": "PayrollWorkerOutstandingWorker",
+        "type": "object"
+      },
       "PayrollWorkersResponse": {
         "properties": {
           "period": {
@@ -53207,7 +53519,7 @@
     },
     "/api/admin/treasury/payroll-worker-outstanding/{period}": {
       "get": {
-        "description": "Saldo por trabajador del período según el ledger D14 (#422).\n\nUn trabajador aparece `confirmed_paid` sólo cuando una asignación individual colgada de un\npago confirmado cubre su obligación sellada. Un lote asignado al snapshot y no repartido\nbaja lo que se debe en total y no alcanza para nombrar a nadie: el período lo declara en\n`abstention_reasons` junto con `distribution_gap_amount`.\n\nLas cifras legadas (`legacy_*`) viajan al lado, cada una etiquetada por lo que la respalda,\npara que un pago asumido no se lea como uno observado. A diferencia de\n`GET /treasury/payroll-settlements/{period}`, esta lectura no hace `seed` ni escribe nada,\ny no exige una sola sociedad legal: las tablas de evidencia de 0173 son tenant-wide.",
+        "description": "Saldo por trabajador del período según el ledger D14 (#422).\n\nUn trabajador aparece `confirmed_paid` sólo cuando una asignación individual colgada de un\npago confirmado cubre su obligación sellada. Un lote asignado al snapshot y no repartido\nbaja lo que se debe en total y no alcanza para nombrar a nadie: el período lo declara en\n`abstention_reasons` junto con `distribution_gap_amount`.\n\nLas cifras legadas (`legacy_*`) viajan al lado, cada una etiquetada por lo que la respalda,\npara que un pago asumido no se lea como uno observado. A diferencia de\n`GET /treasury/payroll-settlements/{period}`, esta lectura no hace `seed` ni escribe nada,\ny no exige una sola sociedad legal: las tablas de evidencia de 0173 son tenant-wide.\n\nLa respuesta está TIPADA (`PayrollWorkerOutstandingResponse`): antes salía al OpenAPI como\nun objeto abierto y la pantalla no tenía con qué consumirla sin inventarse la forma.",
         "operationId": "admin_payroll_worker_outstanding",
         "parameters": [
           {
@@ -53245,9 +53557,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Admin Payroll Worker Outstanding",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PayrollWorkerOutstandingResponse"
                 }
               }
             },
