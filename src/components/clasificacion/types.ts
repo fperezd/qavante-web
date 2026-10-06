@@ -26,11 +26,16 @@ export interface CanonicalCategoryOption {
 /** Nodo de árbol de categorías de gestión (subset de §10.2 para el selector). */
 export interface ManagementAccountOption {
   id: string;
+  /** `code` del backend — se MUESTRA junto al nombre: dos cuentas pueden llamarse parecido y el
+   *  código es lo que el contador reconoce. */
+  code?: string;
   /** `display_name || name`. */
   displayName: string;
   /** Profundidad en el árbol (0 = raíz). Solo para indentar visualmente. */
   level: number;
-  /** `false` ⇒ no seleccionable (categoría inactiva). Default seleccionable. */
+  /** `true` ⇒ el nodo AGRUPA a otras cuentas (tiene hijas) y no admite imputación. */
+  grouping?: boolean;
+  /** `false` ⇒ no seleccionable (cuenta inactiva o agrupadora). Default seleccionable. */
   selectable?: boolean;
 }
 

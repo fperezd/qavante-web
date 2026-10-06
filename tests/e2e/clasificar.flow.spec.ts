@@ -23,6 +23,16 @@ test.describe("Flujo: clasificar desde la Bandeja V07", () => {
     await expect(page.getByLabel("Tipo de movimiento")).toBeVisible();
     await expect(page.getByLabel("Cuenta de gestión")).toBeVisible();
     await expect(page.getByRole("button", { name: /Guardar/ })).toBeVisible();
+
+    /* B21 — la cuenta se ofrece CON su código, que es lo que el contador reconoce, y las que
+       agrupan a otras no se pueden elegir: imputar a "Costos directos" no es imputar a nada. */
+    const cuenta = page.getByLabel("Cuenta de gestión");
+    await expect(cuenta.locator("option", { hasText: "Software y servicios" })).toHaveText(
+      /costos\.servicios · Software y servicios/,
+    );
+    const agrupadora = cuenta.locator("option", { hasText: "Costos operacionales" }).first();
+    await expect(agrupadora).toHaveText(/agrupa a otras cuentas/);
+    await expect(agrupadora).toBeDisabled();
   });
 
   test("elige tipo y cuenta, guarda y avanza sin ofrecer un Deshacer falso", async ({
@@ -32,7 +42,9 @@ test.describe("Flujo: clasificar desde la Bandeja V07", () => {
     await abrirClasificacion(page, context);
 
     await page.getByLabel("Tipo de movimiento").selectOption({ label: "Pago a proveedor" });
-    await page.getByLabel("Cuenta de gestión").selectOption({ label: "Software y servicios" });
+    await page
+      .getByLabel("Cuenta de gestión")
+      .selectOption({ label: "costos.servicios · Software y servicios" });
     await page.getByRole("button", { name: /Guardar/ }).click();
 
     await expect(page.getByText(/Clasificado como Software y servicios/).first()).toBeVisible();
@@ -60,7 +72,9 @@ test.describe("Flujo: clasificar desde la Bandeja V07", () => {
     await expect(page.getByText(/Hay 2 más de .*TRANSFERENCIA PROVEEDOR ACME SPA/)).toBeVisible();
     await page.getByRole("button", { name: /Revisar los 3 seguidos/ }).click();
     await page.getByLabel("Tipo de movimiento").selectOption({ label: "Pago a proveedor" });
-    await page.getByLabel("Cuenta de gestión").selectOption({ label: "Software y servicios" });
+    await page
+      .getByLabel("Cuenta de gestión")
+      .selectOption({ label: "costos.servicios · Software y servicios" });
     await page.getByRole("button", { name: "Clasificar 3 de una vez" }).click();
 
     const confirmation = page.getByRole("alert").filter({

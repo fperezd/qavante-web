@@ -25,6 +25,7 @@ export const HOY = new Date("2026-08-30T12:00:00Z");
 export const RUT_KAUFMANN = "96572360-9";
 export const RUT_VOLCAN = "81201000-K";
 export const RUT_ANDINA = "79876543-2";
+export const RUT_SUR = "76543210-5";
 export const RUT_DATTATEC = "76888888-8";
 export const RUT_ENTEL = "92580000-7";
 
@@ -36,6 +37,8 @@ export const MOV_TERCEROS = "mov-terceros";
 export const MOV_ENTEL_1 = "mov-entel-1";
 export const MOV_ENTEL_2 = "mov-entel-2";
 export const MOV_ENTEL_3 = "mov-entel-3";
+export const MOV_CARGO_PARCIAL = "mov-cargo-parcial";
+export const MOV_CARGO_EXCESO = "mov-cargo-exceso";
 
 export const CUENTA_SOFTWARE = "acc-software";
 export const CUENTA_ARRIENDO = "acc-arriendo";
@@ -142,6 +145,98 @@ export function candidatosExcede(): DocumentSuggestionsResponse {
           message: "El movimiento supera en $380.000 el saldo del documento.",
           retryable: false,
         },
+        reasons: ["rut", "folio"],
+      },
+    ],
+  };
+}
+
+/**
+ * B12 — UN CARGO CONTRA UNA FACTURA DE PROVEEDOR. `document_kind: "payable"` ⇒ la plata SALE.
+ *
+ * Existe para que los verbos de la carta se puedan probar en las DOS direcciones: con sólo
+ * `receivable` en las fixtures, una copia con verbos fijos pasaba todos los tests. Dos casos:
+ * `MOV_CARGO_PARCIAL` paga de menos (queda saldo POR PAGAR) y `MOV_CARGO_EXCESO` paga de más
+ * (SALIÓ más que el documento).
+ */
+export function colaConciliarCargos(): ReviewQueueResponse {
+  const items = [
+    {
+      movement_id: MOV_CARGO_PARCIAL,
+      date: "2026-08-20",
+      amount: "1000000",
+      currency_code: "CLP",
+      description: `PAGO PROVEEDOR SUMINISTROS DEL SUR ${RUT_SUR} FAC 900`,
+      suggestion: {
+        document_kind: "payable",
+        document_id: "doc-900",
+        name: "Suministros del Sur Ltda.",
+        score: "70",
+        document_count: 1,
+        bulk_eligible: false,
+        can_confirm: false,
+        topology: "1:1",
+      },
+    },
+    {
+      movement_id: MOV_CARGO_EXCESO,
+      date: "2026-08-21",
+      amount: "1183801",
+      currency_code: "CLP",
+      description: `PAGO PROVEEDOR SUMINISTROS DEL SUR ${RUT_SUR} FAC 901`,
+      suggestion: {
+        document_kind: "payable",
+        document_id: "doc-901",
+        name: "Suministros del Sur Ltda.",
+        score: "70",
+        document_count: 1,
+        bulk_eligible: false,
+        can_confirm: false,
+        topology: "1:1",
+      },
+    },
+  ];
+  return { items, count: items.length };
+}
+
+/** El documento del cargo parcial: $1.005.171 de los que se pagaron $1.000.000. */
+export function candidatosCargoParcial(): DocumentSuggestionsResponse {
+  return {
+    movement_id: MOV_CARGO_PARCIAL,
+    suggestions: [
+      {
+        document_id: "doc-900",
+        kind: "payable",
+        document_type: 33,
+        folio: "900",
+        rut: RUT_SUR,
+        name: "Suministros del Sur Ltda.",
+        amount: "1005171",
+        date: "2026-08-18",
+        score: 70,
+        confirmable: true,
+        reasons: ["rut", "folio"],
+      },
+    ],
+  };
+}
+
+/** El documento del cargo con exceso: $1.000.000 contra un pago de $1.183.801. */
+export function candidatosCargoExceso(): DocumentSuggestionsResponse {
+  return {
+    movement_id: MOV_CARGO_EXCESO,
+    suggestions: [
+      {
+        document_id: "doc-901",
+        kind: "payable",
+        document_type: 33,
+        folio: "901",
+        rut: RUT_SUR,
+        name: "Suministros del Sur Ltda.",
+        amount: "1000000",
+        date: "2026-08-19",
+        score: 70,
+        confirmable: true,
         reasons: ["rut", "folio"],
       },
     ],

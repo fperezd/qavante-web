@@ -132,7 +132,11 @@ export function fallbackUserMessage(status: number, code?: string): string {
     case 429:
       return "Hiciste muchas operaciones seguidas. Espera un momento.";
     case 503:
-      return "Qavante está en mantenimiento. Volvemos pronto.";
+      /* B19 — "Qavante está en mantenimiento. Volvemos pronto." afirmaba una causa que la pantalla
+         NO observó: el 503 que el QA de producción vio era el de la proyección de caja, con el
+         servicio entero arriba. Sin un `code` que el backend explique, lo honesto es decir que ese
+         cálculo no se pudo completar y no prometer una ventana de vuelta. */
+      return "Este cálculo no se pudo completar ahora. Intenta nuevamente en unos minutos.";
     default:
       return status >= 500
         ? SIMPLE_MESSAGES.service_unavailable

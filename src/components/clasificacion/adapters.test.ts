@@ -67,6 +67,32 @@ describe("flattenManagementAccounts", () => {
   it("árbol vacío ⇒ []", () => {
     expect(flattenManagementAccounts([])).toEqual([]);
   });
+
+  /* B21 — GEMELO DEL MUTANTE (c): si el selector vuelve a ofrecer agrupadoras, este test cae.
+     "Ingresos" agrupa a "Ventas": sumar no es imputar, y el movimiento va en la hoja. */
+  it("un nodo CON hijas agrupa: no es seleccionable, y lo dice con `grouping`", () => {
+    const out = flattenManagementAccounts([
+      node({ id: "ingresos", name: "Ingresos", children: [node({ id: "ventas", level: 1 })] }),
+    ]);
+    const ingresos = out.find((o) => o.id === "ingresos");
+    const ventas = out.find((o) => o.id === "ventas");
+    expect(ingresos?.grouping).toBe(true);
+    expect(ingresos?.selectable).toBe(false);
+    expect(ventas?.grouping).toBe(false);
+    expect(ventas?.selectable).toBe(true);
+  });
+
+  it("una agrupadora inactiva sigue sin ser seleccionable (los dos motivos se acumulan)", () => {
+    const out = flattenManagementAccounts([
+      node({ id: "raiz", active: false, children: [node({ id: "hija", level: 1 })] }),
+    ]);
+    expect(out.find((o) => o.id === "raiz")?.selectable).toBe(false);
+  });
+
+  it("publica el `code` del backend para poder mostrarlo junto al nombre", () => {
+    const out = flattenManagementAccounts([node({ id: "x", code: "4.1.01", name: "Ventas" })]);
+    expect(out[0]?.code).toBe("4.1.01");
+  });
 });
 
 function meta(p: Partial<CanonicalCategoryMeta> & { code: string }): CanonicalCategoryMeta {

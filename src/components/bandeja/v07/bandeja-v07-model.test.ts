@@ -32,6 +32,9 @@ import {
   nombreEnGlosa,
   normalizarRut,
   parcialidad,
+  rumboPendiente,
+  verboDireccion,
+  verboDireccionPlural,
   primerRutEnTexto,
   progreso,
   rutEnGlosa,
@@ -845,5 +848,32 @@ describe("bitácora de auto-clasificación (Ley 5)", () => {
     expect(interpretarDeshacer(revert({ result: "algo_no_documentado" }))).toEqual({
       tipo: "no-reconocido",
     });
+  });
+});
+
+/* B12 — los verbos van segun la direccion del movimiento.
+   GEMELO DEL MUTANTE (a): si los verbos vuelven a ser fijos, el caso `debit` cae acá; y si el
+   abono empieza a decir "Salió", cae el caso `credit`. Ninguno de los dos se puede matar sin
+   romper al otro. */
+describe("verbos de dirección (B12)", () => {
+  it("un abono ENTRA y deja saldo por cobrar; un cargo SALE y deja saldo por pagar", () => {
+    expect(verboDireccion("credit")).toBe("Entró");
+    expect(verboDireccion("debit")).toBe("Salió");
+    expect(verboDireccionPlural("credit")).toBe("entraron");
+    expect(verboDireccionPlural("debit")).toBe("salieron");
+    expect(rumboPendiente("credit")).toBe("por cobrar");
+    expect(rumboPendiente("debit")).toBe("por pagar");
+  });
+
+  it("los dos sentidos dicen cosas DISTINTAS (un verbo fijo no puede pasar este test)", () => {
+    expect(verboDireccion("credit")).not.toBe(verboDireccion("debit"));
+    expect(verboDireccionPlural("credit")).not.toBe(verboDireccionPlural("debit"));
+    expect(rumboPendiente("credit")).not.toBe(rumboPendiente("debit"));
+  });
+
+  it("sin dirección no se afirma un sentido: no hay verbo y el saldo queda 'pendiente'", () => {
+    expect(verboDireccion(null)).toBeNull();
+    expect(verboDireccionPlural(null)).toBeNull();
+    expect(rumboPendiente(null)).toBe("pendiente");
   });
 });

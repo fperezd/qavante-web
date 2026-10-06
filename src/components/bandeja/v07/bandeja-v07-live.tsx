@@ -220,17 +220,36 @@ export function BandejaV07Live({
      ids, cuenta o nota, cambia el fingerprint y por tanto nace una intención nueva. */
   const llavesLote = React.useRef(new Map<string, string>());
 
-  const cuentas: OpcionCuentaV07[] = React.useMemo(() => {
+  /* B21 — una cuenta que AGRUPA a otras no admite imputación. El árbol del backend lo dice con su
+     propia jerarquía: todo id que aparece como `parentId` de alguien tiene hijas. No se inventa un
+     criterio nuevo, se lee el que publica `GET /api/management/accounts/tree`. */
+  const opcionesCuenta = React.useMemo(() => {
     const filas = toManagementAccountTreeRows(arbol.data?.items ?? []);
-    return filas.map((f) => ({ id: f.id, nombre: f.name, seleccionable: f.active }));
+    const conHijas = new Set(filas.map((f) => f.parentId).filter((x): x is string => Boolean(x)));
+    return filas.map((f) => {
+      const agrupadora = conHijas.has(f.id);
+      return {
+        fila: f,
+        opcion: {
+          id: f.id,
+          nombre: f.name,
+          codigo: f.code,
+          agrupadora,
+          seleccionable: f.active && !agrupadora,
+        } satisfies OpcionCuentaV07,
+      };
+    });
   }, [arbol.data]);
 
-  const cuentasPorCodigo = React.useMemo(() => {
-    const filas = toManagementAccountTreeRows(arbol.data?.items ?? []);
-    return new Map(
-      filas.map((f) => [f.code, { id: f.id, nombre: f.name, seleccionable: f.active }] as const),
-    );
-  }, [arbol.data]);
+  const cuentas: OpcionCuentaV07[] = React.useMemo(
+    () => opcionesCuenta.map((o) => o.opcion),
+    [opcionesCuenta],
+  );
+
+  const cuentasPorCodigo = React.useMemo(
+    () => new Map(opcionesCuenta.map((o) => [o.fila.code, o.opcion] as const)),
+    [opcionesCuenta],
+  );
 
   const itemsC = React.useMemo(
     () => (review.isError ? null : itemsConciliar(review.data)),

@@ -36,6 +36,7 @@ import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { ClassificationDrawer, type ClassificationDraft } from "./classification-drawer";
 import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
+import { categoriasParaDireccion } from "./canonical-direction";
 import { ClasificadosStats } from "./clasificados-stats";
 import { buildAccountsLookup, buildCategoriesLookup } from "./build-clasificados-stats";
 
@@ -217,9 +218,18 @@ export function ClasificadosView() {
     return map;
   }, [categoryItems]);
 
+  /* B26 — LA DIRECCION MANDA TAMBIEN ACA.
+     Reclasificar ofrecia la lista completa de tipos: para un CARGO se podia elegir "Cobro de
+     cliente" y guardarlo. La Bandeja ya filtraba por direccion; esta pantalla no, y las dos
+     escriben en el mismo `classify`. Ahora las dos leen `categoriasParaDireccion`, que filtra con
+     `allowed_for_bank_movement` y `expected_direction` tal como los publica el backend. Depende
+     del movimiento que se esta reclasificando, por eso se calcula desde `reclasifyTarget`. */
   const canonicalOptions = React.useMemo(
-    () => toCanonicalCategoryOptions(categoryItems),
-    [categoryItems],
+    () =>
+      toCanonicalCategoryOptions(
+        categoriasParaDireccion(categoryItems, reclasifyTarget?.direction ?? null),
+      ),
+    [categoryItems, reclasifyTarget?.direction],
   );
   const accountOptions = React.useMemo(
     () => flattenManagementAccounts(accountsQuery.data?.items ?? []),
@@ -530,14 +540,17 @@ export function ClasificadosView() {
                             currencyMap.get(m.bank_account_id),
                           )}
                         </td>
-                        <td className="py-2 text-right">
+                        {/* B27 — la columna se encogia y el boton salia cortado como "Reclasifi".
+                            `w-px` + `whitespace-nowrap` la dejan del ancho de su contenido. */}
+                        <td className="w-px py-2 text-right whitespace-nowrap">
                           <QavanteButton
                             size="sm"
                             variant="ghost"
+                            className="whitespace-nowrap"
                             onClick={() => setReclasifyTarget(m)}
                             aria-label={`Reclasificar movimiento ${m.description}`}
                           >
-                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                             <span className="sr-only sm:not-sr-only">Reclasificar</span>
                           </QavanteButton>
                         </td>

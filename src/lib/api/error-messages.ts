@@ -24,7 +24,9 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
     );
   }
   if (err.code === "oauth_state_mismatch" || err.code === "oauth_exchange_failed") {
-    return err.message || "No pudimos completar el login con Google o Microsoft. Vuelve a intentarlo.";
+    return (
+      err.message || "No pudimos completar el login con Google o Microsoft. Vuelve a intentarlo."
+    );
   }
   if (err.code === "oauth_not_configured") {
     return "Login con Google o Microsoft no está disponible en este ambiente.";
@@ -125,6 +127,26 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
      mapeado como respaldo, con copy que dice la verdad de la situación en vez de "no disponible". */
   if (err.code === "tenant_wide_classification_rules_unavailable") {
     return "Las reglas de clasificación son de cada sociedad. Elige una Empresa en el encabezado para ver y aplicar las suyas.";
+  }
+
+  /* B19 — EL 503 QUE SÍ TIENE NOMBRE.
+     `POST /api/treasury/cash-projection-runs` publica en su 503 el código
+     `cash_projection_snapshot_unavailable` (contrato vigente, `CashProjectionErrorResponse`), y el
+     front lo colapsaba al genérico de CUALQUIER 503. El usuario veía "Qavante está en
+     mantenimiento" cuando Qavante estaba arriba y lo que faltaba era el insumo del cálculo.
+
+     Medido en producción el 2026-10-05: las diez tablas del V14 están en cero filas, así que el
+     503 es permanente hasta que el productor corra — reintentar no lo arregla, y el texto no manda
+     a reintentar.
+
+     El mensaje nombra el cálculo y la acción; NO inventa cuál insumo falta. qavante-api#1114 va a
+     publicar `detail.missing_input`, `detail.scope` y `detail.message` en español distinguiendo
+     cuatro causas: verificado contra `src/lib/api/types.ts` el 2026-10-06, ESOS CAMPOS TODAVÍA NO
+     ESTÁN en el contrato (`CashProjectionErrorDetail` sólo trae `code`). Cuando aterricen, esta
+     rama rinde `detail.message` del backend en vez de este texto — el front no escribe su propia
+     glosa de una causa que el backend ya explica (Regla 9). */
+  if (err.code === "cash_projection_snapshot_unavailable") {
+    return "No pudimos calcular la proyección de caja: todavía no hay una generación acreditada de los datos que la alimentan. Las demás pantallas siguen funcionando; avísale a soporte si lo ves por más de un día.";
   }
 
   if (context === "login" && err.status === 401) {

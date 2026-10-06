@@ -14,11 +14,16 @@ import {
   MOV_ENTEL_1,
   MOV_ENTEL_2,
   MOV_ENTEL_3,
+  MOV_CARGO_PARCIAL,
+  MOV_CARGO_EXCESO,
   MOV_KAUFMANN,
   MOV_TERCEROS,
   MOV_VOLCAN,
+  candidatosCargoExceso,
+  candidatosCargoParcial,
   candidatosKaufmann,
   candidatosVolcan,
+  colaConciliarCargos,
   categoriasCanonicas,
   clasificados,
   colaConciliar,
@@ -191,10 +196,14 @@ describe("BandejaV07View — carta de conciliar CON evidencia (Kaufmann)", () =>
     ]);
   });
 
-  it("la línea de diferencia dice que calza exacto y cuándo es el documento", () => {
-    expect(texto(html())).toContain(
-      "El monto calza exacto con el documento. El documento es de hace 25 días.",
-    );
+  /* B14 — la línea de diferencia ya NO agrega "El documento es de hace N días": convivía con el
+     chip "a N días del documento" y eran dos relojes distintos en la misma tarjeta. La fecha del
+     documento sigue completa en el bloque "Candidato". */
+  it("la línea de diferencia dice que calza exacto, sin un segundo reloj al lado", () => {
+    const t = texto(html());
+    expect(t).toContain("El monto calza exacto con el documento.");
+    expect(t).not.toContain("El documento es de hace");
+    expect(t).toContain("5 ago 2026");
   });
 
   it("con sugerencia, el primario es 'Sí, conciliar' con su atajo Enter", () => {
@@ -608,5 +617,83 @@ describe("BandejaV07View — moneda del movimiento (B04)", () => {
     );
     expect(t).toContain("moneda no informada");
     expect(t).not.toContain("$5.344");
+  });
+});
+
+/* ── B12 · los verbos van segun la direccion del movimiento ───────────────────────────────────
+ *
+ * GEMELO DEL MUTANTE (a). Los dos bloques de abajo usan la MISMA aserción sobre la MISMA línea de
+ * la tarjeta, con un abono y con un cargo. Si los verbos vuelven a ser fijos —da igual cuáles—
+ * uno de los dos cae: "Entró"/"por cobrar" sobre un cargo de proveedor, o "Salió"/"por pagar"
+ * sobre un abono de cliente. No hay copia fija que pase los dos.
+ *
+ * Importa porque es la mayoría: de los 755 movimientos de Tooxs medidos en producción el
+ * 2026-10-05, 522 son cargos.
+ */
+describe("BandejaV07View — B12, verbos segun la direccion", () => {
+  const cargos = () => itemsConciliar(colaConciliarCargos());
+
+  function cargoParcial(): Partial<Props> {
+    return {
+      conciliar: cargos().filter((i) => i.id === MOV_CARGO_PARCIAL),
+      candidatos: {
+        movimientoId: MOV_CARGO_PARCIAL,
+        lista: adaptarCandidatos(candidatosCargoParcial()),
+        cargando: false,
+      },
+    };
+  }
+
+  function cargoExceso(): Partial<Props> {
+    return {
+      conciliar: cargos().filter((i) => i.id === MOV_CARGO_EXCESO),
+      candidatos: {
+        movimientoId: MOV_CARGO_EXCESO,
+        lista: adaptarCandidatos(candidatosCargoExceso()),
+        cargando: false,
+      },
+    };
+  }
+
+  it("un CARGO parcial deja saldo POR PAGAR, y la plata SALIÓ", () => {
+    const t = texto(html(cargoParcial()));
+    expect(t).toContain(
+      "Pago parcial: salieron $1.000.000 de $1.005.171; quedan $5.171 por pagar.",
+    );
+    expect(t).not.toContain("por cobrar");
+    expect(t).not.toContain("entraron");
+  });
+
+  it("un ABONO parcial deja saldo POR COBRAR, y la plata ENTRÓ (el gemelo del anterior)", () => {
+    const t = texto(
+      html({
+        conciliar: CONCILIAR().filter((i) => i.id === MOV_VOLCAN),
+        candidatos: {
+          movimientoId: MOV_VOLCAN,
+          lista: adaptarCandidatos(candidatosVolcan()),
+          cargando: false,
+        },
+      }),
+    );
+    expect(t).toContain(
+      "Pago parcial: entraron $1.033.076 de $1.063.341; quedan $30.265 por cobrar.",
+    );
+    expect(t).not.toContain("por pagar");
+    expect(t).not.toContain("salieron");
+  });
+
+  it("un CARGO de más dice SALIÓ, no 'Entró' (el caso literal del QA: $183.801)", () => {
+    const t = texto(html(cargoExceso()));
+    expect(t).toContain("Salió $183.801 más que el documento");
+    expect(t).not.toContain("Entró $183.801");
+  });
+
+  /* B14 — UNA sola referencia temporal por tarjeta. La línea de diferencia ya no agrega "El
+     documento es de hace N días" al lado del chip "a N días del documento": medían cosas
+     distintas y se leían como contradicción. La fecha del documento sigue entera en "Candidato". */
+  it("B14 — la tarjeta no repite el tiempo: la fecha del documento va una sola vez y completa", () => {
+    const t = texto(html(cargoParcial()));
+    expect(t).not.toContain("El documento es de hace");
+    expect(t).toContain("18 ago 2026");
   });
 });

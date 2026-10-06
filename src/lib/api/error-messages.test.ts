@@ -198,10 +198,25 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
   });
 
-  it("503 mantenimiento → 'Qavante está en mantenimiento'", () => {
-    expect(apiErrorToUserMessage(new ApiError("maintenance", 503))).toBe(
-      "Qavante está en mantenimiento. Volvemos pronto.",
+  /* B19 — GEMELO DEL MUTANTE (d): si el 503 vuelve a ser genérico para TODO código, cae el
+     primero; si el genérico se reemplaza por el texto específico de la proyección, cae el
+     segundo. Los dos sobre el MISMO status. */
+  it("503 con el código que el backend SÍ explica → nombra el cálculo que falló", () => {
+    const out = apiErrorToUserMessage(
+      new ApiError("snapshot unavailable", 503, "cash_projection_snapshot_unavailable"),
     );
+    expect(out).toContain("proyección de caja");
+    expect(out).not.toContain("mantenimiento");
+    expect(out).not.toMatch(/snapshot/i);
+  });
+
+  it("503 sin código reconocido → genérico, y ya no afirma una causa que no observamos", () => {
+    const out = apiErrorToUserMessage(new ApiError("maintenance", 503));
+    expect(out).toBe(
+      "Este cálculo no se pudo completar ahora. Intenta nuevamente en unos minutos.",
+    );
+    expect(out).not.toContain("proyección de caja");
+    expect(out).not.toContain("mantenimiento");
   });
 
   it("5xx sin detalle útil (Internal Server Error) → genérico 'no pudimos cargar'", () => {

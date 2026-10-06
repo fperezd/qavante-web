@@ -560,6 +560,40 @@ export function motivosNoAutomatico(item: ItemConciliarV07, cand: CandidatoV07 |
   return out;
 }
 
+/**
+ * B12 — EL VERBO VA SEGUN LA DIRECCION DEL MOVIMIENTO.
+ *
+ * La carta de conciliar decia "Entró $183.801 más que el documento" y "quedan $5.171 por cobrar"
+ * sobre facturas de PROVEEDORES, donde la plata SALE y lo que queda es por PAGAR. No era un caso
+ * borde: de los 755 movimientos de Tooxs medidos el 2026-10-05, 522 son cargos.
+ *
+ * `direccion` viene del contrato (`suggestion.document_kind` → `receivable`/`payable`). Cuando es
+ * `null` la cola no dijo si entra o sale plata, y acá NO se adivina: se devuelve `null` y la
+ * pantalla arma la frase sin verbo de direccion.
+ */
+export function verboDireccion(d: DireccionV07 | null): "Entró" | "Salió" | null {
+  if (d === "credit") return "Entró";
+  if (d === "debit") return "Salió";
+  return null;
+}
+
+/** Igual que `verboDireccion`, en plural, para "entraron X de Y". */
+export function verboDireccionPlural(d: DireccionV07 | null): "entraron" | "salieron" | null {
+  if (d === "credit") return "entraron";
+  if (d === "debit") return "salieron";
+  return null;
+}
+
+/**
+ * Lo que falta del documento, nombrado segun quien le debe a quien: un abono deja saldo POR
+ * COBRAR, un cargo deja saldo POR PAGAR. Sin direccion, "pendiente" — que no afirma un sentido.
+ */
+export function rumboPendiente(d: DireccionV07 | null): "por cobrar" | "por pagar" | "pendiente" {
+  if (d === "credit") return "por cobrar";
+  if (d === "debit") return "por pagar";
+  return "pendiente";
+}
+
 export type ParcialidadV07 =
   | { tipo: "sin-candidato" }
   | { tipo: "sin-monto" }
@@ -582,7 +616,11 @@ export function parcialidad(item: ItemConciliarV07, cand: CandidatoV07 | null): 
 export interface OpcionCuentaV07 {
   id: string;
   nombre: string;
-  /** `false` ⇒ se muestra pero no se puede elegir (cuenta desactivada). */
+  /** `code` del catálogo. Se MUESTRA: es lo que el contador reconoce. */
+  codigo?: string;
+  /** `true` ⇒ el nodo agrupa a otras cuentas y no admite imputación (B21). */
+  agrupadora?: boolean;
+  /** `false` ⇒ se muestra pero no se puede elegir (cuenta desactivada o agrupadora). */
   seleccionable: boolean;
 }
 

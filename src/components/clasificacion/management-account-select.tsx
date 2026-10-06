@@ -34,7 +34,7 @@ export function ManagementAccountSelect({
 }: ManagementAccountSelectProps) {
   const [query, setQuery] = React.useState("");
   const filtered = React.useMemo(
-    () => filterByQuery(items, query, ["displayName"]),
+    () => filterByQuery(items, query, ["displayName", "code"]),
     [items, query],
   );
 
@@ -74,8 +74,17 @@ export function ManagementAccountSelect({
                       : "border-neutral-light text-neutral-dark hover:bg-brand-primary-50",
                   )}
                 >
+                  {opt.code && (
+                    <span className="mr-2 font-mono text-xs text-neutral-mid tabular-nums">
+                      {opt.code}
+                    </span>
+                  )}
                   {opt.displayName}
-                  {!selectable && <span className="ml-2 text-xs text-neutral-mid">(inactiva)</span>}
+                  {!selectable && (
+                    <span className="ml-2 text-xs text-neutral-mid">
+                      {opt.grouping ? "(agrupa a otras cuentas)" : "(inactiva)"}
+                    </span>
+                  )}
                 </button>
               </li>
             );

@@ -17,7 +17,7 @@ export default function CajaClasificadosPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Movimientos clasificados</h1>
         <p className="mt-1 text-sm text-neutral-mid">
           Auditoría de los movimientos bancarios ya clasificados. Filtra por categoría, dirección o
-          período. Para reclasificar uno, ve a Por clasificar.
+          período. Para cambiar la clasificación de uno, usa Reclasificar en su fila.
         </p>
       </header>
 

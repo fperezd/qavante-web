@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse } from "msw";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { ClasificadosView } from "./clasificados-view";
 
 /* ClasificadosView — vista `/caja/clasificados` (Sprint C2, PR #174 + #176).
@@ -78,107 +79,112 @@ const CANONICAL_CATEGORIES = http.get("*/api/treasury/canonical-categories", () 
   ),
 );
 
+/* El contrato devuelve `{ items: [...] }` (`ManagementAccountTreeResponse`), no un array suelto.
+   La story devolvía el array, así que el selector de cuentas quedaba VACÍO en Storybook y nadie lo
+   notaba: el drawer se veía "bien" porque un selector sin opciones no se ve roto. */
 const ACCOUNTS_TREE_BASIC = http.get("*/api/management/accounts/tree", () =>
   HttpResponse.json(
-    [
-      {
-        id: "acc-ingresos",
-        code: "ingresos",
-        name: "Ingresos",
-        type: "income",
-        parent_id: null,
-        destination: "operational_income_statement",
-        display_name: "Ingresos",
-        description: null,
-        level: 0,
-        path: "ingresos",
-        sort_order: 10,
-        is_system: true,
-        is_visible: true,
-        affects_pulso: true,
-        active: true,
-        created_at: "2026-01-01T00:00:00Z",
-        children: [
-          {
-            id: "acc-ventas",
-            code: "ingresos.ventas",
-            name: "Ventas",
-            type: "income",
-            parent_id: "acc-ingresos",
-            destination: "operational_income_statement",
-            display_name: "Ventas",
-            description: null,
-            level: 1,
-            path: "ingresos/ventas",
-            sort_order: 10,
-            is_system: false,
-            is_visible: true,
-            affects_pulso: true,
-            active: true,
-            created_at: "2026-01-01T00:00:00Z",
-            children: [],
-          },
-        ],
-      },
-      {
-        id: "acc-costos",
-        code: "costos",
-        name: "Costos",
-        type: "expense",
-        parent_id: null,
-        destination: "operational_income_statement",
-        display_name: "Costos",
-        description: null,
-        level: 0,
-        path: "costos",
-        sort_order: 20,
-        is_system: true,
-        is_visible: true,
-        affects_pulso: true,
-        active: true,
-        created_at: "2026-01-01T00:00:00Z",
-        children: [
-          {
-            id: "acc-sueldos",
-            code: "costos.sueldos",
-            name: "Sueldos",
-            type: "expense",
-            parent_id: "acc-costos",
-            destination: "operational_income_statement",
-            display_name: "Sueldos",
-            description: null,
-            level: 1,
-            path: "costos/sueldos",
-            sort_order: 10,
-            is_system: false,
-            is_visible: true,
-            affects_pulso: true,
-            active: true,
-            created_at: "2026-01-01T00:00:00Z",
-            children: [],
-          },
-          {
-            id: "acc-servicios",
-            code: "costos.servicios",
-            name: "Servicios",
-            type: "expense",
-            parent_id: "acc-costos",
-            destination: "operational_income_statement",
-            display_name: "Servicios",
-            description: null,
-            level: 1,
-            path: "costos/servicios",
-            sort_order: 20,
-            is_system: false,
-            is_visible: true,
-            affects_pulso: true,
-            active: true,
-            created_at: "2026-01-01T00:00:00Z",
-            children: [],
-          },
-        ],
-      },
-    ],
+    {
+      items: [
+        {
+          id: "acc-ingresos",
+          code: "ingresos",
+          name: "Ingresos",
+          type: "income",
+          parent_id: null,
+          destination: "operational_income_statement",
+          display_name: "Ingresos",
+          description: null,
+          level: 0,
+          path: "ingresos",
+          sort_order: 10,
+          is_system: true,
+          is_visible: true,
+          affects_pulso: true,
+          active: true,
+          created_at: "2026-01-01T00:00:00Z",
+          children: [
+            {
+              id: "acc-ventas",
+              code: "ingresos.ventas",
+              name: "Ventas",
+              type: "income",
+              parent_id: "acc-ingresos",
+              destination: "operational_income_statement",
+              display_name: "Ventas",
+              description: null,
+              level: 1,
+              path: "ingresos/ventas",
+              sort_order: 10,
+              is_system: false,
+              is_visible: true,
+              affects_pulso: true,
+              active: true,
+              created_at: "2026-01-01T00:00:00Z",
+              children: [],
+            },
+          ],
+        },
+        {
+          id: "acc-costos",
+          code: "costos",
+          name: "Costos",
+          type: "expense",
+          parent_id: null,
+          destination: "operational_income_statement",
+          display_name: "Costos",
+          description: null,
+          level: 0,
+          path: "costos",
+          sort_order: 20,
+          is_system: true,
+          is_visible: true,
+          affects_pulso: true,
+          active: true,
+          created_at: "2026-01-01T00:00:00Z",
+          children: [
+            {
+              id: "acc-sueldos",
+              code: "costos.sueldos",
+              name: "Sueldos",
+              type: "expense",
+              parent_id: "acc-costos",
+              destination: "operational_income_statement",
+              display_name: "Sueldos",
+              description: null,
+              level: 1,
+              path: "costos/sueldos",
+              sort_order: 10,
+              is_system: false,
+              is_visible: true,
+              affects_pulso: true,
+              active: true,
+              created_at: "2026-01-01T00:00:00Z",
+              children: [],
+            },
+            {
+              id: "acc-servicios",
+              code: "costos.servicios",
+              name: "Servicios",
+              type: "expense",
+              parent_id: "acc-costos",
+              destination: "operational_income_statement",
+              display_name: "Servicios",
+              description: null,
+              level: 1,
+              path: "costos/servicios",
+              sort_order: 20,
+              is_system: false,
+              is_visible: true,
+              affects_pulso: true,
+              active: true,
+              created_at: "2026-01-01T00:00:00Z",
+              children: [],
+            },
+          ],
+        },
+      ],
+    },
     { status: 200 },
   ),
 );
@@ -286,5 +292,62 @@ export const SinMovimientos: Story = {
     msw: {
       handlers: [CANONICAL_CATEGORIES, ACCOUNTS_TREE_BASIC, EMPTY_MOVEMENTS],
     },
+  },
+};
+
+/* ── B26 + B21 · reclasificar no puede ofrecer lo que no corresponde ──────────────────────────
+ *
+ * GEMELO DEL MUTANTE (b): las dos stories de abajo abren el MISMO drawer, una sobre un CARGO
+ * (sueldo) y otra sobre un ABONO (cobro de cliente), y cada una exige que el tipo del OTRO
+ * sentido no esté. Si el filtro por dirección se invierte, o se saca, cae una de las dos.
+ *
+ * GEMELO DEL MUTANTE (c): el selector de cuentas lista "Ventas" y "Sueldos" (hojas) pero no deja
+ * elegir "Ingresos" ni "Costos directos", que agrupan. Si el selector vuelve a ofrecer
+ * agrupadoras, `toBeDisabled` cae.
+ */
+export const ReclasificarUnCargo: Story = {
+  name: "B26 · reclasificar un CARGO no ofrece tipos de entrada",
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const boton = await canvas.findByRole("button", {
+      name: /Reclasificar movimiento SUELDO FERNANDO PEREZ MAYO/,
+    });
+    await userEvent.click(boton);
+
+    const tipos = await canvas.findByRole("list", { name: "Tipos de movimiento" });
+    await waitFor(() => expect(within(tipos).getByText("Sueldos")).toBeInTheDocument());
+    await expect(within(tipos).getByText("Pago a proveedor")).toBeInTheDocument();
+    /* `tax_payment` es `expected_direction: "any"`: sirve en las dos direcciones. */
+    await expect(within(tipos).getByText("Pago de impuestos")).toBeInTheDocument();
+    /* LO QUE NO PUEDE ESTAR: un cargo no es un cobro de cliente. */
+    await expect(within(tipos).queryByText("Cobro de cliente")).toBeNull();
+
+    /* B21 — las cuentas se ofrecen con su código, y las que agrupan no se pueden elegir. */
+    const cuentas = await canvas.findByRole("list", { name: "Categorías de gestión" });
+    await expect(within(cuentas).getByText("costos.sueldos")).toBeInTheDocument();
+    await expect(
+      within(cuentas).getByRole("button", { name: /costos\.sueldos/ }),
+    ).not.toBeDisabled();
+    await expect(within(cuentas).getByRole("button", { name: /^costos Costos/ })).toBeDisabled();
+    /* Las DOS raices del arbol ("Ingresos" y "Costos directos") agrupan, y las dos lo dicen. */
+    await expect(within(cuentas).getAllByText(/agrupa a otras cuentas/)).toHaveLength(2);
+  },
+};
+
+export const ReclasificarUnAbono: Story = {
+  name: "B26 · reclasificar un ABONO no ofrece tipos de salida",
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const boton = await canvas.findByRole("button", {
+      name: /Reclasificar movimiento ABONO CLIENTE X CAPITAL SPA - FACTURA 217576/,
+    });
+    await userEvent.click(boton);
+
+    const tipos = await canvas.findByRole("list", { name: "Tipos de movimiento" });
+    await waitFor(() => expect(within(tipos).getByText("Cobro de cliente")).toBeInTheDocument());
+    await expect(within(tipos).getByText("Pago de impuestos")).toBeInTheDocument();
+    /* LO QUE NO PUEDE ESTAR: un abono no es un pago a proveedor ni un sueldo. */
+    await expect(within(tipos).queryByText("Pago a proveedor")).toBeNull();
+    await expect(within(tipos).queryByText("Sueldos")).toBeNull();
   },
 };

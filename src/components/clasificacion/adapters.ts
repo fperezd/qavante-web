@@ -37,20 +37,37 @@ export function toCanonicalCategoryOptions(
   }));
 }
 
-/** Aplana el árbol (pre-orden DFS) a la lista que consume
- *  `ManagementAccountSelect`. Respeta el `level` del backend para indentar;
- *  `active=false` ⇒ `selectable=false` (se muestra como "(inactiva)"). */
+/**
+ * Aplana el árbol (pre-orden DFS) a la lista que consume `ManagementAccountSelect`. Respeta el
+ * `level` del backend para indentar.
+ *
+ * B21 — SÓLO LAS HOJAS SE PUEDEN IMPUTAR. "Ingresos", "Costos directos", "Cuentas por cobrar" e
+ * "Impuestos" son nodos que AGRUPAN a sus hijas: existen para sumar, no para recibir un
+ * movimiento. El selector las ofrecía igual que a una cuenta hoja, así que se podía imputar un
+ * movimiento a una cuenta que no admite imputación.
+ *
+ * El criterio no se inventa acá: `children` es la jerarquía que publica
+ * `GET /api/management/accounts/tree`. Un nodo CON hijas agrupa; uno sin hijas es imputable. No
+ * hay un `is_postable` en el contrato (verificado contra `ManagementAccountNode` el 2026-10-06),
+ * así que esto LEE la forma del árbol del backend, no deriva una verdad financiera propia.
+ *
+ * `active=false` ⇒ `selectable=false` igual que antes, y `grouping` distingue los dos motivos
+ * para que el texto no diga "(inactiva)" sobre una cuenta que sí está activa.
+ */
 export function flattenManagementAccounts(
   nodes: ManagementAccountNode[],
 ): ManagementAccountOption[] {
   const out: ManagementAccountOption[] = [];
   const walk = (list: ManagementAccountNode[]) => {
     for (const n of list) {
+      const grouping = Boolean(n.children && n.children.length > 0);
       out.push({
         id: n.id,
+        code: n.code,
         displayName: n.display_name || n.name,
         level: n.level,
-        selectable: n.active,
+        grouping,
+        selectable: n.active && !grouping,
       });
       if (n.children && n.children.length > 0) walk(n.children);
     }

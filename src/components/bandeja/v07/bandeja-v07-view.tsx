@@ -26,10 +26,13 @@ import {
   interpretarDeshacer,
   lote,
   textoResuelto,
+  verboDireccion,
+  verboDireccionPlural,
   type MontoMonedaV07,
   parcialidad,
   primerRutEnTexto,
   progreso,
+  rumboPendiente,
   trasResolver,
   trasSaltar,
   type AccionAutoClasificarV07,
@@ -41,6 +44,7 @@ import {
   type SugerenciaCategoriaV07,
   type TabV07,
 } from "./bandeja-v07-model";
+import { categoriasParaDireccion } from "@/components/clasificacion/canonical-direction";
 import type { BankMovement, CanonicalCategoryMeta } from "@/lib/api/treasury";
 import type { RevertActionResponse } from "@/lib/api/reversible-actions";
 
@@ -759,7 +763,7 @@ function CartaConciliar({
         )
       )}
 
-      <LineaDiferencia parte={parte} item={item} candidato={candidato} hoy={hoy} />
+      <LineaDiferencia parte={parte} item={item} candidato={candidato} />
 
       {item.documentos > 1 && (
         <p className="mt-1.5 text-[12.5px] text-rediseno-tinta-2">
@@ -931,29 +935,33 @@ function LineaDiferencia({
   parte,
   item,
   candidato,
-  hoy,
 }: {
   parte: ReturnType<typeof parcialidad>;
   item: ItemConciliarV07;
   candidato: CandidatoV07 | null;
-  hoy: Date;
 }) {
-  const cuando = candidato?.fecha ? formatRelative(candidato.fecha, hoy) : null;
+  /* B12 — los verbos van segun la direccion del movimiento, no fijos. Un cargo contra una factura
+     de proveedor decia "Entró ... más que el documento" y "quedan ... por cobrar": lo contrario de
+     lo que pasó. */
+  const verbo = verboDireccion(item.direccion);
+  const verboPl = verboDireccionPlural(item.direccion);
+  const rumbo = rumboPendiente(item.direccion);
   let texto: React.ReactNode = null;
   if (parte.tipo === "exacta") texto = <>El monto calza exacto con el documento.</>;
   if (parte.tipo === "parcial") {
     texto = (
       <>
-        Pago parcial: entraron {formatMoney(item.monto, item.moneda)} de{" "}
-        {formatMoney(candidato?.monto ?? 0, item.moneda)}; quedan{" "}
-        <b className="tabular-nums">{formatMoney(parte.restante, item.moneda)}</b> por cobrar.
+        Pago parcial: {verboPl ? `${verboPl} ` : "el movimiento cubre "}
+        {formatMoney(item.monto, item.moneda)} de {formatMoney(candidato?.monto ?? 0, item.moneda)};
+        quedan <b className="tabular-nums">{formatMoney(parte.restante, item.moneda)}</b> {rumbo}.
       </>
     );
   }
   if (parte.tipo === "exceso") {
     texto = (
       <>
-        Entró <b className="tabular-nums">{formatMoney(parte.monto, item.moneda)}</b> más que el
+        {verbo ? `${verbo} ` : "Se movió "}
+        <b className="tabular-nums">{formatMoney(parte.monto, item.moneda)}</b> más que el
         documento: revisa si cubre más de una factura.
       </>
     );
@@ -962,12 +970,11 @@ function LineaDiferencia({
     texto = <>El documento no trae monto comparable, así que la diferencia no se puede calcular.</>;
   }
   if (!texto) return null;
-  return (
-    <p className="mt-2 text-[13px] text-rediseno-tinta-2">
-      {texto}
-      {cuando ? ` El documento es de ${cuando}.` : ""}
-    </p>
-  );
+  /* B14 — UNA SOLA referencia temporal por tarjeta. Acá convivía "El documento es de hace 61 días"
+     con el chip "a 23 días del documento", que miden cosas distintas (documento↔hoy y
+     documento↔movimiento) y se leían como contradicción. La fecha del documento sigue entera y sin
+     relativo en el bloque "Candidato", que es donde corresponde. */
+  return <p className="mt-2 text-[13px] text-rediseno-tinta-2">{texto}</p>;
 }
 
 function ListaCandidatos({
@@ -1250,13 +1257,10 @@ function CartaClasificar({
   /* La sugerencia PRE-SELECCIONA (spec: "sugerencia primero si existe regla"), nunca guarda sola. */
   React.useEffect(() => {
     if (valorSugerido?.cuentaId && !item?.cuentaIdActual) setCuentaId(valorSugerido.cuentaId);
-    const tipoCompatible = categoriasCanonicas.some(
-      (c) =>
-        c.code === valorSugerido?.categoriaCanonica &&
-        c.code !== "unknown" &&
-        c.allowed_for_bank_movement &&
-        (c.expected_direction === "any" || c.expected_direction === item?.direccion),
-    );
+    const tipoCompatible = categoriasParaDireccion(
+      categoriasCanonicas,
+      item?.direccion ?? null,
+    ).some((c) => c.code === valorSugerido?.categoriaCanonica);
     if (valorSugerido?.categoriaCanonica && tipoCompatible && !item?.categoriaCanonicaActual) {
       setCategoriaCanonica(valorSugerido.categoriaCanonica);
     }
@@ -1270,14 +1274,11 @@ function CartaClasificar({
     categoriasCanonicas,
   ]);
 
+  /* La regla de direccion vive en UN solo lugar (`categoriasParaDireccion`) para que la Bandeja y
+     `/caja/clasificados` no puedan separarse: estaban separadas, y la segunda ofrecia tipos de
+     ENTRADA para un cargo. */
   const categoriasCompatibles = React.useMemo(
-    () =>
-      categoriasCanonicas.filter(
-        (c) =>
-          c.code !== "unknown" &&
-          c.allowed_for_bank_movement &&
-          (c.expected_direction === "any" || c.expected_direction === item?.direccion),
-      ),
+    () => categoriasParaDireccion(categoriasCanonicas, item?.direccion ?? null),
     [categoriasCanonicas, item?.direccion],
   );
 
@@ -1451,7 +1452,7 @@ function CartaClasificar({
             tuya
             {valorSugerido.cuentaId
               ? ""
-              : " · pero esa cuenta no está en tu catálogo activo, así que hay que elegirla a mano"}
+              : " · pero esa cuenta no admite imputación (está inactiva o agrupa a otras), así que hay que elegirla a mano"}
             {categoriaSugeridaDisponible
               ? ` · ${categoriasPorCodigo.get(valorSugerido.categoriaCanonica!)?.label ?? valorSugerido.categoriaCanonica}`
               : " · la regla no define un tipo de movimiento válido para este cargo/abono, así que hay que elegirlo"}
@@ -1525,8 +1526,13 @@ function CartaClasificar({
               <option value="">Elige una cuenta de gestión…</option>
               {cuentas.map((c) => (
                 <option key={c.id} value={c.id} disabled={!c.seleccionable}>
+                  {c.codigo ? `${c.codigo} · ` : ""}
                   {c.nombre}
-                  {c.seleccionable ? "" : " (inactiva)"}
+                  {c.seleccionable
+                    ? ""
+                    : c.agrupadora
+                      ? " (agrupa a otras cuentas)"
+                      : " (inactiva)"}
                 </option>
               ))}
             </select>

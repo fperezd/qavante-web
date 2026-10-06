@@ -832,6 +832,7 @@ export function PorClasificarView({
                     .map((o) => (
                       <option key={o.id} value={o.id}>
                         {"  ".repeat(Math.max(0, o.level))}
+                        {o.code ? `${o.code} · ` : ""}
                         {o.displayName}
                       </option>
                     ))}
@@ -845,6 +846,7 @@ export function PorClasificarView({
                 <select
                   value={bulkCanonical}
                   onChange={(e) => setBulkCanonical(e.target.value)}
+                  aria-label="Tipo de movimiento"
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                 >
                   <option value="">Sin tipo de movimiento</option>
