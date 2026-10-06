@@ -42,7 +42,39 @@ const NOMBRES_DE_SECCION = Object.freeze(["Risk/Riesgo", "Evidence/Evidencia", "
    exigiendo `risk:R2`. */
 const LOCKFILE_ONLY = /^package-lock\.json$/i;
 
-export function evaluateChangeEvidence({ labels = [], files = [], body = "", draft = false }) {
+/* Y EL HUECO QUE #402 DEJO ABIERTO: EL BUMP DE UNA DEPENDENCIA DIRECTA.
+   #402 eximio al PR que mueve SOLO `package-lock.json`, o sea al bump transitivo. Pero
+   Dependabot, cuando sube una dependencia DIRECTA, toca tambien `package.json` — y ahi el PR
+   vuelve a ser material y vuelve a pedir las tres secciones que Dependabot no escribe.
+
+   Medido el 2026-10-05: cinco PR de Dependabot a la vez con `change-evidence` en rojo (#410,
+   #411, #412, #413 y el ya cerrado #409), los cinco tocando exactamente
+   `package.json` + `package-lock.json`. Y no era un bloqueo que una persona pudiera destrabar
+   escribiendo las secciones: `@dependabot rebase` SE NIEGA en un PR cuyo cuerpo edito alguien
+   que no es Dependabot, asi que escribirlas costaba ademas el rebase.
+
+   La exencion exige LAS DOS cosas, y la primera es la que la hace segura:
+
+     1. que el autor sea Dependabot — una persona que toca `package.json` SIGUE necesitando las
+        secciones, porque ahi si hay una dependencia que alguien eligio agregar;
+     2. que el PR no toque nada mas que los dos manifiestos.
+
+   El autor sale del evento de GitHub (`pull_request.user.login`), no del cuerpo ni de una
+   etiqueta: no es un campo que un contribuyente pueda escribir.
+
+   Lo que cubre el riesgo en lugar de las secciones es lo mismo que en #402, y ahora mide mas:
+   `dependency-audit` (`npm audit --audit-level=critical`) mas `build`, `e2e`, `storybook` y
+   `chromatic` corriendo sobre el arbol ya resuelto. */
+const MANIFIESTO_DE_DEPENDENCIAS = /^package(?:-lock)?\.json$/i;
+const AUTORES_DE_DEPENDENCIAS = Object.freeze(["dependabot[bot]", "dependabot-preview[bot]"]);
+
+export function evaluateChangeEvidence({
+  labels = [],
+  files = [],
+  body = "",
+  draft = false,
+  author = "",
+}) {
   if (draft) return { risk: "draft", material: false, protectedPaths: [] };
 
   const risks = labels.filter((label) => /^risk:R[012]$/.test(label));
@@ -54,7 +86,13 @@ export function evaluateChangeEvidence({ labels = [], files = [], body = "", dra
     throw new Error(`Paths protegidos requieren risk:R2: ${protectedPaths.slice(0, 8).join(", ")}`);
   }
 
-  const material = files.some((file) => !DOC_ONLY.test(file) && !LOCKFILE_ONLY.test(file));
+  const soloDependencias =
+    AUTORES_DE_DEPENDENCIAS.includes(author) &&
+    files.length > 0 &&
+    files.every((file) => MANIFIESTO_DE_DEPENDENCIAS.test(file));
+  const material =
+    !soloDependencias &&
+    files.some((file) => !DOC_ONLY.test(file) && !LOCKFILE_ONLY.test(file));
   if (material) {
     /* EL NOMBRE SALE DEL INDICE EN `MATERIAL_SECTIONS`, NO DEL INDICE DESPUES DE FILTRAR.
        Antes el `.map` venia DESPUES del `.filter`, asi que el indice era la posicion en el

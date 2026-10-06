@@ -61,6 +61,7 @@ jobs:
             files,
             body: event.pull_request.body || "",
             draft: event.pull_request.draft,
+            author: event.pull_request.user?.login || "",
           });
           console.log(JSON.stringify(result));
           NODE
