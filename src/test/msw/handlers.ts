@@ -2513,7 +2513,20 @@ const siiHandlers = [
 
   /* Estado de pago/postergación de un período (Consulta de Giros). Antes de :folio. */
   http.get("*/api/sii/f29/giros", ({ request }) => {
-    const mes = Number(new URL(request.url).searchParams.get("mes")) || 1;
+    const url = new URL(request.url);
+    const anio = Number(url.searchParams.get("anio")) || 2026;
+    const mes = Number(url.searchParams.get("mes")) || 1;
+    /* Noviembre 2025: la Consulta de Giros NO RESPONDE. Es el único período así, y existe porque la
+       ausencia de respuesta del SII tiene su propia rama en el detalle (#202): un período declarado
+       cuyos giros no se pudieron consultar muestra lo que declaró y ofrece re-consultar, en vez de
+       convertir el silencio del SII en una orden de pago. Sin un período que falle, el test que
+       afirma eso no tiene qué medir. */
+    if (anio === 2025 && mes === 11) {
+      return HttpResponse.json(
+        errorBody("upstream_unavailable", "El SII no respondió la Consulta de Giros."),
+        { status: 502 },
+      );
+    }
     /* Tres casos, porque los tres se ven distinto en el detalle del mes (#202):
          · par            → postergado: el período difirió el IVA y lo debe aparte.
          · marzo          → GIRO PENDIENTE: el único mes que ofrece las dos opciones de pago.
@@ -2524,13 +2537,207 @@ const siiHandlers = [
     const giroPendiente = mes === 3;
     return HttpResponse.json({
       status: "ok",
-      periodo: `2026-${String(mes).padStart(2, "0")}`,
+      periodo: `${anio}-${String(mes).padStart(2, "0")}`,
       tiene_giros: postergado || giroPendiente,
       estado: postergado ? "postergado" : giroPendiente ? "giro_no_determinado" : "sin_giro",
       postergado_iva: postergado,
       iva_postergado: postergado ? 400000 : null,
       vencimiento_postergado: postergado ? "2026-08-12" : null,
       multiples_giros: false,
+    });
+  }),
+
+  /* El puente entre lo que el F29 publica y lo que el SII cobra (D13, #202). Antes de :folio.
+
+     Las cifras son las del período REAL medido en producción (folio 9238206586, 2026-07): IVA
+     débito 7.213.010, crédito NULL, PPM 52.519 → los códigos observados suman 7.265.529, contra un
+     total oficial (código 91) de 7.450.761. El contrato define
+     `unexplained_delta = composed_total − declaration_total`, así que el valor es −185.232.
+
+     Un período por mes, porque cada rama se ve distinta en la pantalla y la de al lado es su
+     gemelo:
+       · 2026-01  → `pending` con AUSENCIA EXPLÍCITA (nadie declaró movimiento ni comprobante) y la
+                    diferencia no explicada rotulada. Trae DOS bridges: la declaración original y la
+                    rectificatoria con el folio que la tarjeta muestra, para que el recorrido ejerza
+                    la elección por folio y una rectificatoria no quede escondida detrás de la
+                    original.
+       · 2026-02  → `deferred`: el período postergó el IVA y lo debe aparte.
+       · 2025-11  → `partial` pagado en DOS cuotas, ningún movimiento único representa el pago. Es
+                    el gemelo de la ausencia explícita: los dos traen `bank_movement_id` null y
+                    tienen que leerse distinto.
+       · 2025-10  → `bridges: []`. El gemelo negativo del panel: un período sin bridge no muestra
+                    panel, y el Desglose sigue ahí. Sin este caso, borrar el panel entero dejaría la
+                    suite verde.
+       · el resto → `paid` con UN movimiento bancario declarado y reconciliado (delta 0). */
+  http.get("*/api/sii/f29/bridge", ({ request }) => {
+    const url = new URL(request.url);
+    const anio = Number(url.searchParams.get("anio")) || 2026;
+    const mes = Number(url.searchParams.get("mes")) || 1;
+    const totalOficial = 7_450_761;
+    const delta = -185_232;
+    /* El folio que la tarjeta muestra sale de `/f29/impuesto`. El bridge del período tiene que
+       traerlo, o la elección por folio no se ejerce. */
+    const folioEnPantalla = 6123;
+
+    const base = {
+      declaration_id: `decl-${anio}-${mes}`,
+      folio: folioEnPantalla,
+      period_year: anio,
+      period_month: mes,
+      observed_at: `${anio}-${String(mes).padStart(2, "0")}-14T10:00:00Z`,
+      data_state: "partial",
+      declaration_total: totalOficial,
+      official_components: { code_538: 7_213_010, code_537: null, code_62: 52_519 },
+      comparators: {},
+      payment_evidence: null,
+      reconciled: false,
+      unexplained_delta: delta,
+    };
+    const recibo = {
+      folio: folioEnPantalla,
+      declaration_total: totalOficial,
+      source: "sii_f29_pdf",
+    };
+
+    if (anio === 2025 && mes === 10) {
+      return HttpResponse.json({
+        status: "ok",
+        period_year: anio,
+        period_month: mes,
+        bridges: [],
+      });
+    }
+
+    let bridge: Record<string, unknown>;
+    if (anio === 2025 && mes === 11) {
+      bridge = {
+        ...base,
+        payment_state: "partial",
+        payment: {
+          payment_state: "partial",
+          evidence_declared: 2,
+          evidence_required: 1,
+          missing_requirements: [],
+          declaration_receipt: recibo,
+          bank_evidence: { applied_amount: "5000000", bank_movement_id: null, currency: "CLP" },
+          residual_amount: String(totalOficial - 5_000_000),
+          applications: [
+            {
+              application_kind: "bank_movement",
+              applied_amount: "4000000",
+              applied_at: "2025-12-18T00:00:00Z",
+              declared_at: "2025-12-19T00:00:00Z",
+              currency: "CLP",
+              provenance: "bank_movement_declared",
+              bank_movement_id: "mov-7f3a",
+              receipt_reference: null,
+            },
+            {
+              application_kind: "declaration_receipt",
+              applied_amount: "1000000",
+              applied_at: "2026-01-12T00:00:00Z",
+              declared_at: "2026-01-13T00:00:00Z",
+              currency: "CLP",
+              provenance: "manual_receipt_declared",
+              bank_movement_id: null,
+              receipt_reference: "OP-884120",
+            },
+          ],
+        },
+      };
+    } else if (anio === 2026 && mes === 1) {
+      bridge = {
+        ...base,
+        payment_state: "pending",
+        payment: {
+          payment_state: "pending",
+          evidence_declared: 0,
+          evidence_required: 1,
+          missing_requirements: ["bank_movement_declared"],
+          declaration_receipt: recibo,
+          bank_evidence: { applied_amount: "0", bank_movement_id: null },
+          residual_amount: String(totalOficial),
+          applications: [],
+        },
+      };
+    } else if (anio === 2026 && mes === 2) {
+      bridge = {
+        ...base,
+        payment_state: "deferred",
+        official_components: { ...base.official_components, code_755: 400_000 },
+        payment: {
+          payment_state: "deferred",
+          evidence_declared: 0,
+          evidence_required: 1,
+          missing_requirements: ["bank_movement_declared"],
+          declaration_receipt: recibo,
+          bank_evidence: { applied_amount: "0", bank_movement_id: null },
+          residual_amount: String(totalOficial),
+          applications: [],
+        },
+      };
+    } else {
+      bridge = {
+        ...base,
+        data_state: "complete",
+        reconciled: true,
+        unexplained_delta: 0,
+        payment_state: "paid",
+        payment: {
+          payment_state: "paid",
+          evidence_declared: 1,
+          evidence_required: 1,
+          missing_requirements: [],
+          declaration_receipt: recibo,
+          bank_evidence: {
+            applied_amount: String(totalOficial),
+            bank_movement_id: "mov-7f3a",
+            currency: "CLP",
+            linked_at: `${anio}-${String(mes).padStart(2, "0")}-20T00:00:00Z`,
+            provenance: "bank_movement_declared",
+          },
+          residual_amount: "0",
+          applications: [
+            {
+              application_kind: "bank_movement",
+              applied_amount: String(totalOficial),
+              applied_at: `${anio}-${String(mes).padStart(2, "0")}-20T00:00:00Z`,
+              declared_at: `${anio}-${String(mes).padStart(2, "0")}-21T00:00:00Z`,
+              currency: "CLP",
+              provenance: "bank_movement_declared",
+              bank_movement_id: "mov-7f3a",
+              receipt_reference: null,
+            },
+          ],
+        },
+      };
+    }
+
+    /* Enero 2026 trae DOS declaraciones: la del folio que la tarjeta muestra (6123) y una
+       RECTIFICATORIA con otro folio, observada después y con otro total. La pantalla tiene que
+       mostrar las cifras del folio que tiene al frente —cualquier otra sería de otra declaración—,
+       así que este caso distingue la elección por folio de un "la última observada" por omisión. */
+    const bridges =
+      anio === 2026 && mes === 1
+        ? [
+            bridge,
+            {
+              ...bridge,
+              declaration_id: "decl-2026-1-rectificatoria",
+              folio: 7777,
+              observed_at: "2026-04-10T10:00:00Z",
+              declaration_total: 6_000_000,
+              unexplained_delta: 0,
+              reconciled: true,
+            },
+          ]
+        : [bridge];
+
+    return HttpResponse.json({
+      status: "ok",
+      period_year: anio,
+      period_month: mes,
+      bridges,
     });
   }),
 
