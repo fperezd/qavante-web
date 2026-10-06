@@ -13,6 +13,7 @@ import {
   montoDeMoneda,
   contar,
   textoDelConteo,
+  rutDeFila,
   textoDelPie,
   vencidoDeMoneda,
 } from "./directorio-deudores";
@@ -333,5 +334,128 @@ describe("contar", () => {
     expect(contar(1, "cliente", "clientes")).toBe("1 cliente");
     expect(contar(0, "cliente", "clientes")).toBe("0 clientes");
     expect(contar(1200, "cliente", "clientes")).toBe("1.200 clientes");
+  });
+});
+
+/* ── EL CENTINELA DE EXTRANJERO NO FUNDE CLIENTES, Y TAMPOCO SE IMPRIME COMO RUT ──────────
+ *
+ * MEDIDO EN PRODUCCIÓN (2026-10-05, `treasury.counterparties`): once filas llevan el RUT
+ * centinela `55555555-5`, el que el SII usa para TODO extranjero. Una es la fila pelada
+ * `55555555-5` — DIVEIMPORT S.A., tipo `both`, o sea también cliente — y las otras diez son
+ * compuestas con la forma `55555555-5:<NOMBRE>`, un esquema de desambiguación que funciona.
+ *
+ * O SEA AGRUPAR POR RUT FUSIONA CONTRAPARTES DISTINTAS, y con el centinela fusiona a todos los
+ * extranjeros del tenant en una fila. El centinela pasa el módulo 11, así que no se delata: no
+ * llega como `null` ni como `SIN-RUT`, llega como un RUT válido cualquiera.
+ *
+ * ESTA PANTALLA ES LA ÚNICA DE LAS CINCO DEL ISSUE #204 QUE AGRUPA POR EL UUID CANÓNICO, porque
+ * es la única cuyo endpoint lo publica: `ReceivableDebtor.counterparty_key` es requerido en
+ * `GET /api/treasury/accounts-receivable/debtors`. Las otras cuatro se construyen desde
+ * `RcvDocumento`, que no trae identidad canónica, y ahí la contención es por nombre.
+ *
+ * Lo que fijan estos tests es que acá la clave NO caiga de vuelta al RUT. Si alguien algún día
+ * agrupa por `tax_id` "porque el UUID a veces no viene", estos tests se ponen rojos.
+ */
+describe("DirectorioDeudores · el centinela 55555555-5 no es una identidad", () => {
+  /** Filas de CUERPO. El `<tr>` de la cabecera también existe en el markup, así que contar
+   *  `<tr>` suelto da uno de más y el test pasaría por la razón equivocada. Se cuenta la celda
+   *  del nombre, que hay exactamente una por deudor. */
+  const filasDeCuerpo = (html: string) =>
+    (html.match(/<td class="px-3 py-3 font-medium/g) ?? []).length;
+
+  /** Dos clientes extranjeros bajo el MISMO centinela, con UUID distinto y montos distintos.
+   *  DIVEIMPORT S.A. es la fila pelada medida en producción; la segunda es fixture. */
+  const diveimport: ReceivableDebtor = {
+    counterparty_key: "b1f2c3d4-0000-4000-8000-000000000001",
+    identity_resolution: "graph",
+    name: "DIVEIMPORT S.A.",
+    tax_id: "55555555-5",
+    receivable_ids: ["r1"],
+    totals: [clp("42776821", "42776821", 27)],
+  };
+  const elOtroExtranjero: ReceivableDebtor = {
+    counterparty_key: "b1f2c3d4-0000-4000-8000-000000000002",
+    identity_resolution: "graph",
+    name: "SHOPIFY INTERNATIONAL LTD",
+    tax_id: "55555555-5",
+    receivable_ids: ["r2"],
+    totals: [clp("13300", "13300", 1)],
+  };
+  const dosExtranjeros: ReceivableDebtor[] = [diveimport, elOtroExtranjero];
+
+  it("dos clientes con el MISMO centinela y `counterparty_key` distinto quedan en DOS filas", () => {
+    mocks.debtors.mockReturnValue(
+      consulta({ data: { pages: [page({ items: dosExtranjeros, items_total: 2 })] } }),
+    );
+    const html = render();
+
+    // Cada uno con su nombre y su propia cifra.
+    expect(html).toContain("DIVEIMPORT S.A.");
+    expect(html).toContain("SHOPIFY INTERNATIONAL LTD");
+    expect(html).toContain("$42.776.821");
+    expect(html).toContain("$13.300");
+
+    // Y la cifra fundida no existe en ninguna parte: $42.776.821 + $13.300 = $42.790.121.
+    expect(html).not.toContain("$42.790.121");
+
+    // Dos filas de cuerpo, no una.
+    expect(filasDeCuerpo(html)).toBe(2);
+  });
+
+  /* EL GEMELO, el que probaría lo contrario: mismo centinela Y MISMO NOMBRE, UUID distinto.
+     Si la clave fuera el RUT se funden; si fuera el nombre, también. Sólo quedan separados si
+     la clave es el `counterparty_key`. Es el caso que distingue esta pantalla de las otras
+     cuatro, donde la contención es por nombre y este caso SÍ se fundiría. */
+  it("ni el RUT compartido ni el nombre compartido fusionan: la clave es el `counterparty_key`", () => {
+    const homonimos: ReceivableDebtor[] = [
+      { ...diveimport, name: "GLOBAL TRADING LTD" },
+      { ...elOtroExtranjero, name: "GLOBAL TRADING LTD" },
+    ];
+    mocks.debtors.mockReturnValue(
+      consulta({ data: { pages: [page({ items: homonimos, items_total: 2 })] } }),
+    );
+    const html = render();
+
+    expect(filasDeCuerpo(html)).toBe(2);
+    expect(html).toContain("$42.776.821");
+    expect(html).toContain("$13.300");
+    expect(html).not.toContain("$42.790.121");
+  });
+
+  it("ninguna de las dos filas exhibe el centinela como si fuera su RUT", () => {
+    mocks.debtors.mockReturnValue(
+      consulta({ data: { pages: [page({ items: dosExtranjeros, items_total: 2 })] } }),
+    );
+    const html = render();
+
+    expect(html).not.toContain("55555555-5");
+    expect(html).not.toContain("55.555.555-5");
+    expect(html).toContain("cliente extranjero o sin RUT");
+  });
+});
+
+describe("rutDeFila", () => {
+  const con = (taxId: string | null): ReceivableDebtor => ({
+    ...deudor("X", "100"),
+    tax_id: taxId,
+  });
+
+  it("el centinela de extranjero NO se devuelve como RUT", () => {
+    expect(rutDeFila(con("55555555-5"))).toBe("cliente extranjero o sin RUT");
+    expect(rutDeFila(con("55.555.555-5"))).toBe("cliente extranjero o sin RUT");
+  });
+
+  it("las otras dos formas débiles reciben el mismo trato", () => {
+    expect(rutDeFila(con("SIN-RUT"))).toBe("cliente extranjero o sin RUT");
+    expect(rutDeFila(con("S/D"))).toBe("cliente extranjero o sin RUT");
+    expect(rutDeFila(con(null))).toBe("cliente extranjero o sin RUT");
+    expect(rutDeFila(con("   "))).toBe("cliente extranjero o sin RUT");
+  });
+
+  /* EL GEMELO: un RUT real unívoco SÍ identifica, y se imprime. Sin este test, devolver la
+     frase para TODAS las filas también pasaría los de arriba. */
+  it("un RUT real se sigue imprimiendo, tal cual lo publica el contrato", () => {
+    expect(rutDeFila(con("76.123.456-7"))).toBe("76.123.456-7");
+    expect(rutDeFila(con("96572360-9"))).toBe("96572360-9");
   });
 });

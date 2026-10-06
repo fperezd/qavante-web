@@ -16,6 +16,7 @@ import { formatMoneyFromDecimalString } from "@/lib/formatters/clp";
 import { MONTO_EN_REVISION, importeDesconocido } from "@/lib/formatters/amount";
 import { concordar, formatCount } from "@/lib/formatters/count";
 import { formatDateTimeLike } from "@/lib/formatters/date";
+import { esIdentidadDebil } from "@/lib/validators/rut";
 import { cn } from "@/lib/utils";
 
 /* ── Directorio operativo de deudores, no un ranking ────────────────────────────────────────
@@ -107,6 +108,27 @@ export function vencidoDeMoneda(total: ReceivableDebtorCurrencyTotal): string {
  *  Son conteos, no montos: sumarlos entre monedas no inventa ningún tipo de cambio. */
 export function documentosDe(deudor: ReceivableDebtor): number {
   return deudor.totals.reduce((acc, total) => acc + total.document_count, 0);
+}
+
+/** Qué va en la celda RUT de una fila.
+ *
+ *  LA FILA ES EL `counterparty_key`, NO EL RUT. Esta pantalla ya agrupa por el UUID canónico
+ *  que publica el contrato (`ReceivableDebtor.counterparty_key`, requerido), así que diez
+ *  clientes extranjeros son diez filas. Pero la celda imprimía `tax_id` crudo, y para un
+ *  extranjero el SII no manda `null`: manda el centinela `55.555.555-5` PARA TODOS. O sea las
+ *  diez filas mostraban el mismo RUT en la columna que el lector usa justamente para
+ *  distinguirlas, y cada una lo exhibía como si la identificara.
+ *
+ *  `esIdentidadDebil` es el MISMO helper con que el Libro, el maestro, Contraparte 360 y el
+ *  drill-down de Cobrar ya dejaron de tratar el centinela como identidad; acá se porta la
+ *  decisión a la celda. La frase es la que ya usa el maestro de contrapartes
+ *  (`maestro-view.tsx:318`), para que no haya dos redacciones del mismo hecho.
+ *
+ *  No se oculta nada ni se deja la celda muda: se dice qué es esa fila. Quien distingue a estos
+ *  clientes es el nombre de la columna de al lado, y el `counterparty_key` por debajo. PURO. */
+export function rutDeFila(deudor: ReceivableDebtor): string {
+  if (esIdentidadDebil(deudor.tax_id)) return "cliente extranjero o sin RUT";
+  return deudor.tax_id as string;
 }
 
 export interface LineaPuente {
@@ -376,8 +398,10 @@ export function DirectorioDeudores() {
                   <tr key={deudor.counterparty_key}>
                     <td className="px-3 py-3 font-medium text-neutral-dark">{deudor.name}</td>
                     <td className="px-3 py-3 text-neutral-mid">
-                      {/* Un RUT ausente se nombra; no se deja la celda muda ni se inventa. */}
-                      {deudor.tax_id ?? "RUT no registrado en la contraparte"}
+                      {/* Un RUT ausente se nombra; no se deja la celda muda ni se inventa. Y el
+                          centinela de extranjero tampoco se imprime como si fuera un RUT: ver
+                          `rutDeFila`. La fila la identifica `counterparty_key`, no esta celda. */}
+                      {rutDeFila(deudor)}
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums text-neutral-mid">
                       {/* El conteo que publica el SERVIDOR (`document_count` por moneda), no el
