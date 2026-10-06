@@ -80,9 +80,24 @@ function groupThousands(digits: string): string {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
-function currencyCode(currency: string | null | undefined): string {
-  return (currency || "CLP").trim().toUpperCase() || "CLP";
+/* LA MONEDA NO TIENE VALOR POR OMISION. Acá vivía `(currency || "CLP")`, y esa
+   línea era la que convertía un monto en dólares en una cifra falsa: cualquier
+   pantalla que llamara al formateador sin moneda recibía un "$" y nadie se
+   enteraba. El contrato del movimiento bancario publica `currency_code` al lado de
+   un `currency_source` OBLIGATORIO justamente para que una consulta que omita la
+   procedencia falle en vez de fabricar un valor; el formateador no puede fabricar
+   lo que el productor se niega a fabricar.
+
+   Ausencia (null / undefined / vacío / sólo espacios) devuelve `null`, y cada
+   formateador la rinde con `MONEDA_NO_INFORMADA` — nunca con un símbolo. */
+function currencyCode(currency: string | null | undefined): string | null {
+  const code = (currency ?? "").trim().toUpperCase();
+  return code === "" ? null : code;
 }
+
+/** Rótulo de la moneda que el contrato no trajo. La CIFRA se muestra completa: lo
+ *  único que falta es el código ISO, y se dice con estas palabras. */
+export const MONEDA_NO_INFORMADA = "moneda no informada";
 
 /* Decimales por moneda. Regla ratificada por Fernando: CLP sin decimales, UF
    igual que el resto — dos decimales, no cuatro (2026-09-20, a instancia de
@@ -134,8 +149,8 @@ function roundDecimalMagnitude(
   };
 }
 
-function moneyPrefix(currency: string | null | undefined): string {
-  const code = currencyCode(currency);
+/* Sólo se llama con un código YA resuelto: sin moneda no hay prefijo que poner. */
+function moneyPrefix(code: string): string {
   if (code === "CLP") return "$";
   // El NBSP mantiene símbolo/código y cifra unidos, como `formatMoney`.
   return `${code === "USD" ? "US$" : code}\u00a0`;
@@ -166,6 +181,7 @@ export function formatMoneyFromDecimalString(
   const decimal = exactDecimal(raw);
   if (!decimal) return raw;
 
+  const code = currencyCode(currency);
   const places = decimalPlaces(currency);
   const rounded = roundDecimalMagnitude(decimal.integer, decimal.fraction, places);
   const numberText = `${groupThousands(rounded.integer)}${
@@ -178,7 +194,11 @@ export function formatMoneyFromDecimalString(
      habría salido con un menos delante de un "$0". */
   const isZero = !/[1-9]/.test(`${rounded.integer}${rounded.fraction}`);
   const sign = decimal.negative && !isZero ? "−" : "";
-  return `${sign}${moneyPrefix(currency)}${numberText}`;
+  /* Sin moneda no se pinta símbolo: la cifra va completa y el rótulo dice qué falta.
+     Antes caía al "$" de CLP y la pantalla afirmaba pesos sobre un dato que no los
+     declaraba. */
+  if (code === null) return `${sign}${numberText} · ${MONEDA_NO_INFORMADA}`;
+  return `${sign}${moneyPrefix(code)}${numberText}`;
 }
 
 /**
@@ -194,7 +214,7 @@ export function formatMoneyFromDecimalString(
  */
 export function isNonZeroDecimalString(
   raw: string | null | undefined,
-  currency: string | null | undefined = "CLP",
+  currency: string | null | undefined,
 ): boolean {
   if (raw == null || raw.trim() === "") return false;
   const decimal = exactDecimal(raw);
@@ -247,6 +267,29 @@ export function formatClpCompact(value: number): string {
   return formatClp(value);
 }
 
+/**
+ * Monto cuyo CÓDIGO DE MONEDA no llegó en el contrato: la cifra completa, con dos
+ * decimales, y el rótulo de lo que falta. Dos decimales y no cero porque redondear
+ * al peso YA sería asumir CLP — a ~950 pesos por dólar, tirar los centavos y
+ * ponerle "$" es el error de casi mil veces que vio Fernando en Bandeja.
+ *
+ * Es la única salida del módulo para la ausencia de moneda, y no lleva símbolo:
+ * un símbolo es una afirmación sobre la moneda, y acá no hay con qué afirmarla.
+ * PURO.
+ */
+export function formatMoneySinMoneda(value: number): string {
+  if (!Number.isFinite(value)) return "s/d";
+  const places = 2;
+  const n = new Intl.NumberFormat("es-CL", {
+    minimumFractionDigits: places,
+    maximumFractionDigits: places,
+  }).format(Math.abs(value));
+  // Mismo criterio de "magnitud redondeada" que `formatClp` y `formatMoney`.
+  const scale = 10 ** places;
+  const sign = value < 0 && Math.round(Math.abs(value) * scale) !== 0 ? "−" : "";
+  return `${sign}${n} · ${MONEDA_NO_INFORMADA}`;
+}
+
 /* Formateador consciente de la moneda. Regla ratificada por Fernando el 2026-08-25:
      - CLP  → "$1.234"       (punto de miles, SIN decimales) = formatClp.
      - USD  → "US$ 1.234,50" (símbolo, ESPACIO, punto de miles, coma decimal, DOS
@@ -269,9 +312,11 @@ export function formatClpCompact(value: number): string {
 export function formatMoney(value: number, currency: string | null | undefined): string {
   // No-finito → guion (igual que formatClp) antes de tocar Intl.
   if (!Number.isFinite(value)) return "s/d";
-  // `|| "CLP"`: cae a CLP también con string vacío "" (que `?? ` NO captura y
-  // rompería `Intl.NumberFormat({currency:""})` con RangeError).
-  const cur = (currency || "CLP").toUpperCase();
+  /* Sin moneda NO se cae a CLP: se rinde la cifra con el rótulo de la moneda que
+     falta. Un string vacío cuenta como ausencia (además rompería
+     `Intl.NumberFormat({currency:""})` con RangeError). */
+  const cur = currencyCode(currency);
+  if (cur === null) return formatMoneySinMoneda(value);
   if (cur === "CLP") return formatClp(value);
   const places = decimalPlaces(cur);
   try {

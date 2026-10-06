@@ -144,6 +144,13 @@ export function cuentasQavante(): BankAccountItem[] {
   ];
 }
 
+/** LA FORMA DE PRODUCCIÓN (medida el 2026-10-05): las dos cuentas BICE de Tooxs tienen el MISMO
+ *  `name`, "Cuenta Corriente", y lo único que las distingue es la moneda. La fixture de arriba
+ *  nombra la moneda dentro del `name` y por eso no reproducía el hallazgo B28. */
+export function cuentasQavanteMismoNombre(): BankAccountItem[] {
+  return cuentasQavante().map((a) => ({ ...a, name: "Cuenta Corriente" }));
+}
+
 export function links(): BiceAccount[] {
   return [
     { external_id: "12-34567-8", currency: "CLP", linked_bank_account_id: "acc-clp" },

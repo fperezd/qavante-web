@@ -25,6 +25,8 @@ const item = (
     movement_id: "mv1",
     date: "2026-07-10",
     amount: "150000",
+    // El contrato publica la moneda del movimiento: la fixture la trae, como producción.
+    currency_code: "CLP",
     description: "TRANSF RECIBIDA",
     ...rest,
     suggestion: {
@@ -82,6 +84,25 @@ describe("mapFila", () => {
     const pago = mapFila(item({ suggestion: { document_kind: "payable" }, amount: "150000" }));
     expect(pago.esCobro).toBe(false);
     expect(pago.montoTexto).toBe("−$150.000");
+  });
+
+  /* B04 — esta cola lee el MISMO contrato que Bandeja, donde un monto en dólares salía con
+     signo de peso. Cada caso va con su gemelo en pesos (arriba y abajo): un arreglo que ponga
+     "US$" en todas partes pasa el test del dólar y rompe el resto del producto. */
+  it("un movimiento en dólares se muestra en dólares, con sus decimales", () => {
+    const f = mapFila(item({ amount: "5862.30", currency_code: "USD" }));
+    expect(f.montoTexto.replace(/ /g, " ")).toBe("US$ 5.862,30");
+  });
+
+  it("GEMELO: dólares redondos conservan la moneda y los dos decimales", () => {
+    const f = mapFila(item({ amount: "5344", currency_code: "USD" }));
+    expect(f.montoTexto.replace(/ /g, " ")).toBe("US$ 5.344,00");
+  });
+
+  it("sin moneda declarada se dice que falta, no se pinta un peso", () => {
+    const f = mapFila(item({ amount: "5344", currency_code: null }));
+    expect(f.montoTexto).toContain("moneda no informada");
+    expect(f.montoTexto).not.toContain("$");
   });
 
   it("un amount ya firmado no dobla el signo (usa magnitud)", () => {

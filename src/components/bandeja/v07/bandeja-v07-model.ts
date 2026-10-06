@@ -34,6 +34,7 @@ import {
   type ReversibleActionsListResponse,
 } from "@/lib/api/reversible-actions";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
+import { formatMoney } from "@/lib/formatters/clp";
 import { ApiError } from "@/lib/api/errors";
 import { bloqueoDe, type BloqueoAplicacion } from "@/lib/api/application-blocker";
 
@@ -65,6 +66,13 @@ export interface ItemConciliarV07 {
   fecha: string;
   /** Magnitud, siempre positiva. El signo lo decide `direccion`. */
   monto: number;
+  /**
+   * Moneda del MOVIMIENTO, tal como la publica el contrato (`currency_code`). `null` = ninguna
+   * fuente la informó, y acá NO se completa con CLP: la pantalla rinde la cifra con el rótulo de
+   * la moneda que falta. Un monto en dólares rotulado en pesos es una cifra falsa, y a ~950
+   * pesos por dólar el error es de casi mil veces (B04, QA de producción del 2026-10-05).
+   */
+  moneda: string | null;
   /** `null` = la cola no dice si entra o sale plata, y no se inventa. */
   direccion: DireccionV07 | null;
   glosa: string | null;
@@ -167,6 +175,8 @@ export interface ItemClasificarV07 {
   id: string;
   fecha: string;
   monto: number;
+  /** Moneda del movimiento (`currency_code`). `null` = no informada; nunca se asume CLP. */
+  moneda: string | null;
   direccion: DireccionV07;
   glosa: string | null;
   /** RUT encontrado EN la glosa (normalizado, sin puntos). `null` = no hay. */
@@ -281,6 +291,20 @@ function fechaCivil(raw: string | null | undefined): number | null {
 
 /* ── Adaptadores de contrato → ítems ─────────────────────────────────────────────────────── */
 
+/**
+ * `currency_code` del contrato → moneda de pantalla. Normaliza a mayúsculas y conserva la
+ * AUSENCIA como `null`.
+ *
+ * No hay `?? "CLP"` acá y no puede haberlo: el productor publica `currency_code` junto a un
+ * `currency_source` OBLIGATORIO precisamente para que una consulta que omita la procedencia falle
+ * en vez de fabricar un valor por omisión. La pantalla no fabrica lo que la API se niega a
+ * fabricar.
+ */
+export function monedaDeContrato(raw: string | null | undefined): string | null {
+  const code = (raw ?? "").trim().toUpperCase();
+  return code === "" ? null : code;
+}
+
 /** `receivable` ⇒ entra plata (credit); `payable` ⇒ sale (debit); cualquier otra cosa ⇒ no sé. */
 export function direccionDeKind(kind: string | null | undefined): DireccionV07 | null {
   if (kind === "receivable") return "credit";
@@ -296,6 +320,7 @@ export function itemsConciliar(resp: ReviewQueueResponse | null | undefined): It
     id: it.movement_id,
     fecha: it.date,
     monto: Math.abs(parseAmount(it.amount)),
+    moneda: monedaDeContrato(it.currency_code),
     direccion: direccionDeKind(it.suggestion?.document_kind),
     glosa: it.description ?? null,
     contraparteMotor: it.suggestion?.name ?? null,
@@ -319,6 +344,7 @@ export function itemsClasificar(
     id: m.id,
     fecha: m.date,
     monto: Math.abs(parseAmount(m.amount)),
+    moneda: monedaDeContrato(m.currency_code),
     direccion: m.direction,
     glosa: m.description || null,
     rutGlosa: primerRutEnTexto(m.description),
@@ -788,9 +814,45 @@ export function progreso(resueltos: number, pendientes: number): ProgresoV07 {
   return { resueltos, total, pct };
 }
 
-/** Suma de los montos resueltos en la sesión. Puro, en pesos. */
-export function montoResuelto(montos: readonly number[]): number {
-  return montos.reduce((a, b) => a + Math.abs(b), 0);
+/** Un monto resuelto en la sesión, con SU moneda. */
+export interface MontoMonedaV07 {
+  monto: number;
+  moneda: string | null;
+}
+
+/**
+ * Lo resuelto en la sesión, UNA CIFRA POR MONEDA. Antes esto era un solo `number` que sumaba
+ * todo y la pantalla lo rotulaba "$": mezclar pesos con dólares en un total y ponerle el signo
+ * peso es la misma cifra falsa de B04, una línea más abajo. CLP primero (es la moneda del
+ * negocio), después el resto por código, y la moneda no informada al final. PURO.
+ */
+export function montosResueltos(montos: readonly MontoMonedaV07[]): MontoMonedaV07[] {
+  const porMoneda = new Map<string, MontoMonedaV07>();
+  for (const m of montos) {
+    const clave = m.moneda ?? "";
+    const acc = porMoneda.get(clave);
+    if (acc) acc.monto += Math.abs(m.monto);
+    else porMoneda.set(clave, { moneda: m.moneda, monto: Math.abs(m.monto) });
+  }
+  return [...porMoneda.values()].sort((a, b) => {
+    if (a.moneda === b.moneda) return 0;
+    if (a.moneda === null) return 1;
+    if (b.moneda === null) return -1;
+    if (a.moneda === "CLP") return -1;
+    if (b.moneda === "CLP") return 1;
+    return a.moneda.localeCompare(b.moneda);
+  });
+}
+
+/**
+ * Lo resuelto en la sesión, en palabras: "$1.234.567" o "$1.234.567 y US$ 5.862,30". Cada cifra
+ * con SU moneda; nunca un total único sobre monedas distintas.
+ */
+export function textoResuelto(montos: readonly MontoMonedaV07[]): string {
+  const partes = montosResueltos(montos).map((m) => formatMoney(m.monto, m.moneda));
+  if (partes.length === 0) return formatMoney(0, "CLP");
+  if (partes.length === 1) return partes[0]!;
+  return `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`;
 }
 
 /* ── Ley 5 en clasificar: lo que Qavante clasificó SOLO, todavía deshacible ─────────────────

@@ -28,8 +28,17 @@ describe("bank-balances-format · formatSaldo", () => {
     expect(formatSaldo("156.14", "USD")).toBe("US$ 156,14");
     expect(formatSaldo("1511.25", "USD")).toBe("US$ 1.511,25");
   });
-  it("moneda ausente → asume CLP", () => {
-    expect(formatSaldo("1000", null)).toBe("$1.000");
+  /* Acá decía `it("moneda ausente → asume CLP")`. Era el segundo candado del mismo defecto
+     (B04): un saldo en dólares sin moneda declarada se mostraba con signo de peso. El saldo se
+     muestra completo y lo que falta se nombra. */
+  it("moneda ausente NO se asume CLP: el saldo con el rótulo de la moneda que falta", () => {
+    expect(formatSaldo("1000", null)).toBe("1.000,00 · moneda no informada");
+    expect(formatSaldo("1000", null)).not.toContain("$");
+  });
+
+  /* GEMELO: el saldo en pesos sigue siendo pesos y sin decimales. */
+  it("GEMELO: CLP declarado sigue sin decimales", () => {
+    expect(formatSaldo("1000", "CLP")).toBe("$1.000");
   });
   it("sin dato → guion", () => {
     expect(formatSaldo(null, "CLP")).toBe("Sin información");

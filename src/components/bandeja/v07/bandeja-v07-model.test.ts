@@ -25,7 +25,9 @@ import {
   itemsConciliar,
   lote,
   montoCalza,
-  montoResuelto,
+  montosResueltos,
+  textoResuelto,
+  monedaDeContrato,
   motivosNoAutomatico,
   nombreEnGlosa,
   normalizarRut,
@@ -570,7 +572,12 @@ describe("lotes (group-by) y cola", () => {
       ids: ["mov-entel-1", "mov-entel-2", "mov-entel-3"],
     });
     // Gemelo: el de Dattatec está solo, así que NO hay lote (no se fuerza uno).
-    expect(lote(cola, cola.find((i) => i.id === MOV_DATTATEC)!)).toBeNull();
+    expect(
+      lote(
+        cola,
+        cola.find((i) => i.id === MOV_DATTATEC)!,
+      ),
+    ).toBeNull();
     expect(lote(cola, null)).toBeNull();
   });
 
@@ -618,9 +625,62 @@ describe("cabecera y progreso", () => {
     expect(progreso(0, 0)).toEqual({ resueltos: 0, total: 0, pct: 0 });
   });
 
-  it("la plata resuelta suma magnitudes", () => {
-    expect(montoResuelto([2380000, 89250])).toBe(2469250);
-    expect(montoResuelto([])).toBe(0);
+  it("la plata resuelta suma magnitudes DENTRO de cada moneda", () => {
+    expect(
+      montosResueltos([
+        { monto: 2380000, moneda: "CLP" },
+        { monto: 89250, moneda: "CLP" },
+      ]),
+    ).toEqual([{ monto: 2469250, moneda: "CLP" }]);
+    expect(montosResueltos([])).toEqual([]);
+  });
+
+  /* B04 — el total de la sesión era UN `number` con el signo peso encima. Sumar pesos con
+     dólares en una cifra y rotularla "$" es la misma mentira que el monto del movimiento. */
+  it("NO suma monedas distintas en una cifra: una por moneda, CLP primero", () => {
+    expect(
+      montosResueltos([
+        { monto: 5862.3, moneda: "USD" },
+        { monto: 2380000, moneda: "CLP" },
+        { monto: 5344, moneda: "USD" },
+      ]),
+    ).toEqual([
+      { monto: 2380000, moneda: "CLP" },
+      { monto: 11206.3, moneda: "USD" },
+    ]);
+  });
+
+  it("la moneda no informada va al final y no se funde con CLP", () => {
+    expect(
+      montosResueltos([
+        { monto: 100, moneda: null },
+        { monto: 200, moneda: "CLP" },
+      ]),
+    ).toEqual([
+      { monto: 200, moneda: "CLP" },
+      { monto: 100, moneda: null },
+    ]);
+  });
+
+  it("textoResuelto enumera una cifra por moneda, cada una con SU símbolo", () => {
+    expect(textoResuelto([{ monto: 2380000, moneda: "CLP" }])).toBe("$2.380.000");
+    const mixto = textoResuelto([
+      { monto: 2380000, moneda: "CLP" },
+      { monto: 5862.3, moneda: "USD" },
+    ]);
+    expect(mixto).toContain("$2.380.000");
+    expect(mixto.replace(/ /g, "")).toContain("US$5.862,30");
+    expect(mixto).toContain(" y ");
+    // Sesión sin nada resuelto: el cero es un cero real, no una ausencia.
+    expect(textoResuelto([])).toBe("$0");
+  });
+
+  it("monedaDeContrato conserva la AUSENCIA: nunca completa con CLP", () => {
+    expect(monedaDeContrato("usd")).toBe("USD");
+    expect(monedaDeContrato(" CLP ")).toBe("CLP");
+    expect(monedaDeContrato(null)).toBeNull();
+    expect(monedaDeContrato(undefined)).toBeNull();
+    expect(monedaDeContrato("   ")).toBeNull();
   });
 });
 

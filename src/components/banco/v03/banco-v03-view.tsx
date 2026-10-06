@@ -380,6 +380,9 @@ export function BancoV03View({
                   {suma.sinSaldo > 0 && (
                     <> · {suma.sinSaldo} sin saldo informado, fuera del total</>
                   )}
+                  {suma.sinMoneda > 0 && (
+                    <> · {suma.sinMoneda} sin moneda informada, fuera del total</>
+                  )}
                   . Las monedas no se suman entre sí.
                 </>
               ) : (

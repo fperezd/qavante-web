@@ -6,7 +6,7 @@ import type {
 } from "@/lib/api/reconciliation";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
-import { formatClp } from "@/lib/formatters/clp";
+import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { formatPct } from "@/lib/formatters/pct";
 import { bloqueoDe, type BloqueoAplicacion } from "@/lib/api/application-blocker";
@@ -89,7 +89,10 @@ export function mapFila(item: ReviewItem): FilaCola {
     id: item.movement_id,
     fecha: formatDateLike(item.date),
     fechaISO: item.date ?? "",
-    montoTexto: formatClp(cobro ? valor : -valor),
+    /* La MONEDA del movimiento, no una asumida: `ReviewItem` publica `currency_code`. Esta cola
+       lee el mismo contrato que Bandeja, donde un monto en dólares salía con signo de peso
+       (B04). Sin moneda declarada, `formatMoney` lo dice en vez de pintar un "$". */
+    montoTexto: formatMoney(cobro ? valor : -valor, item.currency_code),
     esCobro: cobro,
     glosaBanco: item.description?.trim() || "Sin glosa",
     documentoTipo: documentoLabel(item.suggestion.document_kind),

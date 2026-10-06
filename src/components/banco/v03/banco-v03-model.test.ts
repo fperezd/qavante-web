@@ -34,6 +34,7 @@ import {
   SUMMARY_STALE,
   categorias,
   cuentasQavante,
+  cuentasQavanteMismoNombre,
   links,
   movimientos,
   saldoOk,
@@ -264,6 +265,60 @@ describe("cuentasV03 — la tabla de cuentas", () => {
     expect(filas.map((f) => f.key)).toContain(`qavante:${vigente!.id}`);
   });
 
+  /* B28 — QA E2E de Fernando contra producción (2026-10-05): sin saldo del banco, las dos cuentas
+     BICE salían las dos como "Banco BICE · Cuenta Corriente" y no se distinguían. */
+  it("dos cuentas con el MISMO nombre se distinguen por su moneda", () => {
+    const filas = cuentasV03({
+      banco: BANCO,
+      saldo: null,
+      cuentasQavante: cuentasQavanteMismoNombre(),
+      links: null,
+      conexion: conexionOk,
+      pendientes: null,
+      hoy: HOY,
+    });
+    expect(filas.map((f) => f.nombre)).toEqual([
+      "BICE · Cuenta Corriente CLP",
+      "BICE · Cuenta Corriente USD",
+    ]);
+    expect(new Set(filas.map((f) => f.nombre)).size).toBe(filas.length);
+  });
+
+  it("GEMELO: un nombre que YA dice la moneda no la repite", () => {
+    const filas = cuentasV03({
+      banco: BANCO,
+      saldo: null,
+      cuentasQavante: cuentasQavante(),
+      links: null,
+      conexion: conexionOk,
+      pendientes: null,
+      hoy: HOY,
+    });
+    // La fixture nombra "Cuenta Corriente CLP"/"USD": nada de "... USD USD".
+    expect(filas.map((f) => f.nombre)).toEqual([
+      "BICE · Cuenta Corriente CLP",
+      "BICE · Cuenta Corriente USD",
+    ]);
+  });
+
+  it("una cuenta sin moneda en el payload NO se rinde como CLP", () => {
+    const [clp] = cuentasQavante();
+    const filas = cuentasV03({
+      banco: BANCO,
+      saldo: null,
+      cuentasQavante: [{ ...clp!, currency_code: "", balance: "1000" }],
+      links: null,
+      conexion: conexionOk,
+      pendientes: null,
+      hoy: HOY,
+    });
+    expect(filas[0]!.moneda).toBeNull();
+    // Y no entra a ningún total: no hay moneda a la que pertenezca.
+    const s = sumaPorMoneda(filas);
+    expect(s.porMoneda).toEqual([]);
+    expect(s.sinMoneda).toBe(1);
+  });
+
   it("parcial(): los últimos 4 caracteres visibles", () => {
     expect(parcial("12-34567-8")).toBe("···67-8");
     expect(parcial("9876543210")).toBe("···3210");
@@ -314,6 +369,7 @@ describe("sumaPorMoneda — INV-FX-001: CLP y USD nunca se suman entre sí", () 
       { moneda: "USD", total: 1240, cuentas: 1 },
     ]);
     expect(s.sinSaldo).toBe(0);
+    expect(s.sinMoneda).toBe(0);
     // Gemelo del negativo: NINGÚN bucket suma 9.801.240 (CLP + USD).
     expect(s.porMoneda.map((m) => m.total)).not.toContain(9_801_240);
   });

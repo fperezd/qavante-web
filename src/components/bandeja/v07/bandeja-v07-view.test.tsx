@@ -24,7 +24,11 @@ import {
   colaConciliar,
   colaConciliarVacia,
   cuentas,
+  MOV_USD,
+  MOV_USD_REDONDO,
   sinClasificar,
+  sinClasificarDolares,
+  sinClasificarSinMoneda,
   sinClasificarVacio,
   sugerenciaSoftware,
 } from "./bandeja-v07-fixtures";
@@ -542,5 +546,67 @@ describe("BandejaV07View — Leyes 2 y 7", () => {
     expect(t).not.toContain("Ley 5");
     expect(t).not.toContain("Sucesor");
     expect(t).not.toContain("#90");
+  });
+});
+
+/* ── B04 · la moneda y los decimales son los de la CUENTA DE ORIGEN ───────────────────────────
+ *
+ * Hallazgo del QA E2E de Fernando contra producción (2026-10-05): en Bandeja los movimientos en
+ * dólares se veían con signo de peso y sin decimales — `US$5.862,30` salía "$5.862". No es
+ * cosmético: un monto en dólares rotulado en pesos es una cifra falsa, y a ~950 pesos por dólar
+ * el error es de casi mil veces.
+ *
+ * Cada test va con SU GEMELO en pesos, porque un arreglo que ponga "US$" en todas partes pasa el
+ * test del dólar y rompe el resto del producto. */
+
+/* `texto()` ya colapsa el NBSP con el que `formatMoney` separa símbolo y cifra ("US$ 5.862,30"):
+   ese separador es la regla ratificada, así que los asserts lo escriben tal cual. */
+
+describe("BandejaV07View — moneda del movimiento (B04)", () => {
+  it("un movimiento en dólares se muestra en dólares, con sus decimales", () => {
+    const t = texto(
+      html({
+        tabInicial: "clasificar",
+        clasificar: itemsClasificar(sinClasificarDolares()),
+        movimientoInicial: MOV_USD,
+      }),
+    );
+    expect(t).toContain("US$ 5.862,30");
+    // La cifra falsa de producción no puede volver a aparecer: "$5.862" sin la moneda.
+    expect(t).not.toMatch(/(?<!US)\$5\.862(?!,)/);
+  });
+
+  it("GEMELO: dólares REDONDOS no pierden la moneda por venir sin centavos", () => {
+    const t = texto(
+      html({
+        tabInicial: "clasificar",
+        clasificar: itemsClasificar(sinClasificarDolares()),
+        movimientoInicial: MOV_USD_REDONDO,
+      }),
+    );
+    expect(t).toContain("US$ 5.344,00");
+  });
+
+  it("GEMELO: un movimiento en PESOS sigue en pesos y sin decimales", () => {
+    const t = texto(html({ tabInicial: "clasificar", movimientoInicial: MOV_DATTATEC }));
+    expect(t).toContain("$89.250");
+    expect(t).not.toContain("US$");
+    expect(t).not.toContain("89.250,00");
+    expect(t).not.toContain("moneda no informada");
+  });
+
+  it("GEMELO: la conciliación en pesos conserva el peso en los DOS lados", () => {
+    const t = texto(html({ tabInicial: "conciliar" }));
+    expect(t).toContain("$2.380.000");
+    expect(t).not.toContain("US$");
+    expect(t).not.toContain("moneda no informada");
+  });
+
+  it("sin moneda declarada se dice que falta la moneda, no se inventa el peso", () => {
+    const t = texto(
+      html({ tabInicial: "clasificar", clasificar: itemsClasificar(sinClasificarSinMoneda()) }),
+    );
+    expect(t).toContain("moneda no informada");
+    expect(t).not.toContain("$5.344");
   });
 });

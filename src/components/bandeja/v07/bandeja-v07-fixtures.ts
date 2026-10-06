@@ -52,6 +52,7 @@ export function colaConciliar(over: Partial<ReviewQueueResponse> = {}): ReviewQu
       movement_id: MOV_KAUFMANN,
       date: "2026-08-26",
       amount: "2380000",
+      currency_code: "CLP",
       description: `TRANSFERENCIA DE COMERCIAL KAUFMANN ${RUT_KAUFMANN} FAC 435`,
       suggestion: {
         document_kind: "receivable",
@@ -68,6 +69,7 @@ export function colaConciliar(over: Partial<ReviewQueueResponse> = {}): ReviewQu
       movement_id: MOV_VOLCAN,
       date: "2026-04-14",
       amount: "1033076",
+      currency_code: "CLP",
       description: "ABONO TRANSFERENCIA MIRKO GONZALEZ",
       suggestion: {
         document_kind: "receivable",
@@ -97,6 +99,7 @@ export function colaConciliarExcede(): ReviewQueueResponse {
       movement_id: MOV_EXCEDE,
       date: "2026-08-28",
       amount: "2400000",
+      currency_code: "CLP",
       description: `TRANSFERENCIA ANDINA LTDA ${RUT_ANDINA} FAC 712`,
       suggestion: {
         document_kind: "receivable",
@@ -216,6 +219,10 @@ function movimiento(over: Partial<BankMovement> & Pick<BankMovement, "id">): Ban
     description: "",
     amount: "0",
     direction: "debit",
+    /* La moneda viaja en la fixture porque el contrato la publica: `currency_code` al lado de un
+       `currency_source` obligatorio. Una fixture sin moneda no reproduce el contrato vivo, y la
+       pantalla la rinde como "moneda no informada" — que es honesto, pero no es el caso de prod. */
+    currency_code: "CLP",
     currency_source: "account_context",
     reconciliation_quarantined: false,
     reconciliation_status: "unmatched",
@@ -273,6 +280,52 @@ export function sinClasificar(
 
 export function sinClasificarVacio(): BankMovementsListResponse {
   return { items: [], total: 0 };
+}
+
+/** El MOVIMIENTO EN DÓLARES del hallazgo B04: `US$5.862,30` se veía como "$5.862" en Bandeja.
+ *  Su gemelo en pesos son los de `sinClasificar()`, que tienen que seguir sin decimales. */
+export const MOV_USD = "mov-usd";
+/** Dólares REDONDOS: los decimales en cero no son excusa para perder la moneda (`US$5.344,00`). */
+export const MOV_USD_REDONDO = "mov-usd-redondo";
+
+export function sinClasificarDolares(): BankMovementsListResponse {
+  const items = [
+    movimiento({
+      id: MOV_USD,
+      date: "2026-08-20",
+      description: "COMPRA INTERNACIONAL AWS",
+      amount: "5862.30",
+      direction: "debit",
+      currency_code: "USD",
+      currency_source: "bank_declared",
+    }),
+    movimiento({
+      id: MOV_USD_REDONDO,
+      date: "2026-08-19",
+      description: "COMPRA INTERNACIONAL GITHUB",
+      amount: "5344",
+      direction: "debit",
+      currency_code: "USD",
+      currency_source: "bank_declared",
+    }),
+  ];
+  return { items, total: items.length };
+}
+
+/** Movimiento histórico SIN moneda declarada (`legacy_unknown`): la pantalla no puede inventarla. */
+export function sinClasificarSinMoneda(): BankMovementsListResponse {
+  const items = [
+    movimiento({
+      id: "mov-sin-moneda",
+      date: "2026-08-18",
+      description: "CARGO SIN MONEDA DECLARADA",
+      amount: "5344",
+      direction: "debit",
+      currency_code: null,
+      currency_source: "legacy_unknown",
+    }),
+  ];
+  return { items, total: items.length };
 }
 
 /** Historial ya clasificado, del que salen los "3 frecuentes" cuando no hay regla. */

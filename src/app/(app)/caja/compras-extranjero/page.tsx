@@ -1,6 +1,7 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { ForeignPurchasesView } from "@/components/caja/foreign-purchases-view";
+import { CardStatementUpload } from "@/components/credenciales";
 
 /* `/caja/compras-extranjero` — compras al extranjero (de la cartola de tarjeta).
    Lista + clasificación (concepto + categoría). Gateado por
@@ -19,7 +20,18 @@ export default function CajaComprasExtranjeroPage() {
         </p>
       </header>
 
-      {bankMovementClassification ? <ForeignPurchasesView /> : <FeatureUnavailableState />}
+      {bankMovementClassification ? (
+        <>
+          <ForeignPurchasesView />
+          {/* La pantalla pedía subir una cartola y la acción vivía en otra página (Credenciales):
+              el usuario leía la instrucción y no tenía con qué cumplirla (B28, QA de producción
+              del 2026-10-05). El import invalida `foreign-purchases`, así que la lista de arriba
+              se refresca sola al terminar. */}
+          <CardStatementUpload />
+        </>
+      ) : (
+        <FeatureUnavailableState />
+      )}
     </div>
   );
 }

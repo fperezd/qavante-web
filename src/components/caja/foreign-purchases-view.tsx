@@ -80,8 +80,8 @@ export function ForeignPurchasesView() {
     return (
       <QavanteEmpty
         icon={Globe}
-        title="No hay compras al extranjero"
-        description="Cuando subas una cartola de tarjeta con compras en el extranjero, las vas a ver acá para clasificarlas."
+        title="0 compras al extranjero por clasificar"
+        description="Es el total de las cartolas de tarjeta ya importadas. Sube una cartola más abajo y las compras en moneda extranjera aparecen acá para clasificarlas."
       />
     );
   }

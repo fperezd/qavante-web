@@ -247,7 +247,8 @@ export interface CuentaV03 {
   nombre: string;
   /** Frescura + pendientes, para el `.sub`. */
   sub: string;
-  moneda: string;
+  /** `null` = el payload no trajo moneda; no se completa con CLP. */
+  moneda: string | null;
   /** Saldo contable según el banco. `null` = NO SE SABE (bice no respondió): nunca `0`. */
   saldo: number | null;
   /** Por qué no hay saldo (cuando `saldo` es null). */
@@ -283,6 +284,32 @@ function tipoCuenta(c: CuentaSaldo): string {
   return c.esExtranjera || (c.moneda ?? "").toUpperCase() === "USD"
     ? "Cuenta Corriente USD"
     : "Cuenta Corriente CLP";
+}
+
+/**
+ * El nombre de un producto Qavante, con SU MONEDA. Son las filas que se ven cuando el banco no
+ * contesta, y ahí las dos cuentas BICE de Tooxs salían las dos como "Banco BICE · Cuenta
+ * Corriente": mismo nombre, sin nada que las distinga (B28, QA de producción del 2026-10-05).
+ *
+ * Los ÚLTIMOS DÍGITOS no se pueden poner acá y no se inventan: `BankAccountItem` publica
+ * `id` (un UUID), `name`, `bank_name` y `currency_code`, y ningún número de cuenta. La rama de
+ * bice sí los tiene (`numeroFormateado`) y los muestra con `parcial()`. Lo que esta rama SÍ tiene
+ * es la moneda, y con ella las dos cuentas ya se distinguen.
+ */
+export function nombreProductoQavante(a: BankAccountItem): string {
+  const moneda = monedaDeCuenta(a.currency_code);
+  const base = `${a.bank_name} · ${a.name}`.trim();
+  /* Si el nombre ya nombra la moneda ("Cuenta Corriente USD"), no se repite. */
+  if (moneda === null || base.toUpperCase().includes(moneda)) return base;
+  return `${base} ${moneda}`;
+}
+
+/** Moneda de la cuenta normalizada, conservando la AUSENCIA como `null`. `currency_code` es
+ *  requerido en el contrato: un vacío acá es un payload roto, y se dice en vez de taparse con un
+ *  "CLP" que convertiría una cuenta en dólares en una cuenta en pesos. */
+export function monedaDeCuenta(raw: string | null | undefined): string | null {
+  const code = (raw ?? "").trim().toUpperCase();
+  return code === "" ? null : code;
 }
 
 function conPendientes(frescura: string, porConciliar: number | null): string {
@@ -354,9 +381,9 @@ export function cuentasV03(input: CuentasInput): CuentaV03[] {
       const monto = parseAmountOrNull(a.balance);
       return {
         key: `qavante:${a.id}`,
-        nombre: `${a.bank_name} · ${a.name}`.trim(),
+        nombre: nombreProductoQavante(a),
         sub: conPendientes(frescura, porConciliar),
-        moneda: (a.currency_code ?? "CLP").toUpperCase(),
+        moneda: monedaDeCuenta(a.currency_code),
         saldo: monto,
         saldoMotivo: monto == null ? motivo : null,
         href: `/banco/cuenta/${encodeURIComponent(a.id)}`,
@@ -430,9 +457,9 @@ export function tarjetasV03(
       const monto = parseAmountOrNull(a.balance);
       return {
         key: `qavante:${a.id}`,
-        nombre: `${a.bank_name} · ${a.name}`.trim(),
+        nombre: nombreProductoQavante(a),
         sub: monto == null ? frescura : `${frescura} · saldo informado`,
-        moneda: (a.currency_code ?? "CLP").toUpperCase(),
+        moneda: monedaDeCuenta(a.currency_code),
         saldo: monto == null ? null : -Math.abs(monto),
         saldoMotivo: monto == null ? "El banco no informó el saldo de esta tarjeta." : null,
         href: `/banco/cuenta/${encodeURIComponent(a.id)}`,
@@ -444,17 +471,26 @@ export function tarjetasV03(
 }
 
 /** Suma de saldos POR MONEDA (INV-FX-001). Las filas sin saldo NO entran y se cuentan aparte:
- *  un total que las omite en silencio afirmaría "esto es todo" sobre cuentas que no se saben. */
+ *  un total que las omite en silencio afirmaría "esto es todo" sobre cuentas que no se saben.
+ *
+ *  Una fila SIN MONEDA tampoco entra: no hay total al que pertenezca. Meterla en el de CLP sería
+ *  elegir una moneda por ella. */
 export function sumaPorMoneda(filas: readonly CuentaV03[]): {
   porMoneda: Array<{ moneda: string; total: number; cuentas: number }>;
   sinSaldo: number;
+  sinMoneda: number;
 } {
   const acc = new Map<string, { moneda: string; total: number; cuentas: number }>();
   let sinSaldo = 0;
+  let sinMoneda = 0;
   for (const f of filas) {
     if (f.tipo !== "cuenta") continue;
     if (f.saldo == null) {
       sinSaldo += 1;
+      continue;
+    }
+    if (f.moneda === null) {
+      sinMoneda += 1;
       continue;
     }
     const b = acc.get(f.moneda) ?? { moneda: f.moneda, total: 0, cuentas: 0 };
@@ -465,6 +501,7 @@ export function sumaPorMoneda(filas: readonly CuentaV03[]): {
   return {
     porMoneda: [...acc.values()].sort((a, b) => a.moneda.localeCompare(b.moneda)),
     sinSaldo,
+    sinMoneda,
   };
 }
 
@@ -507,11 +544,7 @@ export function chipCajaHoy(caja: CajaHoy, banco: string, hoy: Date): string {
 
 /** Conciliación y clasificación son ejes independientes. Nunca colapsarlos en un único estado. */
 export type EstadoConciliacionV03 =
-  | "conciliado"
-  | "parcial"
-  | "pendiente"
-  | "excluido"
-  | "no_requerido";
+  "conciliado" | "parcial" | "pendiente" | "excluido" | "no_requerido";
 export type EstadoClasificacionV03 = "clasificado" | "por_clasificar" | "revision";
 /** Compatibilidad para consumidores antiguos; la UI nueva no usa este estado colapsado. */
 export type CicloMovimiento = "conciliado" | "clasificado" | "por_clasificar";

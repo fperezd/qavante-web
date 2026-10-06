@@ -10,7 +10,9 @@ import {
   formatClpCompact,
   formatMoney,
   formatMoneyFromDecimalString,
+  formatMoneySinMoneda,
   isNonZeroDecimalString,
+  MONEDA_NO_INFORMADA,
 } from "./clp";
 
 /* Quita cualquier espacio (incluido el NBSP que algunas versiones de ICU
@@ -125,9 +127,18 @@ describe("formatMoney", () => {
     expect(norm(formatMoney(-270.4, "USD"))).toBe("−US$270,40");
   });
 
-  it("moneda ausente → CLP por defecto", () => {
-    expect(norm(formatMoney(1000, null))).toBe("$1.000");
-    expect(norm(formatMoney(1000, undefined))).toBe("$1.000");
+  /* Acá vivía `it("moneda ausente → CLP por defecto")`, y ese test era el candado del
+     defecto B04: fijaba que la ausencia de moneda se rindiera como pesos. Un monto en
+     dólares rotulado en pesos es una cifra falsa, y a ~950 pesos por dólar el error es
+     de casi mil veces. */
+  it("moneda ausente NO se rinde como pesos: la cifra con el rótulo de la moneda que falta", () => {
+    expect(norm(formatMoney(1000, null))).toBe(`1.000,00·${MONEDA_NO_INFORMADA.replace(/ /g, "")}`);
+    expect(norm(formatMoney(1000, undefined))).toBe(
+      `1.000,00·${MONEDA_NO_INFORMADA.replace(/ /g, "")}`,
+    );
+    // Ningún símbolo de moneda: un símbolo afirma una moneda que acá no se conoce.
+    expect(formatMoney(1000, null)).not.toContain("$");
+    expect(formatMoney(1000, undefined)).not.toContain("$");
   });
 
   it("moneda desconocida no rompe (formato genérico con 2 decimales)", () => {
@@ -141,8 +152,38 @@ describe("formatMoney", () => {
     expect(norm(formatMoney(-1500.25, "UF"))).toBe("−UF1.500,25");
   });
 
-  it("moneda vacía '' → CLP (no RangeError de Intl)", () => {
-    expect(norm(formatMoney(1000, ""))).toBe("$1.000");
+  it("moneda vacía o en blanco es ausencia, no CLP (y no RangeError de Intl)", () => {
+    expect(formatMoney(1000, "")).not.toContain("$");
+    expect(formatMoney(1000, "   ")).toContain(MONEDA_NO_INFORMADA);
+  });
+
+  /* GEMELO de B04 — el movimiento en PESOS tiene que seguir siendo pesos y sin decimales.
+     Un arreglo que ponga "US$" (o el rótulo de moneda ausente) en todas partes pasa el test
+     del dólar y rompe el resto del producto. */
+  it("GEMELO: CLP sigue en pesos y sin decimales", () => {
+    expect(norm(formatMoney(5862, "CLP"))).toBe("$5.862");
+    expect(formatMoney(5862, "CLP")).not.toContain("US$");
+    expect(formatMoney(5862, "CLP")).not.toContain(MONEDA_NO_INFORMADA);
+  });
+
+  /* GEMELO de B04 — una cifra en dólares con decimales que terminan en CERO no pierde la
+     moneda por venir "redonda": `US$5.344` existía en prod como "$5.344". */
+  it("GEMELO: USD redondo conserva la moneda y los dos decimales", () => {
+    expect(norm(formatMoney(5344, "USD"))).toBe("US$5.344,00");
+    expect(norm(formatMoney(5862.3, "USD"))).toBe("US$5.862,30");
+  });
+
+  describe("formatMoneySinMoneda", () => {
+    it("no redondea al peso (redondear al peso YA sería asumir CLP)", () => {
+      expect(norm(formatMoneySinMoneda(5862.3))).toBe(
+        `5.862,30·${MONEDA_NO_INFORMADA.replace(/ /g, "")}`,
+      );
+    });
+
+    it("negativo con el menos tipográfico, y no-finito → guion", () => {
+      expect(formatMoneySinMoneda(-270.4)).toContain("−");
+      expect(formatMoneySinMoneda(NaN)).toBe("s/d");
+    });
   });
 
   it("no-finito → guion", () => {
@@ -333,20 +374,21 @@ describe("formatMoneyFromDecimalString — contrato Decimal exacto", () => {
 
   it("no convierte texto inválido en cero y distingue cero exacto de un monto", () => {
     expect(formatMoneyFromDecimalString("pendiente", "CLP")).toBe("pendiente");
-    expect(isNonZeroDecimalString("-0.00")).toBe(false);
-    expect(isNonZeroDecimalString("9007199254740993")).toBe(true);
+    expect(isNonZeroDecimalString("-0.00", "CLP")).toBe(false);
+    expect(isNonZeroDecimalString("9007199254740993", "CLP")).toBe(true);
     // Un valor no canónico no se suprime, sea cual sea la moneda.
-    expect(isNonZeroDecimalString("pendiente")).toBe(true);
+    expect(isNonZeroDecimalString("pendiente", "CLP")).toBe(true);
     expect(isNonZeroDecimalString("pendiente", "USD")).toBe(true);
   });
 
   it("juzga cero con la misma regla de MONEDA que la pantalla, no sobre los dígitos crudos", () => {
     // CLP redondea al peso: un residuo sub-peso es "$0" en pantalla y también
     // debe juzgarse cero, para no pintar una fila de cobertura con "· $0".
-    expect(isNonZeroDecimalString("0.36")).toBe(false);
     expect(isNonZeroDecimalString("0.36", "CLP")).toBe(false);
-    expect(isNonZeroDecimalString("0.5")).toBe(true);
     expect(isNonZeroDecimalString("0.5", "CLP")).toBe(true);
+    /* SIN moneda no se juzga con la regla del peso: el residuo sub-peso cuenta como
+       impacto, porque suprimirlo sería haber asumido CLP. */
+    expect(isNonZeroDecimalString("0.36", null)).toBe(true);
     // USD/otras monedas redondean a dos decimales, no al peso.
     expect(isNonZeroDecimalString("0.004", "USD")).toBe(false);
     expect(isNonZeroDecimalString("0.005", "USD")).toBe(true);

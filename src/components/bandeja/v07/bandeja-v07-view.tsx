@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { formatClp } from "@/lib/formatters/clp";
+import { formatMoney } from "@/lib/formatters/clp";
 import { concordar, formatCount } from "@/lib/formatters/count";
 import { formatDateLong, formatRelative } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
@@ -25,7 +25,8 @@ import {
   haySugerenciaConciliar,
   interpretarDeshacer,
   lote,
-  montoResuelto,
+  textoResuelto,
+  type MontoMonedaV07,
   parcialidad,
   primerRutEnTexto,
   progreso,
@@ -237,7 +238,9 @@ function BandejaV07Contenido({
   const { show } = useRedisenoToast();
   const [tab, setTab] = React.useState<TabV07>(tabInicial);
   const [resueltos, setResueltos] = React.useState<string[]>([]);
-  const [montos, setMontos] = React.useState<number[]>([]);
+  /* Cada monto viaja con SU moneda: lo resuelto se rinde una cifra por moneda, nunca un total
+     único con el signo peso sobre pesos y dólares mezclados. */
+  const [montos, setMontos] = React.useState<MontoMonedaV07[]>([]);
   const [iConciliar, setIConciliar] = React.useState(0);
   const [iClasificar, setIClasificar] = React.useState(0);
   const [enlacePendiente, setEnlacePendiente] = React.useState(movimientoInicial);
@@ -321,14 +324,14 @@ function BandejaV07Contenido({
   );
   const pendientes = pendientesConciliar + pendientesClasificar;
   const prog = progreso(resueltos.length, pendientes);
-  const totalResuelto = montoResuelto(montos);
+  const totalResuelto = textoResuelto(montos);
 
   /** Saca el ítem de la cola y avanza. `cuentaLaPlata` es false cuando el ítem se DESCARTÓ: un
    *  "no es esta" saca la sugerencia de la bandeja, pero el movimiento sigue sin conciliar, así
    *  que su monto no puede sumarse a lo que "dejó de estar en duda". */
   function marcarResuelto(item: ItemV07, largoCola: number, cuentaLaPlata = true) {
     setResueltos((prev) => [...prev, item.id]);
-    if (cuentaLaPlata) setMontos((prev) => [...prev, item.monto]);
+    if (cuentaLaPlata) setMontos((prev) => [...prev, { monto: item.monto, moneda: item.moneda }]);
     const siguiente = trasResolver(
       item.tipo === "conciliar" ? idxConciliar : idxClasificar,
       largoCola - 1,
@@ -341,7 +344,10 @@ function BandejaV07Contenido({
     const idSet = new Set(ids);
     const resueltosAhora = colaClasificar.filter((item) => idSet.has(item.id));
     setResueltos((prev) => [...new Set([...prev, ...resueltosAhora.map((item) => item.id)])]);
-    setMontos((prev) => [...prev, ...resueltosAhora.map((item) => item.monto)]);
+    setMontos((prev) => [
+      ...prev,
+      ...resueltosAhora.map((item) => ({ monto: item.monto, moneda: item.moneda })),
+    ]);
     setIClasificar(0);
   }
 
@@ -383,7 +389,7 @@ function BandejaV07Contenido({
           {resueltos.length > 0 && (
             <p className="mt-1.5 text-[12.5px] text-rediseno-tinta-3">
               Resolviste <b className="tabular-nums">{resueltos.length}</b> en esta sesión ·{" "}
-              <b className="tabular-nums">{formatClp(totalResuelto)}</b> dejaron de estar en duda.
+              <b className="tabular-nums">{totalResuelto}</b> dejaron de estar en duda.
             </p>
           )}
         </div>
@@ -460,7 +466,7 @@ function BandejaV07Contenido({
                 <>
                   Conciliado:{" "}
                   <b>{candidato?.nombre ?? item.contraparteMotor ?? "sin contraparte"}</b> ·{" "}
-                  {formatClp(item.monto)}
+                  {formatMoney(item.monto, item.moneda)}
                 </>
               ),
               /* LEY 5 — acá SÍ, porque la reversión existe (`.../revert`). */
@@ -480,7 +486,7 @@ function BandejaV07Contenido({
               message: (
                 <>
                   Descartada la sugerencia de <b>{item.contraparteMotor ?? "esta contraparte"}</b> ·{" "}
-                  {formatClp(item.monto)}
+                  {formatMoney(item.monto, item.moneda)}
                 </>
               ),
             });
@@ -555,7 +561,7 @@ function BandejaV07Contenido({
               show({
                 message: (
                   <>
-                    Clasificado como <b>{nombreCuenta}</b> · {formatClp(item.monto)}
+                    Clasificado como <b>{nombreCuenta}</b> · {formatMoney(item.monto, item.moneda)}
                   </>
                 ),
                 /* LEY 5 — acá NO, y es correcto: esto lo decidió el DUEÑO (aceptó una sugerencia
@@ -573,7 +579,7 @@ function BandejaV07Contenido({
 
 /* ── Progreso ────────────────────────────────────────────────────────────────────────────── */
 
-function Progreso({ prog, monto }: { prog: ReturnType<typeof progreso>; monto: number }) {
+function Progreso({ prog, monto }: { prog: ReturnType<typeof progreso>; monto: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie px-[17px] py-3">
       <div
@@ -589,7 +595,7 @@ function Progreso({ prog, monto }: { prog: ReturnType<typeof progreso>; monto: n
       <p className="text-[12.5px] text-rediseno-tinta-2">
         <b className="tabular-nums">{prog.resueltos}</b> de{" "}
         <b className="tabular-nums">{prog.total}</b> resueltos en esta sesión ·{" "}
-        <b className="tabular-nums">{formatClp(monto)}</b> dejaron de estar en duda
+        <b className="tabular-nums">{monto}</b> dejaron de estar en duda
       </p>
     </div>
   );
@@ -730,7 +736,12 @@ function CartaConciliar({
         <span aria-hidden className="text-center text-rediseno-tinta-3">
           ⇄
         </span>
-        <LadoDocumento candidato={candidato} cargando={cargando} motivo={candidatos?.motivo} />
+        <LadoDocumento
+          candidato={candidato}
+          cargando={cargando}
+          motivo={candidatos?.motivo}
+          moneda={item.moneda}
+        />
       </div>
 
       {evidencia.length > 0 ? (
@@ -782,6 +793,7 @@ function CartaConciliar({
           lista={lista}
           elegido={candidato?.documentId ?? null}
           cargando={cargando}
+          moneda={item.moneda}
           onElegir={(id) => {
             setElegido(id);
             setBuscando(false);
@@ -847,7 +859,7 @@ function LadoBanco({ item }: { item: ItemConciliarV07 }) {
     <div className="rounded-xl border border-rediseno-hairline bg-rediseno-porcelana px-4 py-3">
       <p className={EYEBROW}>En el banco · {formatDateLong(item.fecha)}</p>
       <p className="mt-1 font-sans text-[20px] font-semibold break-words tabular-nums text-rediseno-tinta">
-        {palabraDireccion(item.direccion)} {formatClp(item.monto)}
+        {palabraDireccion(item.direccion)} {formatMoney(item.monto, item.moneda)}
       </p>
       <p className="mt-0.5 text-[12.5px] break-words text-rediseno-tinta-2">
         {item.glosa ?? "sin glosa"}
@@ -860,10 +872,16 @@ function LadoDocumento({
   candidato,
   cargando,
   motivo,
+  moneda,
 }: {
   candidato: CandidatoV07 | null;
   cargando: boolean;
   motivo?: string | null;
+  /* La moneda del DOCUMENTO no está en el contrato (`DocumentSuggestion` publica `amount` y no
+   publica moneda). Se rinde con la del MOVIMIENTO porque es contra él que se compara, y porque
+   el servidor bloquea el cruce de monedas con su propio `currency_mismatch`: una conciliación
+   confirmable es, por definición del productor, en la misma moneda. No se cae a CLP. */
+  moneda: string | null;
 }) {
   if (cargando) {
     return (
@@ -892,7 +910,7 @@ function LadoDocumento({
     <div className="rounded-xl border border-rediseno-hairline bg-rediseno-superficie px-4 py-3">
       <p className={EYEBROW}>{etiquetaDocumento(candidato)}</p>
       <p className="mt-1 font-sans text-[20px] font-semibold break-words tabular-nums text-rediseno-tinta">
-        {candidato.monto == null ? "monto no informado" : formatClp(candidato.monto)}
+        {candidato.monto == null ? "monto no informado" : formatMoney(candidato.monto, moneda)}
       </p>
       <p className="mt-0.5 text-[12.5px] break-words text-rediseno-tinta-2">
         {candidato.nombre ?? "contraparte sin nombre"}
@@ -926,16 +944,17 @@ function LineaDiferencia({
   if (parte.tipo === "parcial") {
     texto = (
       <>
-        Pago parcial: entraron {formatClp(item.monto)} de {formatClp(candidato?.monto ?? 0)}; quedan{" "}
-        <b className="tabular-nums">{formatClp(parte.restante)}</b> por cobrar.
+        Pago parcial: entraron {formatMoney(item.monto, item.moneda)} de{" "}
+        {formatMoney(candidato?.monto ?? 0, item.moneda)}; quedan{" "}
+        <b className="tabular-nums">{formatMoney(parte.restante, item.moneda)}</b> por cobrar.
       </>
     );
   }
   if (parte.tipo === "exceso") {
     texto = (
       <>
-        Entró <b className="tabular-nums">{formatClp(parte.monto)}</b> más que el documento: revisa
-        si cubre más de una factura.
+        Entró <b className="tabular-nums">{formatMoney(parte.monto, item.moneda)}</b> más que el
+        documento: revisa si cubre más de una factura.
       </>
     );
   }
@@ -956,11 +975,17 @@ function ListaCandidatos({
   elegido,
   cargando,
   onElegir,
+  moneda,
 }: {
   lista: CandidatoV07[];
   elegido: string | null;
   cargando: boolean;
   onElegir: (id: string) => void;
+  /* La moneda del DOCUMENTO no está en el contrato (`DocumentSuggestion` publica `amount` y no
+   publica moneda). Se rinde con la del MOVIMIENTO porque es contra él que se compara, y porque
+   el servidor bloquea el cruce de monedas con su propio `currency_mismatch`: una conciliación
+   confirmable es, por definición del productor, en la misma moneda. No se cae a CLP. */
+  moneda: string | null;
 }) {
   if (cargando) {
     return (
@@ -994,7 +1019,7 @@ function ListaCandidatos({
                 {c.nombre ?? "contraparte sin nombre"}
               </b>
               <span className="tabular-nums">
-                {c.monto == null ? "monto no informado" : formatClp(c.monto)}
+                {c.monto == null ? "monto no informado" : formatMoney(c.monto, moneda)}
               </span>
               <span>
                 {etiquetaDocumento(c)} · {c.fecha ? formatDateLong(c.fecha) : "sin fecha"}
@@ -1409,7 +1434,7 @@ function CartaClasificar({
         </p>
 
         <h2 className="mt-2 font-sans text-[19px] leading-snug font-semibold break-words text-rediseno-tinta">
-          {palabraDireccion(item.direccion)} {formatClp(item.monto)} ·{" "}
+          {palabraDireccion(item.direccion)} {formatMoney(item.monto, item.moneda)} ·{" "}
           {item.glosa ? `“${item.glosa}”` : "sin glosa"} · {formatDateLong(item.fecha)}
         </h2>
         <p className="mt-1 text-[12.5px] text-rediseno-tinta-3">
