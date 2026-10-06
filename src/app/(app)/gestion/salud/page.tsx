@@ -1,21 +1,27 @@
-import { HeartPulse, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { QavanteBadge, QavanteEmpty } from "@/components/qavante";
+import { SaludContratoLive } from "@/components/gestion/salud/salud-contrato-live";
 
-/* Salud (PULSO + Health Score, ADR-0064). **Server Component**.
+/* Salud (PULSO + Qavante Health Score, ADR-0064). **Server Component**.
 
-   Regla de honestidad de datos (qavante-api#936, HYGIENE_SWEEP V7): dato
-   faltante ≠ dato demo. Esta pantalla NO muestra números hasta que exista el
-   motor v2 del backend (qavante-api #492 PULSO / #495 QHS) y el cableado a
-   datos reales (qavante-web #487): siempre renderiza el estado "En
-   construcción", sin datos de ejemplo, en TODOS los ambientes.
+   La pantalla consume el contrato canónico `GET /api/management/salud`: snapshots persistidos
+   de los dos instrumentos bajo el mismo scope financiero (sociedad, moneda y fecha de corte,
+   los tres explícitos y resueltos en el servidor).
 
-   El prototipo visual sigue vivo para diseño en Storybook (`SaludView` +
-   `salud-fixtures`), fuera de la app. Cuando llegue el dato real, #487 monta acá la vista detrás
-   de un flag nuevo (patrón ADR-0008), consumiendo el endpoint real — nunca fixtures. El
-   `saludScreen` que figuraba en el catálogo se retiró el 2026-10-05: estaba declarado y ninguna
-   ruta lo leía, así que no apagaba esta pantalla — este archivo la deja siempre en construcción
-   por su cuenta. */
+   Regla de honestidad de datos (HYGIENE_SWEEP V7): dato faltante ≠ dato demo. Acá no hubo
+   números mientras no existió el motor; ahora existe, y la pantalla muestra lo que el contrato
+   publica, nada más. Cuando no trae uno de los dos instrumentos, se dice con NÚMERO cuánto
+   cubre la lectura: no se fabrica un puntaje, no se muestra un cero y no se pinta una
+   clasificación por defecto.
+
+   Sin flag, a propósito: en este producto un flag con default apagado que exige variable de
+   entorno y redespliegue ya dejó una funcionalidad inerte. La protección que el flag prometía
+   la da la propia frase de cobertura. El `saludScreen` del catálogo se retiró el 2026-10-05
+   —estaba declarado y ninguna ruta lo leía— y no se reintroduce.
+
+   El prototipo visual sigue vivo para diseño en el catálogo de componentes (`SaludView` +
+   `salud-model` + `salud-fixtures`), fuera de la ruta productiva: habla de cuadrantes y curvas
+   de caja que el contrato no publica, así que no se monta acá. */
 export default function SaludPage() {
   return (
     <div className="space-y-6">
@@ -27,19 +33,12 @@ export default function SaludPage() {
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver al inicio
         </Link>
-        <div className="mt-2 flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-neutral-dark">Salud de tu empresa</h1>
-          <QavanteBadge variant="warning">En construcción</QavanteBadge>
-        </div>
+        <h1 className="mt-2 text-2xl font-bold text-neutral-dark">Salud de tu empresa</h1>
         <p className="mt-1 text-sm text-neutral-mid">
           ¿Te alcanza la plata este mes y hacia dónde va tu empresa?
         </p>
       </header>
-      <QavanteEmpty
-        icon={HeartPulse}
-        title="Salud de tu empresa"
-        description="Esta lectura todavía no está disponible. El Pulso muestra cómo viene la caja del mes; la lectura de salud financiera aún no cuenta con datos confirmados."
-      />
+      <SaludContratoLive />
     </div>
   );
 }

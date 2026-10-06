@@ -35,7 +35,13 @@ import type {
    ni a la API (cero impacto en prod). Reutiliza `PulsoRing`, `QavanteCard`,
    `QavanteBadge` y `useCountUp`. Vocabulario según §8 "Diccionario de UI" de la
    spec: la pantalla habla el idioma del dueño (pesos, no ratios; preguntas, no
-   sustantivos técnicos). */
+   sustantivos técnicos).
+
+   La ruta `/gestion/salud` NO monta esta vista: monta `SaludContratoLive`, que
+   consume el contrato canónico `GET /api/management/salud`. Este prototipo se
+   queda en el catálogo de diseño porque muestra conceptos que el contrato no
+   publica (cuadrante PULSO×QHS, curva de caja, día de quiebre, semáforo de
+   decisiones); alimentarlos desde el contrato sería inventarlos. */
 
 /* ── Mapeos banda → color/estado ─────────────────────────────── */
 

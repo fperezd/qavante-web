@@ -1,8 +1,12 @@
 /* Modelo presentacional del prototipo "Salud" (PULSO + Health Score).
  *
  * PROTOTIPO UX — no cableado a rutas ni a la API. Los tipos son locales al
- * prototipo; cuando CC-API exponga el motor v2 (ADR-0064, issues #492/#495) se
- * reemplazan por los generados desde OpenAPI (regla 3 de CLAUDE.md).
+ * prototipo y SIGUEN siéndolo: el contrato canónico `GET /api/management/salud`
+ * ya existe, y la pantalla productiva lo consume con tipos generados desde
+ * OpenAPI en `salud-contrato-model.ts` + `salud-contrato-view.tsx`. Estos tipos
+ * NO se migraron a ese contrato porque su vocabulario (cuadrante, decisiones,
+ * curva de caja, bandas `holgado`…`critico`) no lo publica: adaptarlo sería
+ * fabricar datos. Viven acá para explorar diseño en el catálogo de componentes.
  *
  * El vocabulario de los `label` sigue el §8 "Diccionario de UI" de la spec
  * `docs/scoring/pulso-y-health-score-spec-v1.md`: la pantalla habla el idioma
