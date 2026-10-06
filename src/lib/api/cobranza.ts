@@ -7,8 +7,9 @@ import type { components, paths } from "./types";
 /* Capa de datos — Cobrar / Cuentas por cobrar (Sprint C4, Documento Maestro
    §7.3).
 
-   `GET /api/treasury/accounts-receivable` YA existe en el backend (cookie-ready)
-   y el flag `accountsReceivable` está ON en prod. Cuando el devengado
+   `GET /api/treasury/accounts-receivable` YA existe en el backend (cookie-ready) y se consume
+   sin flag: el `accountsReceivable` que lo gateaba se retiró el 2026-10-05 por estar declarado y
+   nunca leído. Cuando el devengado
    (treasury.receivables, poblado por `sync-rcv`) está vacío, el backend devuelve
    honesto `data_state:"partial"` + `missing_sources` (ADR-0055 F1) en vez de un
    $0 confiado → la UI muestra "sincronización pendiente".

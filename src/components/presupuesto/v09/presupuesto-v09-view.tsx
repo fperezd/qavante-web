@@ -322,7 +322,7 @@ function TablaDesvios({
             <TablePrimaryCell
               value={row.original.label}
               /* El `.sub` ENVUELVE en vez de truncar cuando la tabla es angosta (mismo hallazgo
-                 documentado en `table.tsx` y arreglado en `cobrar-v04-view.tsx`): su `nowrap` por
+                 documentado en `table.tsx`): su `nowrap` por
                  defecto fija el ancho MÍNIMO de la columna en el metadato entero y empuja el
                  monto del desvío (el dato primario) fuera del contenedor — medido con la Ley 7 a
                  360 px (15 px de desborde antes de este fix). */

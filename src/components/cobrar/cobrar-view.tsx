@@ -51,8 +51,12 @@ import { formatPct } from "@/lib/formatters/pct";
 /* Cobrar — cuentas por cobrar (Sprint C4, Maestro §7.3): resumen, antigüedad de
    saldos (aging), top deudores y documentos vencidos. Container: resuelve el
    snapshot + monta la vista. Estados canónicos. Refresh v1.3 (labels uppercase,
-   tabular-nums, hover en filas, bordes/contraste). Contrato FE-first gated por
-   `accountsReceivable` (la page lo resuelve). */
+   tabular-nums, hover en filas, bordes/contraste).
+
+   NINGUNA ruta monta hoy esta vista: `/cobrar` monta `GestionCobrosLive` y el directorio de
+   deudores. El flag `accountsReceivable` que la gateaba se retiró el 2026-10-05 porque estaba
+   declarado y nunca leído. Queda viva en Storybook como pieza de diseño; mientras no vuelva a
+   montarse desde una página, lo que se mide acá es la vista, no la pantalla. */
 
 export interface CobrarViewProps {
   /** Si el flag `siiQueries` está ON, muestra el acceso al Libro de Ventas SII. */
@@ -326,11 +330,11 @@ function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato: Vencido
    Las stories del CONTAINER (`CobrarView`) fijan su respuesta MSW desde #95; esta
    pieza mantiene además una cobertura aislada de los tres estados por deudor.
 
-   Qué es esta vista hoy, dicho con precisión: `wrangler.toml` pone
-   `NEXT_PUBLIC_FF_COBRAR_V2 = "true"`, así que **producción sirve v2**. Esta se
-   renderiza cuando `cobrarV2` está apagado y `accountsReceivable` encendido, o sea
-   la configuración de ROLLBACK. Cubrirla igual: el día que haya que apagar v2, la
-   pantalla a la que se cae es justo donde menos se quiere una mentira en pantalla. */
+   Qué es esta pieza hoy, dicho con precisión: ninguna ruta la monta. `/cobrar` sirve
+   `GestionCobrosLive` + el directorio de deudores, y los flags que decidían entre v1 y v2
+   (`accountsReceivable`, `cobrarV2`) se retiraron el 2026-10-05 por estar declarados y nunca
+   leídos. Se sigue cubriendo porque es la pieza que volvería a pantalla si Cobrar retrocede, y
+   ahí es donde menos se quiere una mentira en pantalla. */
 export function TopDebtors({
   debtors,
   total,

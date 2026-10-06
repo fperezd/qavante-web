@@ -32,13 +32,11 @@ export const FEATURE_FLAGS = [
   "multiCurrency",
   "classificationRules",
   "bankMovementClassification",
-  "phase2PlanningPreview",
   "siiQueries",
   "cashFlowReport",
   "inicioMvp",
   "miCuenta",
   "operationalResult",
-  "accountsReceivable",
   "accountsPayable",
   "dashboardSummary",
   "financialDecisionHome",
@@ -50,13 +48,11 @@ export const FEATURE_FLAGS = [
   "syncStatus",
   "remuneraciones",
   "bankBalances",
-  "saludScreen",
   "libroVentasV2",
   "libroComprasV2",
   "cajaV2",
   "cajaV3",
   "pagarV2",
-  "cobrarV2",
   "reconciliationReview",
   "bancoScreen",
   "payrollReconcileBoard",
@@ -76,7 +72,6 @@ export const FEATURE_FLAGS = [
   "bancoV03",
   "pagarV05",
   "bandejaV07",
-  "cobrarV04",
   /* Directorio operativo de deudores en Cobrar (issue #207). Separa "los 5 mayores" de "todos
      los clientes con saldo": la búsqueda, los filtros, el orden y la paginación los resuelve
      `GET /api/treasury/accounts-receivable/debtors`, y el conteo sale de su `items_total`.
@@ -117,7 +112,6 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   multiCurrency: "/api/core/currencies",
   classificationRules: "/api/treasury/classification-rules",
   bankMovementClassification: "/api/bank-movements/{movement_id}/classify",
-  phase2PlanningPreview: "/api/management/financial-versions",
   siiQueries: "/api/sii/health",
   cashFlowReport: "/api/treasury/reports/cash-flow",
   inicioMvp: "/api/me",
@@ -128,8 +122,6 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   /* Resultado Operacional de Gestión (Sprint C5). Endpoint VIVO en prod (acepta cookie, sondeado
      2026-07-17). El flag está ON; el dato de fondo aún excluye remuneraciones (gap CC-API, A1). */
   operationalResult: "/api/management/operational-result",
-  /* Cobrar — cuentas por cobrar (Sprint C4). Endpoint VIVO en prod (acepta cookie). Flag ON. */
-  accountsReceivable: "/api/treasury/accounts-receivable",
   /* Pagar — cuentas por pagar (Sprint C4). Endpoint VIVO en prod (acepta cookie). Flag ON. */
   accountsPayable: "/api/treasury/accounts-payable",
   /* Inicio Ejecutivo (Sprint C8) — el dashboard agregado. Endpoint VIVO en prod (acepta cookie). */
@@ -169,14 +161,6 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   remuneraciones: "/api/buk/employees",
   /* Saldos de las cuentas de banco (Caja): saldo informado por Fintoc en treasury. */
   bankBalances: "/api/treasury/bank-accounts",
-  /* Pantalla Salud (PULSO + Health Score, ADR-0064). FE-first: la vista
-     (`SaludView`) ya existe (prototipo, PR #476, hoy solo en Storybook); la ruta
-     renderiza SIEMPRE "En construcción" — sin datos de ejemplo en ningún
-     ambiente (qavante-api#936, regla dato faltante ≠ dato demo) — hasta que
-     CC-API exponga el motor v2 (qavante-api #492 PULSO / #495 QHS / #493 flip).
-     El cableado a datos reales + tipos generados (qavante-web #487) reintroduce
-     la vista gateada por este flag. */
-  saludScreen: "/api/management/salud",
   /* Libro de Ventas v2 (rediseño aprobado 2026-07-13) — reordena la pantalla a la
      jerarquía del Inicio (respuesta de dueño arriba + tabla que sube + concentración
      lateral). Lo que lo enciende del todo son los comparativos del ritmo, que se
@@ -210,14 +194,6 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      flag ON tiene prioridad sobre accountsPayable (mismo dato base); hoy OFF, el Pagar
      clásico queda intacto. */
   pagarV2: "/api/treasury/payment-plan",
-  /* Cobrar v2 (rediseño 2026-07-19) — respuesta de dueño: "a quién le cobras primero" + acciones
-     reales de cobranza (copiar recordatorio en chileno, WhatsApp/mail, marcar gestionado persistido
-     en prefs). Reusa `accounts-receivable` (accountsReceivable) para los datos; degrada honesto en
-     dos modos según haya o no vencimientos del SII (urgencia vs. concentración). Lo que lo ENCIENDE
-     del todo es el plan de cobranza por vencimiento (FE-first, aún no existe) — ese es su endpoint de
-     gating, el que lo pasa de "concentración" a "urgencia". Con ON tiene prioridad sobre la vista
-     clásica de Cobrar; hoy OFF, el Cobrar clásico queda intacto. */
-  cobrarV2: "/api/treasury/collection-plan",
   /* Cola de conciliación (ADR-0036/0042) — el motor auto-aplica los matches con score >=90 y deja
      los 60-90 en una cola de revisión de 1 clic (confirmar/rechazar/conciliar todas). La pantalla
      nueva la consume; su endpoint de gating es la cola misma. LIVE en prod desde 2026-07-17
@@ -380,20 +356,6 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      ADR-0008 fija más arriba en este mismo archivo. Ninguna pantalla existente cambia → cero
      regresión. */
   bandejaV07: "/api/reversible-actions/{action_id}/revert",
-  /* V04 · Cobrar — "¿quién me debe?" (ESPECIFICACION §V04, issue #69). Reemplaza la landing de
-     `/cobrar` por: crumb con el estado de gestión como chip gris, las 5 tarjetas de aging
-     (Vigente / 1–30 / 31–60 / +61 / Vencido · bruto ⓘ) con % del total, el banner de concentración
-     ("3 clientes concentran $X del vencido" → "Enviar a los 3"), los filtros con conteo y la tabla
-     de clientes con WhatsApp · correo · Recordatorio (las plantillas actuales de Cobrar v2). Todo
-     sobre `accounts-receivable` (VIVO; la misma función del backend que alimenta "Te deben" en
-     V01 → Ley 1) y las prefs de gestión — la vista funciona hoy, con `overdue: null` incluido.
-
-     Su endpoint de gating es el envío EN LOTE de recordatorios a terceros. Después de la ventana
-     cancelable de Ley 4, el front manda exclusivamente UUIDs trazables del summary junto a una
-     llave idempotente; el servidor conserva el ledger y devuelve el resultado por documento.
-     `sin_destinatario`, `skipped` y `error` se muestran como tales, nunca como éxito. Con OFF, el
-     Cobrar actual (v2 en producción) queda intacto → cero regresión. */
-  cobrarV04: "/api/treasury/collection-reminders/send",
   /* El directorio canónico paginado de deudores. Es LA capacidad que faltaba y que ningún otro
      flag consume: publica `search`, `state`, `due_state`, `document_status`, `currency`,
      `currency_status`, `sort` y `cursor` server-side, `items_total` ("deudores que cumplen los

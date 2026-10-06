@@ -32,9 +32,6 @@ const flags = vi.hoisted(() => ({
   accountsPayable: true,
   pagarV2: true,
   pagarV05: true,
-  accountsReceivable: true,
-  cobrarV2: true,
-  cobrarV04: true,
 }));
 
 vi.mock("@/lib/feature-flags", () => ({ resolveFeatureFlags: () => flags }));

@@ -143,11 +143,11 @@ export const SinPlanillaDelPeriodo: Story = {
 /* ── Ley 7 / §5.2 a 360 px (hallazgo del pase §6, PR #97: la tabla desbordaba 122 px un
  * contenedor de 360) ─────────────────────────────────────────────────────────────────────────
  *
- * Mismo patrón que `cobrar-v04-view.stories.tsx` (`Angosto360`), que es el detector exacto que
- * usó el reviewer para medir el desborde: un decorator con un `<div>` fijo de 360 px —no un
+ * El detector es el que usó el reviewer para medir el desborde: un decorator con un `<div>` fijo
+ * de 360 px —no un
  * resize real del viewport— porque esta vista puede vivir embebida en un contenedor angosto
  * aunque la ventana del navegador sea ancha (por eso las columnas usan `hideBelowTable`, no
- * `hideBelow`, igual que V04). */
+ * `hideBelow`, igual que V12 · Administración). */
 export const Angosto360: Story = {
   name: "360 px · persona y líquido no se recortan; Estado y liquidación colapsan (Ley 7 · §5.2)",
   decorators: [
@@ -168,7 +168,7 @@ export const Angosto360: Story = {
     expect(document.documentElement.clientWidth).toBeGreaterThanOrEqual(360);
 
     const tabla = canvas.getByRole("table");
-    /* EL NODO IMPORTA (mismo hallazgo que dejó documentado `cobrar-v04`): se mide
+    /* EL NODO IMPORTA (el hallazgo está documentado en `table.tsx`): se mide
        `tabla.parentElement`, el `div.overflow-y-auto` de `table.tsx`, que es el que scrollea de
        verdad. Su padre —el wrapper `overflow-hidden`— informa desborde 0 SIEMPRE (con un eje en
        `auto` el otro computa `auto` y el hijo se come el desborde): medirlo a él es una aserción

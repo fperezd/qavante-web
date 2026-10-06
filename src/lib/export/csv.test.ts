@@ -156,7 +156,6 @@ describe("csv tipado y seguro", () => {
   it("impide que los exports activos reintroduzcan serializadores o descargas paralelas", () => {
     const migrated = [
       "src/components/banco/v03/banco-v03-model.ts",
-      "src/components/cobrar/v04/cobrar-v04-model.ts",
       "src/components/pagar/v05/pagar-v05-model.ts",
       "src/components/impuestos/v06/impuestos-v06-model.ts",
       "src/components/presupuesto/v09/presupuesto-v09-model.ts",

@@ -11,9 +11,11 @@ import { QavanteBadge, QavanteEmpty } from "@/components/qavante";
    construcción", sin datos de ejemplo, en TODOS los ambientes.
 
    El prototipo visual sigue vivo para diseño en Storybook (`SaludView` +
-   `salud-fixtures`), fuera de la app. Cuando llegue el dato real, #487
-   reintroduce acá la vista gateada por `saludScreen` (patrón ADR-0008),
-   consumiendo el endpoint real — nunca fixtures. */
+   `salud-fixtures`), fuera de la app. Cuando llegue el dato real, #487 monta acá la vista detrás
+   de un flag nuevo (patrón ADR-0008), consumiendo el endpoint real — nunca fixtures. El
+   `saludScreen` que figuraba en el catálogo se retiró el 2026-10-05: estaba declarado y ninguna
+   ruta lo leía, así que no apagaba esta pantalla — este archivo la deja siempre en construcción
+   por su cuenta. */
 export default function SaludPage() {
   return (
     <div className="space-y-6">

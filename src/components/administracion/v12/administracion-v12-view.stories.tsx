@@ -26,7 +26,7 @@ import { SOLO_TEST_STORYBOOK } from "@/test/storybook/solo-test-storybook";
  *       pedido antes de confiar en cualquier medición (mismo criterio que `gestion-v08`).
  *   (3) `scroller = tabla.parentElement` (el `overflow-y-auto` que scrollea de verdad), no el
  *       `overflow-hidden` de más afuera — ese informa desborde 0 SIEMPRE, es el mismo criterio de
- *       `cobrar-v04-view.stories.tsx`.
+ *       `remuneraciones-v16-view.stories.tsx`.
  *   (4) Control POSITIVO del propio detector, medido en cada corrida (no un comentario
  *       histórico): se inyecta una sonda de 9999 px dentro del scroller, se confirma que la
  *       fórmula la marca como desborde, y se limpia ANTES de la medición real — así un detector

@@ -3,8 +3,8 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  *
  * Contesta UNA pregunta: "¿a quién le pago, y qué es crítico?".
  *
- * Sin React a propósito, como `hoy-model.ts`, `caja-v02-model.ts`, `banco-v03-model.ts` y
- * `cobrar-v04-model.ts`: cada tarjeta, cada pill y cada conteo de esta pantalla es una afirmación
+ * Sin React a propósito, como `hoy-model.ts`, `caja-v02-model.ts` y `banco-v03-model.ts`: cada
+ * tarjeta, cada pill y cada conteo de esta pantalla es una afirmación
  * sobre plata que se fija en un test sin montar un DOM.
  *
  * FUENTE ÚNICA (verificada contra `src/lib/api/types.ts`, generado del OpenAPI vivo, y contra

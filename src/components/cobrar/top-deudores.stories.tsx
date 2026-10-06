@@ -9,12 +9,12 @@ import { TopDebtors } from "./cobrar-view";
  * container ahora tiene sus propias plays MSW desde que #95 fijó el host de
  * Storybook en un dominio `.invalid` que no sale a producción.
  *
- * Por qué importa que sea v1, y esto costó dos correcciones seguidas hasta quedar bien:
- * `wrangler.toml` pone `NEXT_PUBLIC_FF_COBRAR_V2 = "true"`, así que **producción sirve
- * v2**. Esta vista se renderiza cuando `cobrarV2` está apagado y `accountsReceivable`
- * encendido — la configuración de ROLLBACK. No es "el camino por defecto", como llegué a
- * escribir; es a la que se cae si hay que apagar v2. Que es exactamente cuando menos se
- * quiere una mentira en pantalla, así que se cubre igual.
+ * Por qué importa que sea v1, y esto costó varias correcciones hasta quedar bien: ninguna
+ * ruta monta esta vista. `/cobrar` sirve `GestionCobrosLive` + el directorio de deudores, y los
+ * flags que decidían entre v1 y v2 (`accountsReceivable`, `cobrarV2`) se retiraron el 2026-10-05
+ * porque estaban declarados y nunca leídos. No es "el camino por defecto" ni la configuración de
+ * rollback vigente: es la pieza a la que Cobrar volvería si retrocede, y ahí es exactamente
+ * cuando menos se quiere una mentira en pantalla, así que se cubre igual.
  *
  * CUÁNDO BORRAR ESTE ARCHIVO: el día que v1 se jubile, como ya se jubiló Gestión v1
  * (`wrangler.toml`). Si `CobrarView` desaparece, estas stories se van en el MISMO PR del

@@ -7,13 +7,6 @@ import { describe, expect, it } from "vitest";
 import { MONTO_EN_REVISION, MONTO_EN_REVISION_MOTIVO } from "@/lib/formatters/amount";
 import { cobranza, pagos as pagosCaja, summary } from "@/components/caja/v02/caja-v02-fixtures";
 import { entra14d, sale14d } from "@/components/caja/v02/caja-v02-model";
-import { ar } from "@/components/cobrar/v04/cobrar-v04-fixtures";
-import {
-  clientesV04,
-  concentracion,
-  recordatorioDe,
-  totalBruto,
-} from "@/components/cobrar/v04/cobrar-v04-model";
 import {
   compararTotalDesc,
   shareOfTotal,
@@ -34,7 +27,39 @@ import { formattedInboxAmount } from "@/components/bandeja/work-inbox-model";
 import { MontosEnRevisionState } from "@/components/treasury/sync-pending-state";
 import { PagarHero } from "@/components/pagar/v2/pagar-hero";
 import type { PayableItem } from "@/lib/api/pagos";
-import type { ReceivableDocumentItem } from "@/lib/api/cobranza";
+import type { AccountsReceivableResponse, ReceivableDocumentItem } from "@/lib/api/cobranza";
+
+/* Cartera por cobrar con la forma del contrato vivo (`AccountsReceivableResponse`). Vivía en las
+   fixtures de V04 · Cobrar, que se retiró; `pickPrioridad` es lo único que la seguía usando, así
+   que la fixture se queda acá, al lado de su único test. Cifras inventadas, no de un tenant. */
+function ar(over: Partial<AccountsReceivableResponse> = {}): AccountsReceivableResponse {
+  return {
+    total: "42579467",
+    overdue: "27779467",
+    overdue_pct: "65.2",
+    undated_amount: "0",
+    estimated_due_date_count: 0,
+    document_count: 15,
+    aging: {
+      current: "14800000",
+      d1_30: "9400000",
+      d31_60: "8900000",
+      d61_90: "5400000",
+      d90_plus: "4079467",
+    },
+    top_debtors: [
+      { name: "Diveimport S.A.", rut: "76.111.111-1", total: "11582539", overdue: "3300000" },
+      {
+        name: "Comercial Kaufmann S.A.",
+        rut: "76.222.222-2",
+        total: "4322373",
+        overdue: "4322373",
+      },
+      { name: "GPS7000", rut: "77.444.444-4", total: "1792441", overdue: "1792441" },
+    ],
+    ...over,
+  } as AccountsReceivableResponse;
+}
 
 const Q = "reconciliation_quarantine" as const;
 
@@ -88,23 +113,6 @@ describe("Cobrar · deudores y recordatorios", () => {
   it("pickPrioridad no recomienda sobre montos en revisión", () => {
     expect(pickPrioridad(ar())).not.toBeNull();
     expect(pickPrioridad(ar({ total: null, amount_unknown_reason: Q }))).toBeNull();
-  });
-
-  it("v04: saldo en revisión es null, sin concentración ni total bruto inventado", () => {
-    const base = ar();
-    expect(totalBruto(base)).not.toBeNull();
-    expect(totalBruto(ar({ total: null, amount_unknown_reason: Q }))).toBeNull();
-    const debtors = base.top_debtors!.map((d, i) =>
-      i === 0 ? { ...d, total: null, amount_unknown_reason: Q } : d,
-    );
-    const clientes = clientesV04({ ...base, top_debtors: debtors }, {});
-    const enRevision = clientes.find((c) => c.saldo == null)!;
-    expect(enRevision).toBeDefined();
-    expect(enRevision.pctDelTotal).toBeNull();
-    expect(recordatorioDe(enRevision).texto).not.toMatch(/total de \$/);
-    // Concentración por saldo: con un saldo desconocido no se afirma.
-    const sinVencido = ar({ overdue: null, top_debtors: debtors });
-    expect(concentracion(clientesV04(sinVencido, {}), sinVencido)).toBeNull();
   });
 
   it("gestión de cobros: moneda en revisión se nombra y no se envía recordatorio", () => {

@@ -39,7 +39,6 @@ se usa un bypass de configuración.
 | `multiCurrency`              | `NEXT_PUBLIC_FF_MULTI_CURRENCY`               | `/api/core/currencies`                       |
 | `classificationRules`        | `NEXT_PUBLIC_FF_CLASSIFICATION_RULES`         | `/api/treasury/classification-rules`         |
 | `bankMovementClassification` | `NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION` | `/api/bank-movements/{movement_id}/classify` |
-| `phase2PlanningPreview`      | `NEXT_PUBLIC_FF_PHASE2_PLANNING_PREVIEW`      | `/api/management/financial-versions`         |
 | `siiQueries`                 | `NEXT_PUBLIC_FF_SII_QUERIES`                  | `/api/sii/health`                            |
 | `cashFlowReport`             | `NEXT_PUBLIC_FF_CASH_FLOW_REPORT`             | `/api/treasury/reports/cash-flow`            |
 | `inicioMvp`                  | `NEXT_PUBLIC_FF_INICIO_MVP`                   | `/api/me`                                    |
@@ -47,6 +46,12 @@ se usa un bypass de configuración.
 | `financialDecisionHome`      | `NEXT_PUBLIC_FF_FINANCIAL_DECISION_HOME`      | `/api/treasury/financial-position`           |
 
 El mapping vive en `FLAG_GATING_ENDPOINT` en `src/lib/feature-flags.ts`.
+
+Un flag se retira del catálogo cuando queda declarado y ninguna ruta ni componente lo consulta:
+ese valor en `wrangler.toml` no enciende nada, y leerlo como si encendiera fue lo que dejó la
+pantalla V04 de Cobrar un mes marcada como activa sin estar en pantalla. El test
+`todo flag declarado tiene un consumidor vivo` de `src/lib/feature-flags.test.ts` recorre `src/`
+y falla si vuelve a pasar.
 
 ## Desarrollo y pruebas
 

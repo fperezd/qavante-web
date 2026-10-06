@@ -138,7 +138,7 @@ test.describe("Decision Brief canónico en las cuatro superficies financieras", 
         }
 
         if (surface.name === "cobrar") {
-          /* V04 conserva la cartera recibida; no publica el filtro/ranking local de prioridad.
+          /* Cobrar conserva la cartera recibida; no publica el filtro/ranking local de prioridad.
              El chip se mide por su rol y nombre accesible: con el Brief apagado es el radio
              "Prioridad · 3" (gemelo positivo en `cobrar.flow.spec.ts`), y con el Brief encendido
              ese mismo chip se rotula "Todos". Un `getByText` sobre un fragmento no medía eso. */

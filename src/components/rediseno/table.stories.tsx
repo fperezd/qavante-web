@@ -70,7 +70,7 @@ const columnasColapso: ColumnDef<Cliente, unknown>[] = [
 ];
 
 /** Dos columnas visibles a 360 px: el subtítulo deliberadamente largo debe envolver y dejar
- * espacio al monto. Reproduce el riesgo compartido de V04, V05 y V08 sin acoplar el primitivo a
+ * espacio al monto. Reproduce el riesgo compartido de V05 y V08 sin acoplar el primitivo a
  * ninguna de esas vistas. */
 const columnasSubLargo: ColumnDef<Cliente, unknown>[] = [
   {
@@ -146,8 +146,9 @@ export const OrdenaPorHeader: Story = {
  * render: `hideBelow` mira el VIEWPORT y `hideBelowTable` mira el ancho de la TABLA.
  *
  * Existe porque la distinción no era gratis y estuvo a punto de irse sin que nada la mirara: al
- * construir V04 se cambió `hideBelow` de viewport a contenedor creyendo que era el mismo
- * comportamiento con otros números. No lo es. Con el shell del repo (`p-6 md:p-8` + sidebar
+ * construir la V04 de Cobrar (retirada el 2026-10-05, nunca llegó a montarse en una ruta) se
+ * cambió `hideBelow` de viewport a contenedor creyendo que era el mismo comportamiento con otros
+ * números. No lo es. Con el shell del repo (`p-6 md:p-8` + sidebar
  * `w-60`) el contenedor mide V−48 bajo `md` y V−304 de `md` para arriba, así que las columnas
  * 'Estado' de caja v02 y banco v03 y 'Tipo' de pagar v05 —que ya están en `main`— habrían
  * empezado a esconderse en viewport 640–687 y 768–943, donde hoy no se esconden nunca.

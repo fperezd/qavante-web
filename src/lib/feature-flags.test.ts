@@ -3,6 +3,8 @@
    prod si la env var está explícitamente seteada (ADR-0012) — el gating
    sigue intencional porque Cloudflare requiere setear var + re-deploy. */
 
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   FEATURE_FLAGS,
@@ -121,7 +123,7 @@ describe("flagEnvVar — mapeo camelCase → SCREAMING_SNAKE", () => {
   const cases: Array<[FeatureFlag, string]> = [
     ["managementAccounts", "NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS"],
     ["bankMovementClassification", "NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION"],
-    ["phase2PlanningPreview", "NEXT_PUBLIC_FF_PHASE2_PLANNING_PREVIEW"],
+    ["bankBalances", "NEXT_PUBLIC_FF_BANK_BALANCES"],
     ["bandejaV07", "NEXT_PUBLIC_FF_BANDEJA_V07"],
     ["decisionBrief", "NEXT_PUBLIC_FF_DECISION_BRIEF"],
   ];
@@ -199,5 +201,59 @@ describe("consistencia interna FEATURE_FLAGS ↔ FLAG_GATING_ENDPOINT", () => {
     expect(flagGatingIdentity("bancoV03")).toBe("/api/sources/status#sync_progress");
     expect(flagGatingIdentity("bancoV03")).not.toBe("/api/sources/status#otro_campo");
     expect(flagGatingIdentity("impuestosV06")).toBe("/api/sii/f29/impuesto#estimable");
+  });
+});
+
+describe("todo flag declarado tiene un consumidor vivo", () => {
+  /* El modo de falla que este test cierra ya ocurrió: `cobrarV04` estuvo en "true" en
+     `wrangler.toml` y en el `Dockerfile` mientras NINGÚN componente lo consultaba, así que ese
+     "true" no encendía nada y las ~1.800 líneas de la pantalla quedaron inalcanzables. Un flag
+     declarado y nunca leído no es una pantalla apagada: es código muerto con una etiqueta que
+     dice lo contrario. Acá se mide la lectura REAL, recorriendo `src/` y buscando cada flag en un
+     destructuring de `resolveFeatureFlags()` o en un `resolveFeatureFlag("…")`. Las stories y los
+     tests no cuentan: un flag que sólo aparece ahí no gobierna ninguna ruta. */
+
+  const SUFIJOS_NO_PRODUCTIVOS = [".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx", ".stories.tsx"];
+
+  function archivosDeProduccion(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== "test") out.push(...archivosDeProduccion(full));
+        continue;
+      }
+      if (!entry.name.endsWith(".ts") && !entry.name.endsWith(".tsx")) continue;
+      if (SUFIJOS_NO_PRODUCTIVOS.some((sufijo) => entry.name.endsWith(sufijo))) continue;
+      if (entry.name === "feature-flags.ts") continue;
+      out.push(full);
+    }
+    return out;
+  }
+
+  /* Sin el flag `s`: `[^{}]` ya cruza saltos de línea por ser una clase de caracteres, y la
+     alternativa `(?:[^{}]|
+)*?` que lo imitaba retrocedía de forma catastrófica en los
+     archivos grandes (la corrida se colgó con ella, no era una suite lenta). */
+  const DESTRUCTURING = /\{([^{}]*?)\}\s*=\s*resolveFeatureFlags\(/g;
+  const DIRECTO = /resolveFeatureFlag\(\s*"([A-Za-z0-9]+)"/g;
+
+  const leidos = new Set<string>();
+  for (const file of archivosDeProduccion(path.join(process.cwd(), "src"))) {
+    const source = fs.readFileSync(file, "utf8");
+    for (const match of source.matchAll(DESTRUCTURING)) {
+      for (const nombre of match[1]!.match(/[A-Za-z0-9_]+/g) ?? []) leidos.add(nombre);
+    }
+    for (const match of source.matchAll(DIRECTO)) leidos.add(match[1]!);
+  }
+
+  it("el barrido encuentra consumidores reales (si no, se estaría midiendo a sí mismo)", () => {
+    expect(leidos.size).toBeGreaterThan(20);
+    expect(leidos.has("decisionBrief")).toBe(true);
+    expect(leidos.has("cobrarDirectorioDeudores")).toBe(true);
+  });
+
+  it.each([...FEATURE_FLAGS])("%s lo consulta al menos una ruta o componente", (flag) => {
+    expect(leidos.has(flag)).toBe(true);
   });
 });

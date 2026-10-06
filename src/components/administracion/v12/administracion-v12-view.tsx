@@ -57,7 +57,7 @@ export function AdministracionV12View({ filas }: AdministracionV12ViewProps) {
 
            Envolver la pill (en vez de colapsar la columna) no es una opción sana: una `rounded-full`
            con texto en dos líneas se ve rota, y es el MISMO criterio que ya usa
-           `cobrar-v04-view.tsx` para su columna "Antigüedad" (también una `Pill`, también
+           `remuneraciones-v16-view.tsx` para su columna "Estado" (también una `Pill`, también
            `hideBelowTable`). El dato primario (`título`) nunca colapsa; éste es exactamente el
            accesorio que sí — nada queda inalcanzable: "Ver" sigue llevando a la fila completa,
            con su estado, en la pantalla del módulo. */

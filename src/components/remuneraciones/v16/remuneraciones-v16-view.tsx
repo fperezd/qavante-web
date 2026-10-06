@@ -342,7 +342,7 @@ function TablaPersonas({
         /* Ley 7 / §5.2 (hallazgo del pase §6, PR #97): la tabla desbordaba 122 px un contenedor de
            360 — "Estado" y "liquidación" son metadato (accesorio), nunca la persona ni su líquido
            (el dato primario, columna `principal` + el monto, jamás colapsan). `hideBelowTable` y
-           no `hideBelow`: se mide contra el ancho de la TABLA, igual que `cobrar-v04` — la vista
+           no `hideBelow`: se mide contra el ancho de la TABLA, igual que V12 · Administración — la vista
            puede vivir embebida en un contenedor angosto aunque la ventana sea ancha. */
         meta: { hideBelowTable: "sm" },
         cell: ({ row }) => (

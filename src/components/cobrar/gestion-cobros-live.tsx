@@ -82,7 +82,7 @@ export function formatCollectionMoney(
  * `overdue` como lista NO nullable, así que no tiene forma de distinguir "nada vencido" de
  * "todavía no se puede calcular". Los dos llegan como `[]`. El resumen agregado sí distingue,
  * y además trae `undated_amount` y `document_count`, que son las dos cifras con las que se
- * explica el caso. Es la misma fuente que ya usa V04 y "Te deben" de Inicio (Ley 1: un número,
+ * explica el caso. Es la misma fuente que ya usa "Te deben" de Inicio (Ley 1: un número,
  * una definición).
  *
  * Y LAS PALABRAS: nunca "no disponible", "sin dato", "no hay", "preliminar" ni una etiqueta de

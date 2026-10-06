@@ -60,7 +60,9 @@ import {
   relatoVencido,
 } from "./cobrar-v2-map";
 
-/* Vista LIVE de Cobrar v2 (rediseño 2026-07-19), gated por `cobrarV2`. Cablea
+/* Vista LIVE de Cobrar v2 (rediseño 2026-07-19). Ninguna ruta la monta: `/cobrar` sirve
+   `GestionCobrosLive` + el directorio de deudores. El flag `cobrarV2` que la gateaba se retiró el
+   2026-10-05 porque estaba declarado y nunca leído. Cablea
    `accounts-receivable` + las prefs de UI (gestionado) al mapper puro y compone la
    vista. Degradación honesta (dos modos según haya o no vencimientos del SII).
    Container: NO se testea por Storybook play (ADR-0018); la lógica vive en

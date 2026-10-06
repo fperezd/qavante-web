@@ -40,7 +40,7 @@ declare module "@tanstack/react-table" {
      *  del viewport. Opt-in: quien no lo declara conserva el comportamiento por viewport tal
      *  cual. Sirve para tablas que tienen que caber en un contenedor angosto aunque la ventana
      *  sea ancha, y hace que el caso se pueda FIJAR en una story sin cambiarle el viewport al
-     *  navegador. Lo usa V04 · Cobrar. */
+     *  navegador. Lo usan V12 · Administración, V16 · Remuneraciones y V09 · Presupuesto. */
     hideBelowTable?: "sm" | "md";
   }
 }
