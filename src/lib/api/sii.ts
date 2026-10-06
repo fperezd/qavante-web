@@ -45,6 +45,13 @@ export type F29ImpuestoResponse = components["schemas"]["F29ImpuestoResponse"];
 export type ContribuyenteResponse = components["schemas"]["ContribuyenteResponse"];
 export type F29GirosResponse = components["schemas"]["F29GirosResponse"];
 export type F29SyncResponse = components["schemas"]["F29SyncResponse"];
+export type F29BridgePeriodResponse = components["schemas"]["F29BridgePeriodResponse"];
+export type F29BridgeResponse = components["schemas"]["F29BridgeResponse"];
+export type F29BridgeComponents = components["schemas"]["F29BridgeComponentsSchema"];
+export type F29PaymentLink = components["schemas"]["F29PaymentLinkSchema"];
+export type F29PaymentApplication = components["schemas"]["F29PaymentApplicationSchema"];
+export type F29BankPaymentEvidence = components["schemas"]["F29BankPaymentEvidenceSchema"];
+export type F29DeclarationReceipt = components["schemas"]["F29DeclarationReceiptSchema"];
 
 /** Estado de un mes en el panel F29. El contrato tipa `meses[]` laxo
  *  (`{[k]: unknown}`); acá le damos forma según el handoff CC-API 2026-07-05. */
@@ -111,6 +118,7 @@ export const siiKeys = {
   f29Impuesto: (anio: number, mes: number, imp?: number) =>
     [...siiKeys.all, "f29-impuesto", anio, mes, imp ?? null] as const,
   f29Giros: (anio: number, mes: number) => [...siiKeys.all, "f29-giros", anio, mes] as const,
+  f29Bridge: (anio: number, mes: number) => [...siiKeys.all, "f29-bridge", anio, mes] as const,
   /** Blob del PDF del F29 cacheado por sesión (inmutable) → no re-bajarlo del SII en cada apertura. */
   f29Pdf: (folio: number) => [...siiKeys.all, "f29-pdf", folio] as const,
   bhe: (params: SiiPeriodoParams) => [...siiKeys.all, "bhe", params] as const,
@@ -335,6 +343,30 @@ export function useSiiF29Giros(anio: number, mes: number, enabled = true) {
   return useQuery({
     queryKey: siiKeys.f29Giros(anio, mes),
     queryFn: () => api.get<F29GirosResponse>(`/api/sii/f29/giros?anio=${anio}&mes=${mes}`),
+    enabled: enabled && valid,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** `GET /api/sii/f29/bridge?anio&mes` — el bridge oficial de las declaraciones de un período:
+ *  los componentes observados en el PDF por código canónico, el total oficial (código 91), la
+ *  `unexplained_delta` (*"composed_total - declaration_total; cero = reconciliado; None = no
+ *  computable"*), el estado de pago y el vínculo de pago con sus cuotas declaradas.
+ *
+ *  Por qué esta fuente y no `/f29/impuesto`: el desglose de `/f29/impuesto` pinta sus filas al lado
+ *  del total y nunca las reconcilia, así que una diferencia entre lo que suman los componentes y lo
+ *  que el SII cobra queda invisible. El bridge publica esa diferencia como un campo propio.
+ *
+ *  La respuesta trae `bridges[]`: UNA entrada por declaración del período (una rectificatoria agrega
+ *  otra, con su propio folio). El caller elige; no asumimos que haya exactamente una.
+ *
+ *  NO retry: es una lectura derivada de datos persistidos, y un reintento no cambia la respuesta. */
+export function useSiiF29Bridge(anio: number, mes: number, enabled = true) {
+  const valid = Number.isInteger(anio) && anio > 0 && mes >= 1 && mes <= 12;
+  return useQuery({
+    queryKey: siiKeys.f29Bridge(anio, mes),
+    queryFn: () => api.get<F29BridgePeriodResponse>(`/api/sii/f29/bridge?anio=${anio}&mes=${mes}`),
     enabled: enabled && valid,
     staleTime: 5 * 60 * 1000,
     retry: false,

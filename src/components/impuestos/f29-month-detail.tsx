@@ -14,8 +14,16 @@ import {
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
-import { useSiiF29Impuesto, useSiiF29Giros, siiF29PdfUrl, siiKeys } from "@/lib/api/sii";
+import {
+  useSiiF29Impuesto,
+  useSiiF29Giros,
+  useSiiF29Bridge,
+  siiF29PdfUrl,
+  siiKeys,
+} from "@/lib/api/sii";
 import { f29MesPresentacion } from "./f29-month-decision";
+import { f29BridgeDelFolio } from "./f29-bridge-lectura";
+import { F29BridgePanel } from "./f29-bridge-panel";
 
 /* Detalle F29 de un mes (handoff CC-API): dos montos lado a lado — pagar todo
    (`total_con_iva`) vs postergar el IVA (`total_sin_iva`) — + desglose e input
@@ -65,6 +73,17 @@ export function F29MonthDetail({
   });
   const postergado = presentacion === "postergado";
   const pagado = presentacion === "pagado";
+
+  /* El puente con lo que cobra el SII (D13). El "Desglose" de abajo sale de `/f29/impuesto` y pinta
+     sus filas al lado del total sin reconciliarlas nunca: una diferencia entre lo que suman los
+     códigos y lo que el SII cobra queda invisible. Esta consulta trae esa diferencia ya calculada por
+     el productor (`unexplained_delta`), el estado de pago declarado y el vínculo de pago con sus
+     cuotas. Es una fuente distinta, aditiva: no reemplaza el desglose, lo cierra.
+
+     `bridges[]` trae una entrada por declaración del período; elegimos la del folio que esta tarjeta
+     ya está mostrando (ver `f29BridgeDelFolio`). */
+  const bridge = useSiiF29Bridge(anio, mes);
+  const bridgeDelPeriodo = f29BridgeDelFolio(bridge.data?.bridges, data?.folio ?? null);
 
   /* El PDF del F29 lo baja el backend del SII EN VIVO cada vez (medido: 1,9s a 22s, sin cache). Un
      `<a target=_blank>` dejaba una pestaña en blanco sin feedback → parecía colgado. Abrimos la pestaña
@@ -284,6 +303,19 @@ export function F29MonthDetail({
               />
             </dl>
           </div>
+
+          {/* Lo que el Desglose de arriba no hace: reconciliar esas filas contra el total oficial.
+              Si la consulta falla NO se calla — una diferencia no explicada que nadie ve es el
+              defecto que esto cierra, y un panel ausente se lee igual que un cero. */}
+          {bridge.isError ? (
+            <QavanteInlineError
+              error={bridge.error}
+              what="cómo cuadra este F29 con lo que cobra el SII"
+              onRetry={() => bridge.refetch()}
+            />
+          ) : bridgeDelPeriodo ? (
+            <F29BridgePanel bridge={bridgeDelPeriodo} />
+          ) : null}
 
           {/* Drill-down: ver el Certificado Solemne (PDF). Lo baja el backend del SII en vivo (lento y
               variable) → feedback de carga + aviso honesto, no una pestaña en blanco muda. */}
