@@ -3183,80 +3183,150 @@ const accountsReceivableFixture = {
   generated_at: "2026-06-02T12:00:00Z",
 };
 
+/* ── La cartera de documentos del fixture, y por qué tiene 64 y no 3 ─────────────────────────
+ *
+ * Con tres documentos, una página de 50 trae los tres y la búsqueda EN MEMORIA se comporta
+ * igual que la del servidor: un fixture así no distingue la pantalla arreglada de la rota, que
+ * es justo lo que el issue #207 anotaba ("fixtures de seis top_debtors no representan backend
+ * real"). Los tres con nombre siguen primeros, intactos, para los flujos que ya los asertan.
+ * Detrás van sesenta de relleno, y el ÚLTIMO es VOLCAN con los $13.300 del issue: queda fuera
+ * de la primera página de 50 por construcción, así que encontrarlo sólo es posible si el
+ * término de búsqueda VIAJÓ al servidor. */
+const DOCUMENTOS_CON_NOMBRE = [
+  {
+    id: "11111111-1111-4111-8111-111111111111",
+    folio: "1234",
+    document_type: 33,
+    customer_name: "Constructora Andes SpA",
+    customer_rut: "76.111.111-1",
+    counterparty_key: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    issue_date: "2026-05-01",
+    due_date: "2026-05-31",
+    due_date_certainty: "confirmed",
+    status: "open",
+    total_amount: "9800000",
+    outstanding_amount: "3200000",
+    currency_code: "CLP",
+    days_overdue: 23,
+    ceded: false,
+    claimed: false,
+    credit_note: false,
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222222",
+    folio: "5680",
+    document_type: 33,
+    customer_name: "Comercial del Sur Ltda",
+    customer_rut: "77.987.654-3",
+    counterparty_key: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    issue_date: "2026-04-23",
+    due_date: null,
+    due_date_certainty: "estimated",
+    status: "open",
+    total_amount: "950000",
+    outstanding_amount: "950000",
+    currency_code: "CLP",
+    days_overdue: null,
+    ceded: false,
+    claimed: true,
+    credit_note: false,
+  },
+  {
+    id: "33333333-3333-4333-8333-333333333333",
+    folio: "9012",
+    document_type: 33,
+    customer_name: "Minera Atacama SA",
+    customer_rut: "96.555.444-2",
+    counterparty_key: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    issue_date: "2026-05-10",
+    due_date: "2026-05-25",
+    due_date_certainty: "confirmed",
+    status: "open",
+    total_amount: "1100000",
+    outstanding_amount: "800000",
+    currency_code: "CLP",
+    days_overdue: 8,
+    ceded: true,
+    claimed: false,
+    credit_note: false,
+  },
+];
+
+/** Relleno: empuja a VOLCAN fuera de la primera página. Nombres propios y distintos para que
+ *  ninguna aserción por fila del resto de los flujos se vuelva ambigua. */
+const DOCUMENTOS_DE_RELLENO = Array.from({ length: 60 }, (_, i) => ({
+  id: `44444444-4444-4444-8444-${String(i + 1).padStart(12, "0")}`,
+  folio: `7${String(i + 1).padStart(3, "0")}`,
+  document_type: 33,
+  customer_name: `Cliente de cartera ${String(i + 1).padStart(2, "0")}`,
+  customer_rut: `70.${String(100 + i)}.000-${i % 10}`,
+  counterparty_key: `44444444-4444-4444-8444-${String(i + 1).padStart(12, "0")}`,
+  issue_date: "2026-05-02",
+  due_date: "2026-05-30",
+  due_date_certainty: "confirmed" as const,
+  status: "open" as const,
+  total_amount: "120000",
+  outstanding_amount: "120000",
+  currency_code: "CLP",
+  days_overdue: 5,
+  ceded: false,
+  claimed: false,
+  credit_note: false,
+}));
+
+/** El del issue: $13.300, el último de la cartera por saldo y el que la búsqueda local no podía
+ *  alcanzar. */
+const DOCUMENTO_VOLCAN = {
+  id: "55555555-5555-4555-8555-555555555555",
+  folio: "9907",
+  document_type: 33,
+  customer_name: "VOLCAN Comercializadora SpA",
+  customer_rut: "80.111.222-3",
+  counterparty_key: "55555555-5555-4555-8555-555555555555",
+  issue_date: "2026-05-12",
+  due_date: "2026-05-28",
+  due_date_certainty: "confirmed" as const,
+  status: "open" as const,
+  total_amount: "13300",
+  outstanding_amount: "13300",
+  currency_code: "CLP",
+  days_overdue: 4,
+  ceded: false,
+  claimed: false,
+  credit_note: false,
+};
+
+const DOCUMENTOS_CARTERA = [...DOCUMENTOS_CON_NOMBRE, ...DOCUMENTOS_DE_RELLENO, DOCUMENTO_VOLCAN];
+
 const cobranzaHandlers = [
-  http.get("*/api/treasury/accounts-receivable/documents", () =>
-    HttpResponse.json(
+  /* Resuelve `q`, `limit` y `offset` DE VERDAD. Un handler que los ignorara dejaría pasar en
+     verde a una pantalla que no los manda, que es exactamente el defecto de #207. */
+  http.get("*/api/treasury/accounts-receivable/documents", ({ request }) => {
+    const url = new URL(request.url);
+    const q = (url.searchParams.get("q") ?? "").trim().toLocaleLowerCase("es-CL");
+    const limit = Number(url.searchParams.get("limit") ?? "50");
+    const offset = Number(url.searchParams.get("offset") ?? "0");
+    const filtrados = DOCUMENTOS_CARTERA.filter(
+      (item) =>
+        !q ||
+        `${item.customer_name} ${item.customer_rut ?? ""} ${item.folio}`
+          .toLocaleLowerCase("es-CL")
+          .includes(q),
+    );
+    return HttpResponse.json(
       {
-        items: [
-          {
-            id: "11111111-1111-4111-8111-111111111111",
-            folio: "1234",
-            document_type: 33,
-            customer_name: "Constructora Andes SpA",
-            customer_rut: "76.111.111-1",
-            counterparty_key: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-            issue_date: "2026-05-01",
-            due_date: "2026-05-31",
-            due_date_certainty: "confirmed",
-            status: "open",
-            total_amount: "9800000",
-            outstanding_amount: "3200000",
-            currency_code: "CLP",
-            days_overdue: 23,
-            ceded: false,
-            claimed: false,
-            credit_note: false,
-          },
-          {
-            id: "22222222-2222-4222-8222-222222222222",
-            folio: "5680",
-            document_type: 33,
-            customer_name: "Comercial del Sur Ltda",
-            customer_rut: "77.987.654-3",
-            counterparty_key: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-            issue_date: "2026-04-23",
-            due_date: null,
-            due_date_certainty: "estimated",
-            status: "open",
-            total_amount: "950000",
-            outstanding_amount: "950000",
-            currency_code: "CLP",
-            days_overdue: null,
-            ceded: false,
-            claimed: true,
-            credit_note: false,
-          },
-          {
-            id: "33333333-3333-4333-8333-333333333333",
-            folio: "9012",
-            document_type: 33,
-            customer_name: "Minera Atacama SA",
-            customer_rut: "96.555.444-2",
-            counterparty_key: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-            issue_date: "2026-05-10",
-            due_date: "2026-05-25",
-            due_date_certainty: "confirmed",
-            status: "open",
-            total_amount: "1100000",
-            outstanding_amount: "800000",
-            currency_code: "CLP",
-            days_overdue: 8,
-            ceded: true,
-            claimed: false,
-            credit_note: false,
-          },
-        ],
-        total: 3,
-        limit: 100,
-        offset: 0,
+        items: filtrados.slice(offset, offset + limit),
+        total: filtrados.length,
+        limit,
+        offset,
         overdue: [{ currency: "CLP", amount: "4000000" }],
         due_soon: [{ currency: "CLP", amount: "1250000" }],
         collected: [{ currency: "CLP", amount: "2400000" }],
         generated_at: "2026-06-02T12:00:00Z",
       },
       { status: 200 },
-    ),
-  ),
+    );
+  }),
   http.get("*/api/treasury/accounts-receivable", () =>
     HttpResponse.json(accountsReceivableFixture, { status: 200 }),
   ),

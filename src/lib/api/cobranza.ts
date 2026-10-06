@@ -144,7 +144,14 @@ export interface CollectionReminderRulesResponse {
 export const cobranzaKeys = {
   all: ["cobranza"] as const,
   accountsReceivable: () => [...cobranzaKeys.all, "accounts-receivable"] as const,
-  documents: (q: string) => [...cobranzaKeys.all, "documents", q] as const,
+  /* La empresa activa y el término de búsqueda van DENTRO de la clave, por las mismas dos
+     razones que en `debtors()`: el scope viaja en un header que React Query no ve, y un
+     filtro nuevo tiene que ARRANCAR otra consulta desde `offset: 0` en vez de encadenar
+     páginas de la consulta anterior. Como la clave cambia, la respuesta vieja que llegue
+     tarde ya no es la clave activa y React Query la descarta sola: nunca se pinta una página
+     de la búsqueda anterior sobre la búsqueda nueva. */
+  documents: (companyId: string | null, q: string) =>
+    [...cobranzaKeys.all, "documents", companyId, q] as const,
   reminderSettings: () => [...cobranzaKeys.all, "reminder-settings"] as const,
   /* La empresa activa va DENTRO de la clave. El scope de `/debtors` viaja en el header
      `X-Qavante-Company-Id`, invisible para React Query: sin la empresa en la clave, cambiar de
@@ -170,14 +177,65 @@ export function useAccountsReceivable() {
   });
 }
 
-export function useReceivableDocuments(q = "") {
+/* ── La lista de documentos, el mismo defecto de #207 un grano más abajo ─────────────────────
+ *
+ * El directorio de deudores ya se arregló: `search`, filtros y paginación los resuelve el
+ * servidor sobre la cartera completa. La lista de DOCUMENTOS de esta misma pantalla seguía
+ * haciendo lo que el directorio hacía antes, y con el mismo resultado:
+ *
+ *   · Pedía `?limit=100` y NUNCA mandaba `q`, aunque el contrato lo publica desde siempre
+ *     (`q`, `limit`, `offset`). El buscador era un `filter` en memoria sobre esas ≤100 filas,
+ *     así que el documento 101 de una cartera de 1.480 era inalcanzable POR CONSTRUCCIÓN.
+ *   · El pie decía "`items.length` de `total`" — una página filtrada en memoria contra el
+ *     total del servidor. Con 1.480 documentos el dueño leía "12 de 1.480" y la pantalla no
+ *     le ofrecía ni una ruta a los otros 1.468.
+ *
+ * `total` del contrato es "documentos que calzan con `q`, SIN paginar". Es el único conteo que
+ * se puede publicar como conteo de cartera; un `.length` dice cuántas filas se alcanzaron a
+ * traer, que es otra cosa y se rotula como tal.
+ *
+ * Los filtros de estado y atributo (vencido, cedida, nota de crédito…) NO existen en el
+ * contrato de este endpoint: se siguen aplicando en memoria sobre las filas traídas, y por eso
+ * su conteo se nombra aparte en vez de pasar por el total del servidor.
+ *
+ * NO retry: un 409 (el corte cambió) se resuelve pidiendo un corte nuevo desde la primera
+ * página, no reintentando el mismo `offset`. El 422 (la consulta ya no calza con la página
+ * pedida) se trata igual, por `esCorteVencido`.
+ */
+type DocumentsQuery = NonNullable<
+  paths["/api/treasury/accounts-receivable/documents"]["get"]["parameters"]["query"]
+>;
+
+/** `limit` lo acota el contrato en 100. Esta vista pide 50, como el directorio: es una tabla
+ *  que se lee, no un volcado. */
+export const DOCUMENTS_PAGE_SIZE = 50;
+
+export function receivableDocumentsPath(q = "", offset = 0, limit = DOCUMENTS_PAGE_SIZE): string {
+  const query = new URLSearchParams();
+  query.set("limit", String(limit));
+  query.set("offset", String(offset));
+  // Un " " no es una búsqueda: se recorta y sólo viaja si quedó algo.
   const search = q.trim();
-  return useQuery({
-    queryKey: cobranzaKeys.documents(search),
-    queryFn: () =>
-      api.get<ReceivableDocumentsResponse>(
-        `/api/treasury/accounts-receivable/documents?limit=100${search ? `&q=${encodeURIComponent(search)}` : ""}`,
-      ),
+  if (search) query.set("q", search satisfies NonNullable<DocumentsQuery["q"]>);
+  return `/api/treasury/accounts-receivable/documents?${query.toString()}`;
+}
+
+export function useReceivableDocuments(companyId: string | null, q = "") {
+  const search = q.trim();
+  return useInfiniteQuery({
+    queryKey: cobranzaKeys.documents(companyId, search),
+    queryFn: ({ pageParam }) =>
+      api.get<ReceivableDocumentsResponse>(receivableDocumentsPath(search, pageParam), {
+        headers: explicitCompanyRequestHeaders(companyId),
+      }),
+    initialPageParam: 0,
+    /* La página siguiente se deduce de los campos que el servidor ECHA en cada respuesta
+       (`offset`, `limit`, `total`), no de un contador que lleve la pantalla: si el servidor
+       devuelve menos de lo pedido o recorta el `limit`, el avance sigue siendo el real. */
+    getNextPageParam: (last) => {
+      const vistos = last.offset + last.items.length;
+      return last.items.length > 0 && vistos < last.total ? vistos : undefined;
+    },
     staleTime: 30_000,
     retry: false,
   });

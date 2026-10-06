@@ -11,6 +11,7 @@ import {
   useReceivableDocuments,
   useUpdateCollectionReminderSetting,
 } from "@/lib/api/cobranza";
+import { useCompanyScope } from "@/components/shell/company-scope";
 import { cn } from "@/lib/utils";
 
 type Kind = CollectionReminderRule["kind"];
@@ -38,7 +39,8 @@ const COPY: Record<Kind, { title: string; description: string; tone: string }> =
 
 export function RecordatoriosLive() {
   const settings = useCollectionReminderSettings();
-  const documents = useReceivableDocuments();
+  const { activeCompanyId } = useCompanyScope();
+  const documents = useReceivableDocuments(activeCompanyId);
   const update = useUpdateCollectionReminderSetting();
   const [preview, setPreview] = React.useState<Kind | null>(null);
   const [editing, setEditing] = React.useState<CollectionReminderRule | null>(null);
@@ -106,7 +108,12 @@ export function RecordatoriosLive() {
         rule={editing}
         customers={Array.from(
           new Map(
-            (documents.data?.items ?? [])
+            /* `/documents` pagina: las contrapartes salen de TODAS las páginas traídas, no de
+               la primera. Antes esto leía `data.items` de una respuesta única; con la lista
+               paginada ese campo ya no existe y quedarse con `pages[0]` habría dejado el
+               selector mostrando sólo las contrapartes de la primera página. */
+            (documents.data?.pages ?? [])
+              .flatMap((page) => page.items)
               .filter((item) => item.counterparty_key)
               .map((item) => [item.counterparty_key!, item.customer_name]),
           ).entries(),

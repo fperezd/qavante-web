@@ -53,3 +53,61 @@ test.describe("Flujo: Gestión de cobros documental (/cobrar)", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 });
+
+/* ── #207 en el grano de los documentos: la búsqueda que nunca preguntó ──────────────────────
+ *
+ * La pantalla pedía `?limit=100` y filtraba en memoria, así que un documento fuera de la página
+ * traída era inalcanzable POR CONSTRUCCIÓN: escribir "VOLCAN" contestaba que no aparecía sobre
+ * una cartera que sí lo tenía. El fixture tiene 64 documentos y VOLCAN es el último, fuera de
+ * la primera página de 50: estos dos tests sólo pasan si el término viaja al servidor.
+ *
+ * Se teclea en la pantalla de verdad, que es lo que ninguna de las pruebas existentes hacía:
+ * `renderToStaticMarkup` no corre efectos, así que el retardo del buscador y el "traer más"
+ * estaban probados por funciones puras y por la capa de API, nunca por el teclado. */
+test.describe("#207 · el buscador pregunta por toda la cartera, no por lo que está a la vista", () => {
+  test.beforeEach(async ({ page, context }) => {
+    await loginAs(context, "owner");
+    await page.goto("/cobrar");
+  });
+
+  test("encuentra a VOLCAN aunque esté fuera de la primera página", async ({ page }) => {
+    // Premisa del test, no adorno: si VOLCAN ya estuviera a la vista, buscarlo no probaría nada.
+    await expect(page.getByRole("row", { name: /VOLCAN/ })).toHaveCount(0);
+    await expect(page.getByRole("row", { name: /Constructora Andes SpA/ })).toBeVisible();
+
+    await page.getByRole("searchbox").fill("VOLCAN");
+
+    const fila = page.getByRole("row", { name: /VOLCAN Comercializadora SpA/ });
+    await expect(fila).toBeVisible();
+    await expect(fila).toContainText("$13.300");
+    // Y la cartera que queda a la vista es la de la búsqueda, no la de antes.
+    await expect(page.getByRole("row", { name: /Constructora Andes SpA/ })).toHaveCount(0);
+  });
+
+  test("el pie dice la cartera del servidor y las filas traídas por separado", async ({ page }) => {
+    // 64 en cartera, 50 traídas: los dos números existen y son distintos. El pie viejo los unía
+    // con un "de" y hacía leer "50 de 64" como si quedaran 14 a un click, sin ofrecer el click.
+    const pie = page.getByRole("status").filter({ hasText: /cartera/ });
+    await expect(pie).toContainText("64 documentos en la cartera");
+    await expect(pie).toContainText("50 traídas hasta acá");
+
+    // Y ahora el click existe: trae la página siguiente y el recorrido avanza de verdad.
+    await page.getByRole("button", { name: /Traer 50 documentos más/ }).click();
+    await expect(pie).toContainText("64 traídas hasta acá");
+    await expect(page.getByRole("row", { name: /VOLCAN Comercializadora SpA/ })).toBeVisible();
+  });
+
+  test("cambiar la búsqueda reinicia el recorrido en vez de encadenar la página anterior", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: /Traer 50 documentos más/ }).click();
+    await expect(page.getByRole("status").filter({ hasText: /cartera/ })).toContainText(
+      "64 traídas hasta acá",
+    );
+
+    await page.getByRole("searchbox").fill("Minera");
+    const pie = page.getByRole("status").filter({ hasText: /cartera/ });
+    await expect(pie).toContainText("1 documento calza con «Minera»");
+    await expect(pie).toContainText("1 traída hasta acá");
+  });
+});

@@ -14,14 +14,19 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 import {
+  DOCUMENTS_PAGE_SIZE,
   type AccountsReceivableResponse,
   type CollectionReminderItemResult,
   type ReceivableDocumentItem,
   type ReceivableDocumentsResponse,
+  cobranzaKeys,
+  esCorteVencido,
   useAccountsReceivable,
   useReceivableDocuments,
   useSendCollectionReminders,
 } from "@/lib/api/cobranza";
+import { useCompanyScope } from "@/components/shell/company-scope";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatClp, formatMoneyFromDecimalString } from "@/lib/formatters/clp";
 import { formatPct } from "@/lib/formatters/pct";
 import {
@@ -30,6 +35,7 @@ import {
   parseAmountOrNull,
 } from "@/lib/formatters/amount";
 import { formatDateLike } from "@/lib/formatters/date";
+import { esIdentidadDebil } from "@/lib/validators/rut";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "collectable" | "today" | "overdue" | "undated" | "paid" | "archived";
@@ -268,41 +274,141 @@ export function hasAmbiguousReminderFailure(items: CollectionReminderItemResult[
   return items.some((item) => item.status === "error");
 }
 
+/* ── Los tres números del pie, y por qué son TRES ────────────────────────────────────────────
+ *
+ * El pie decía `{items.length} de {query.data.total} documentos`: a la izquierda una página
+ * filtrada en memoria, a la derecha el total del servidor. Dos cosas distintas unidas por un
+ * "de", que es la forma más barata de fabricar una cifra falsa — "12 de 1.480" se lee como
+ * "quedan 1.468 por mirar" cuando en realidad quería decir "12 de las 100 que traje pasan tu
+ * filtro, y de las otras 1.380 no sé nada".
+ *
+ * Ahora son tres números separados, cada uno con lo que cubre:
+ *   · `total` del servidor  → documentos que calzan con la BÚSQUEDA, sin paginar. Es cartera.
+ *   · filas traídas         → cuántas se alcanzaron a bajar de ese total. Es paginación.
+ *   · filas que pasan       → cuántas de las traídas pasan estado/atributo, que el contrato de
+ *                             este endpoint NO filtra y por eso se resuelven en memoria.
+ * El tercero sólo aparece cuando hay un filtro en memoria puesto: sin él, repetir el segundo
+ * número con otras palabras sería ruido.
+ */
+export function textoDelPieDocumentos(
+  filasTraidas: number,
+  totalServidor: number,
+  filasQuePasan: number,
+  hayFiltroEnMemoria: boolean,
+  busqueda: string,
+): string {
+  const cartera = busqueda
+    ? `${documentos(totalServidor)} ${totalServidor === 1 ? "calza" : "calzan"} con «${busqueda}» en toda la cartera`
+    : `${documentos(totalServidor)} en la cartera`;
+  const traidas = `${filasTraidas} ${filasTraidas === 1 ? "traída" : "traídas"} hasta acá`;
+  if (!hayFiltroEnMemoria) return `${cartera} · ${traidas}.`;
+  return `${cartera} · ${traidas} · ${filasQuePasan} ${
+    filasQuePasan === 1 ? "pasa" : "pasan"
+  } el filtro de estado.`;
+}
+
+/** Qué se escribe cuando el filtro de estado/atributo deja la tabla en cero filas. Nunca
+ *  "no hay": la cartera que SÍ existe se nombra con su cifra, y se dice la salida concreta
+ *  (seguir bajando página, o soltar el filtro), porque quedarse sin filas acá casi siempre es
+ *  que el filtro se aplica sobre lo traído y falta traer. */
+export function textoSinCoincidencias(
+  totalServidor: number,
+  filasTraidas: number,
+  quedanMas: boolean,
+): string {
+  const base = `${documentos(totalServidor)} en la cartera, ${filasTraidas} ${
+    filasTraidas === 1 ? "traída" : "traídas"
+  } hasta acá, y ninguna de esas pasa este filtro.`;
+  return quedanMas
+    ? `${base} Trae más documentos o suelta el filtro.`
+    : `${base} Suelta el filtro para verlas.`;
+}
+
+/** La consulta que viaja al servidor va con retardo; la del input es inmediata. Sin esto cada
+ *  tecla sería una clave nueva y una página 1 nueva. Mismo patrón que el directorio. */
+function useDebounced<T>(value: T, ms: number): T {
+  const [slow, setSlow] = React.useState(value);
+  React.useEffect(() => {
+    const id = setTimeout(() => setSlow(value), ms);
+    return () => clearTimeout(id);
+  }, [value, ms]);
+  return slow;
+}
+
 export function GestionCobrosLive({
   suppressRecommendations = false,
 }: {
   suppressRecommendations?: boolean;
 } = {}) {
-  const query = useReceivableDocuments();
+  const { activeCompanyId } = useCompanyScope();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = React.useState("");
+  /* LA BÚSQUEDA LA RESUELVE EL SERVIDOR. Antes este término no salía del navegador: alimentaba
+     un `filter` en memoria sobre las ≤100 filas que el hook pedía, así que un documento fuera
+     de esa primera página era inalcanzable por construcción —el mismo defecto que #207
+     describe para los deudores, un grano más abajo—. Ahora viaja como `q`, que el contrato
+     publica, y además va DENTRO de la clave de React Query: cambiar el término arranca la
+     consulta desde `offset: 0` en vez de encadenar páginas de la búsqueda anterior, y la
+     respuesta de la búsqueda vieja que llegue tarde ya no es la clave activa, así que se
+     descarta sola en vez de pintarse sobre la nueva. */
+  const busqueda = useDebounced(search.trim(), 350);
+  const query = useReceivableDocuments(activeCompanyId, busqueda);
   // Segunda fuente, SÓLO para los tres recuadros: es la única que distingue "nada vencido" de
   // "todavía sin fecha" (ver el bloque de `recuadroVencido`). La lista de abajo sigue saliendo
   // de `/documents`, que es quien pagina y filtra.
   const resumen = useAccountsReceivable();
   const send = useSendCollectionReminders();
-  const [search, setSearch] = React.useState("");
   const [status, setStatus] = React.useState<StatusFilter>("collectable");
   const [attribute, setAttribute] = React.useState<AttributeFilter | null>(null);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const idempotencyKeys = React.useRef(new Map<string, string>());
   const today = todayIso();
 
+  /* Volver a la primera página y soltar la selección. El 409 dice "el corte que estabas
+     leyendo cambió" y el 422 "el `offset` que pediste ya no calza con esta consulta": los dos
+     significan lo mismo para la pantalla —lo cargado dejó de servir— y los dos se arreglan
+     igual. `resetQueries` BORRA las páginas cacheadas y vuelve a pedir desde `initialPageParam`;
+     un `refetch()` a secas repetiría los mismos `offset` viejos contra el corte nuevo, que es
+     justamente lo que falló. La selección se suelta porque apunta a IDs de un corte que ya no
+     es el que se está mirando. */
+  const reiniciarRecorrido = React.useCallback(() => {
+    setSelected(new Set());
+    void queryClient.resetQueries({ queryKey: cobranzaKeys.documents(activeCompanyId, busqueda) });
+  }, [queryClient, activeCompanyId, busqueda]);
+
+  /* Las filas son TODAS las páginas traídas, no la primera. */
+  const filasTraidas = React.useMemo(
+    () => (query.data?.pages ?? []).flatMap((page) => page.items),
+    [query.data?.pages],
+  );
+  /* `total` del servidor: documentos que calzan con `q`, SIN paginar. Nunca un `.length`. */
+  const totalServidor = query.data?.pages[0]?.total ?? 0;
+
+  /* Estado y atributo NO existen como parámetros de este endpoint (el contrato publica `q`,
+     `limit` y `offset`, nada más), así que siguen resolviéndose en memoria SOBRE LAS FILAS
+     TRAÍDAS. Eso no se esconde: el pie lo nombra aparte en vez de pasarlo por el total del
+     servidor. El término de búsqueda ya NO se vuelve a aplicar acá — lo filtró el servidor, y
+     repetirlo en memoria volvería a recortar lo que el servidor sí encontró. */
+  /* "¿Hay un filtro en memoria puesto?" NO se decide mirando los controles, sino MIDIENDO si el
+     filtro dejó filas afuera. Mirando los controles se contesta mal: el estado por defecto
+     "Todo en por cobrar" ya descarta las cedidas y los documentos cobrados, así que con
+     `status === "collectable"` y sin atributo el filtro SÍ está recortando. Esa confusión salió
+     a la luz buscando "Minera" —una cartera de un documento, cedido— donde la pantalla iba a
+     decir "ninguno la contiene" sobre un documento que sí la contenía y que sólo estaba fuera
+     del estado elegido. */
   const items = React.useMemo(() => {
-    const term = search.trim().toLocaleLowerCase("es-CL");
-    return (query.data?.items ?? []).filter((item) => {
+    return filasTraidas.filter((item) => {
       const statusMatches =
         attribute === "ceded" && status === "collectable"
           ? ["open", "partially_paid"].includes(item.status)
           : matchesCollectionStatus(item, status, today);
       if (!statusMatches) return false;
-      if (attribute && !item[attribute]) return false;
-      return (
-        !term ||
-        `${item.customer_name} ${item.customer_rut ?? ""} ${item.folio}`
-          .toLocaleLowerCase("es-CL")
-          .includes(term)
-      );
+      return !attribute || Boolean(item[attribute]);
     });
-  }, [attribute, query.data?.items, search, status, today]);
+  }, [attribute, filasTraidas, status, today]);
+
+  /* Medido, no supuesto: el filtro está recortando si dejó filas traídas afuera. */
+  const hayFiltroEnMemoria = items.length < filasTraidas.length;
 
   const eligible = items.filter(isReminderEligible);
   const allSelected = eligible.length > 0 && eligible.every((item) => selected.has(item.id));
@@ -346,7 +452,37 @@ export function GestionCobrosLive({
   };
 
   if (query.isLoading || resumen.isLoading) return <CobrosSkeleton />;
-  if (query.isError || !query.data) {
+
+  /* EL CORTE VENCIDO VA ANTES QUE CUALQUIER TABLA, Y A PROPÓSITO ANTES DE MIRAR `query.data`.
+     Un 409 o un 422 puede llegar en la página 3 con las dos primeras ya en caché: si esto se
+     chequeara después, la pantalla seguiría pintando esas dos páginas como si fueran buenas
+     mientras el servidor ya dijo que ese corte no sirve. Una página vieja mostrada sin aviso es
+     una cifra falsa, no un dato parcial. Así que se avisa y se ofrece el recorrido nuevo. */
+  if (esCorteVencido(query.error)) {
+    return (
+      <div className="space-y-3 rounded-xl border border-border bg-surface p-8 text-center">
+        <AlertCircle className="mx-auto size-6 text-warning-600" aria-hidden />
+        <p className="text-sm text-neutral-dark">
+          La cartera cambió mientras la leías, así que las páginas que tenías cargadas quedaron
+          atrás. Antes que mostrarte una parte vieja sin decírtelo, el recorrido arranca de nuevo
+          desde la primera página con el corte actual.
+        </p>
+        <button
+          type="button"
+          onClick={reiniciarRecorrido}
+          className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white"
+        >
+          Traer el corte nuevo
+        </button>
+      </div>
+    );
+  }
+
+  /* La primera página es la que trae los agregados del corte (`total`, `due_soon`, `collected`):
+     el contrato los publica una vez por respuesta, no por página. Si falta, falta el corte
+     entero, así que entra por el mismo camino de error que `isError`. */
+  const corte = query.data?.pages[0];
+  if (query.isError || !corte) {
     return (
       <div className="rounded-xl border border-border bg-surface p-8 text-center">
         <AlertCircle className="mx-auto mb-3 size-6 text-warning-600" />
@@ -378,7 +514,7 @@ export function GestionCobrosLive({
             <MetricCard
               icon={HandCoins}
               label="Por cobrar"
-              {...recuadroPorCobrar(query.data, resumen.data)}
+              {...recuadroPorCobrar(corte, resumen.data)}
             />
           </>
         ) : (
@@ -395,7 +531,7 @@ export function GestionCobrosLive({
             danger
           />
         )}
-        <CollectedMetricCard data={query.data} />
+        <CollectedMetricCard data={corte} />
       </section>
 
       <section className="space-y-3">
@@ -409,8 +545,13 @@ export function GestionCobrosLive({
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar por cliente, folio o RUT"
+              onChange={(event) => {
+                setSearch(event.target.value);
+                // La selección apunta a filas de la búsqueda anterior: se suelta al cambiarla
+                // para que el contador de arriba no cuente documentos que ya no están a la vista.
+                setSelected(new Set());
+              }}
+              placeholder="Buscar por cliente, folio o RUT en toda la cartera"
               className="h-10 w-full rounded-lg border border-border bg-surface pr-3 pl-9 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             />
           </label>
@@ -461,6 +602,7 @@ export function GestionCobrosLive({
                 setAttribute(null);
                 setStatus("collectable");
                 setSearch("");
+                setSelected(new Set());
               }}
               className="ml-auto text-xs font-semibold text-brand-primary"
             >
@@ -543,7 +685,15 @@ export function GestionCobrosLive({
                     <td className="max-w-[250px] px-3 py-3">
                       <p className="truncate font-medium text-neutral-dark">{item.customer_name}</p>
                       <p className="text-xs text-neutral-mid">
-                        {item.customer_rut ?? "RUT sin dato"}
+                        {/* El centinela 55.555.555-5 que el SII manda para TODOS los
+                            extranjeros no identifica a nadie, y exhibirlo en la celda que el
+                            lector usa justamente para distinguir filas las vuelve
+                            indistinguibles. #428 ya lo resolvió para el directorio de
+                            deudores; esta celda es la misma trampa un grano más abajo. Se
+                            reusa ese criterio, no se escribe otro. */}
+                        {esIdentidadDebil(item.customer_rut)
+                          ? "cliente extranjero o sin RUT"
+                          : item.customer_rut}
                       </p>
                     </td>
                     <td className="px-3 py-3 text-neutral-mid">{dateLabel(item.issue_date)}</td>
@@ -577,11 +727,45 @@ export function GestionCobrosLive({
         </div>
         {items.length === 0 && (
           <p className="p-10 text-center text-sm text-neutral-mid">
-            No hay documentos para este filtro.
+            {filasTraidas.length > 0
+              ? textoSinCoincidencias(
+                  totalServidor,
+                  filasTraidas.length,
+                  Boolean(query.hasNextPage),
+                )
+              : busqueda
+                ? `La búsqueda «${busqueda}» se corrió contra la cartera completa, no sólo contra lo que estaba a la vista, y ningún documento la contiene. Prueba con el RUT o con parte del folio.`
+                : `La cartera tiene ${documentos(totalServidor)} en este corte.`}
           </p>
         )}
-        <div className="border-t border-border px-4 py-3 text-xs text-neutral-mid">
-          {items.length} de {query.data.total} documentos
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-neutral-mid">
+          {/* `role="status"` no es decorado: estas tres cifras cambian SOLAS —al buscar, al traer
+              otra página— y quien usa lector de pantalla no tiene cómo enterarse de que el
+              número que acaba de oír ya no es el que está en pantalla. */}
+          <span role="status" aria-live="polite">
+            {textoDelPieDocumentos(
+              filasTraidas.length,
+              totalServidor,
+              items.length,
+              hayFiltroEnMemoria,
+              busqueda,
+            )}
+          </span>
+          {/* El botón se decide por `hasNextPage`, que sale de `offset + items.length < total`
+              del propio servidor. Sin esto la pantalla ofrecía CERO rutas a los documentos que
+              quedaban fuera de la primera página: ése es el defecto, no un adorno. */}
+          {query.hasNextPage && (
+            <button
+              type="button"
+              onClick={() => void query.fetchNextPage()}
+              disabled={query.isFetchingNextPage}
+              className="rounded-lg border border-border px-3 py-1.5 font-semibold text-brand-primary disabled:opacity-50"
+            >
+              {query.isFetchingNextPage
+                ? "Trayendo…"
+                : `Traer ${DOCUMENTS_PAGE_SIZE} documentos más`}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -9,6 +9,8 @@ import {
   recuadroPorCobrar,
   recuadroVencido,
   reminderIdempotencyKey,
+  textoDelPieDocumentos,
+  textoSinCoincidencias,
 } from "./gestion-cobros-live";
 
 const BASE: ReceivableDocumentItem = {
@@ -262,5 +264,98 @@ describe("idempotencia manual", () => {
         { receivable_id: "b", status: "sin_destinatario", detail: "sin correo" },
       ]),
     ).toBe(false);
+  });
+});
+
+/* ── #207 en el grano de los DOCUMENTOS: el pie que unía dos números distintos con un "de" ───
+ *
+ * El pie decía `{items.length} de {query.data.total} documentos`. A la izquierda, una página
+ * filtrada en memoria; a la derecha, el total del servidor. Con 1.480 documentos en cartera el
+ * dueño leía "12 de 1.480" y entendía "quedan 1.468 por mirar", cuando lo que en realidad decía
+ * era "12 de las 100 que alcancé a traer pasan tu filtro, y de las otras 1.380 no sé nada". */
+describe("(b) el pie nunca publica un `.length` como conteo de cartera", () => {
+  it("separa la cartera del servidor de las filas traídas, y lo dice con esas palabras", () => {
+    const texto = textoDelPieDocumentos(50, 1480, 50, false, "");
+    expect(texto).toContain("1480 documentos en la cartera");
+    expect(texto).toContain("50 traídas hasta acá");
+    // El "N de M" que fabricaba la cifra falsa ya no existe en ninguna forma.
+    expect(texto).not.toContain("50 de 1480");
+  });
+
+  /* EL GEMELO: con un filtro en memoria puesto aparece el TERCER número, nombrado como lo que
+     es —cuántas de las traídas pasan el filtro—, en vez de pasar por el total del servidor. */
+  it("con filtro de estado nombra las tres cifras por separado", () => {
+    const texto = textoDelPieDocumentos(50, 1480, 12, true, "");
+    expect(texto).toContain("1480 documentos en la cartera");
+    expect(texto).toContain("50 traídas hasta acá");
+    expect(texto).toContain("12 pasan el filtro de estado");
+  });
+
+  it("con búsqueda dice que se buscó en TODA la cartera, que es lo que antes no era cierto", () => {
+    const texto = textoDelPieDocumentos(1, 1, 1, false, "volcan");
+    expect(texto).toContain("«volcan»");
+    expect(texto).toContain("en toda la cartera");
+  });
+
+  it("no escribe «1 traídas» ni «1 pasan»", () => {
+    const texto = textoDelPieDocumentos(1, 1, 1, true, "");
+    expect(texto).toContain("1 traída hasta acá");
+    expect(texto).toContain("1 pasa el filtro");
+    expect(texto).not.toContain("1 traídas");
+    expect(texto).not.toContain("1 pasan");
+  });
+});
+
+describe("la tabla sin filas nombra la cartera que SÍ existe", () => {
+  it("dice la cifra y la salida concreta, nunca «no hay»", () => {
+    const texto = textoSinCoincidencias(1480, 50, true);
+    expect(texto).toContain("1480 documentos en la cartera");
+    expect(texto).toContain("50 traídas hasta acá");
+    expect(texto).toContain("Trae más documentos");
+    expect(texto).not.toContain("No hay");
+    expect(texto).not.toContain("sin dato");
+  });
+
+  /* EL GEMELO: con todo traído ya no tiene sentido ofrecer "traer más", porque apretar ese
+     botón no cambiaría nada. La salida que queda es soltar el filtro, y eso es lo que dice. */
+  it("sin páginas pendientes ofrece la única salida que queda: soltar el filtro", () => {
+    const texto = textoSinCoincidencias(7, 7, false);
+    expect(texto).toContain("Suelta el filtro");
+    expect(texto).not.toContain("Trae más documentos");
+  });
+});
+
+describe("(e) un total nunca suma pesos con dólares", () => {
+  it("dos monedas dan DOS cifras, nunca una sola", () => {
+    const label = formatCollectionMoney([
+      { currency: "CLP", amount: "9800000" },
+      { currency: "USD", amount: "12500.40" },
+    ]);
+    // Dos cifras separadas, cada una con su símbolo.
+    expect(label.split(" · ")).toHaveLength(2);
+    expect(label).toContain("$9.800.000");
+    expect(label).toContain("12.500,40");
+    expect(label).toContain("US$");
+    // Y ni rastro de la suma aritmética de los dos números, que no significa nada.
+    expect(label).not.toContain("9812500");
+    expect(label).not.toContain("$9.812.500");
+  });
+
+  /* EL GEMELO: una sola moneda da UNA cifra. Sin esto, una implementación que siempre
+     devolviera dos líneas pasaría el test de arriba sin separar nada. */
+  it("una sola moneda da una sola cifra, sin separador de más", () => {
+    const label = formatCollectionMoney([{ currency: "CLP", amount: "9800000" }]);
+    expect(label.split(" · ")).toHaveLength(1);
+    expect(label).toBe("$9.800.000");
+  });
+
+  it("una moneda en cuarentena no se vuelve cero ni arrastra a la otra", () => {
+    const label = formatCollectionMoney([
+      { currency: "CLP", amount: "9800000" },
+      { currency: "USD", amount: null },
+    ]);
+    expect(label).toContain("$9.800.000");
+    expect(label).toContain("(USD)");
+    expect(label).not.toContain("$0");
   });
 });
