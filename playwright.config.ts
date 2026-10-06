@@ -39,6 +39,8 @@ export default defineConfig({
         "**/*.flow.spec.ts",
         "**/*.real.spec.ts",
         "**/*.smoke.spec.ts",
+        // QA de producción (solo lectura, sesión real): corre SOLO con playwright.qa-produccion.config.ts.
+        "**/qa-produccion/**",
       ],
     },
     {
@@ -55,6 +57,25 @@ export default defineConfig({
       /* La prueba transversal del Brief requiere su build ON dedicado. El run
          normal conserva los flujos legacy y prueba el kill switch en OFF. */
       testIgnore: "**/decision-brief-consistency.flow.spec.ts",
+    },
+    {
+      /* La mitad de CI del gate de aceptación (`tests/e2e/qa-produccion/`). El gate tiene doble
+         vida a propósito: contra producción MIDE la verdad y puede ponerse rojo; en CI, sin sesión
+         y contra MSW, prueba el INSTRUMENTO y tiene que quedar verde y determinista.
+
+           · `gemelos.spec.ts`  — puro: cada uno de los doce invariantes, con una cifra sembrada
+             distinta, DEBE ponerse rojo; con una cifra borrada, DEBE decir "no pude medir".
+             Sin esto, un invariante en verde no significa nada.
+           · `lectores.spec.ts` — contra las pantallas montadas de verdad: cada lector encuentra la
+             cifra que el gate va a comparar en producción. Si una etiqueta o una región cambia de
+             nombre, CI se cae acá en vez de que el run de producción mida de menos en silencio.
+
+         Lo que acá NO corre es `invariantes.spec.ts`: compara superficies contra la verdad del
+         tenant, y los fixtures de MSW no son ese tenant. */
+      name: "qa-gate",
+      use: { ...devices["Desktop Chrome"] },
+      testDir: "./tests/e2e/qa-produccion",
+      testMatch: ["**/gemelos.spec.ts", "**/lectores.spec.ts"],
     },
   ],
   webServer: {

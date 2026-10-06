@@ -21,6 +21,8 @@
     "e2e": "playwright test",
     "e2e:decision-brief": "playwright test --config=playwright.decision-brief.config.ts",
     "e2e:real": "playwright test --config=playwright.real.config.ts",
+    "test:e2e:qa-prod": "playwright test --config=playwright.qa-produccion.config.ts",
+    "test:e2e:qa-gate": "playwright test --project=qa-gate",
     "smoke": "playwright test --config=playwright.smoke.config.ts",
     "generate:api": "openapi-typescript docs/contracts/openapi.snapshot.json -o src/lib/api/types.ts",
     "generate:api:sync": "node scripts/openapi-snapshot.mjs sync",
@@ -72,6 +74,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/eslintrc": "^3",
     "@lhci/cli": "^0.15.1",
     "@opennextjs/cloudflare": "1.20.8",

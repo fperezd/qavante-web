@@ -41,6 +41,12 @@ export function KpiCard(props: KpiCardProps) {
   const { label, period, value, sinDato, tone = "default", detail, className, ...rest } = props;
   return (
     <div
+      /* Ancla para el gate de aceptacion (tests/e2e/qa-produccion): la etiqueta de la tarjeta y el
+         slot del valor quedan direccionables sin depender de la estructura de divs ni del texto
+         visible. Sin esto, un lector que no encuentra la cifra no puede distinguir "la tarjeta no
+         esta" de "la tarjeta cambio de forma", y las dos cosas se arreglan distinto. */
+      data-kpi={label}
+      data-kpi-sin-dato={sinDato ? "true" : undefined}
       className={cn(
         "rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie px-[17px] py-3.5",
         className,
@@ -56,6 +62,7 @@ export function KpiCard(props: KpiCardProps) {
         )}
       </div>
       <div
+        data-kpi-valor=""
         className={cn(
           "mt-1.5 font-rediseno-sans text-[21px] font-medium tabular-nums",
           /* Un "no sé" no se colorea: verde o rojo sobre una ausencia sería un

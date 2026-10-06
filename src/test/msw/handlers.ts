@@ -4901,6 +4901,41 @@ const cajaV2Handlers = [
     HttpResponse.json(cashMinimumFixture, { status: 200 }),
   ),
   http.get("*/api/treasury/cash-cycle", () => HttpResponse.json(cashCycleFixture, { status: 200 })),
+  /* `GET /api/treasury/collection-forecast` — cobranza por VENCIMIENTO nominal. La app lo pide desde
+     /caja para el KPI "Entra · 14 días" (`caja-v02-live.tsx`) y hasta ahora el mock no lo servía: la
+     tarjeta quedaba en "sin dato" en todos los E2E, y un KPI que nunca publica cifra no prueba nada.
+
+     El fixture FOOTEA contra los otros dos agregados a propósito, porque es lo que el gate de
+     aceptación compara (INV-02):
+       overdue 7.900.000 + buckets 16.900.000 + beyond 0 + sin_vencimiento 0 = 24.800.000
+     que es exactamente `accounts-receivable.total` y `dashboard/summary.overdue_collections
+     .total_receivable`. Si alguien cambia uno de los tres y no los otros, el invariante lo dice. */
+  http.get("*/api/treasury/collection-forecast", () =>
+    HttpResponse.json(
+      {
+        as_of: "2026-06-02",
+        /* Vencido = la suma del aging no corriente de `accountsReceivableFixture`
+           (3.200.000 + 2.100.000 + 1.400.000 + 1.200.000). */
+        overdue: { nominal: "7900000", expected: "4740000" },
+        /* Los cinco buckets del contrato. Suman 16.900.000 = el `aging.current` de la cartera. */
+        buckets: [
+          { label: "0-7d", days_from: 0, days_to: 7, nominal: "4200000", expected: "2520000" },
+          { label: "8-14d", days_from: 8, days_to: 14, nominal: "3100000", expected: "1860000" },
+          { label: "15-30d", days_from: 15, days_to: 30, nominal: "5000000", expected: "3000000" },
+          { label: "31-60d", days_from: 31, days_to: 60, nominal: "3000000", expected: "1800000" },
+          { label: "61-90d", days_from: 61, days_to: 90, nominal: "1600000", expected: "960000" },
+        ],
+        beyond_horizon: { nominal: "0", expected: "0" },
+        /* Cero a propósito: el fixture no tiene receivables sin `due_date`. En producción este bucket
+           se come la cartera entera (185 cuentas por $364.846.883, ninguna con vencimiento), y por eso
+           el KPI de 14 días da +$0 allá. El mock no reproduce el bug: lo reproduce el gemelo. */
+        sin_vencimiento: { nominal: "0", expected: "0" },
+        total_nominal: "24800000",
+        total_expected: "14880000",
+      },
+      { status: 200 },
+    ),
+  ),
   /* Proyección de cobros por comportamiento (ADR-0083 B2) — el insight "comportamiento de pago" de
      Ciclo de caja usa `vs_nominal.behavior_shift_days`. Fixture: tus clientes pagan 12 días TARDE, con
      18 de 25 facturas con historial. */

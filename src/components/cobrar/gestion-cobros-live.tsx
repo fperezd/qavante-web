@@ -616,7 +616,13 @@ function MetricCard({
   danger?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    /* `data-metric` / `data-metric-valor`: ancla para el gate de aceptacion
+       (tests/e2e/qa-produccion). La etiqueta de esta tarjeta es un nodo de texto suelto entre el
+       icono y el detalle, asi que no hay ningun elemento cuyo texto sea exactamente la etiqueta: un
+       lector por texto o no encuentra nada o engancha el chip "Todo en por cobrar". Con el atributo,
+       cuando el lector no encuentra la cifra es porque la cifra no esta, no porque el selector
+       cambio de forma. */
+    <div data-metric={label} className="rounded-xl border border-border bg-surface p-5">
       <div
         className={cn(
           "flex items-center gap-2 text-sm font-semibold text-neutral-dark",
@@ -628,6 +634,7 @@ function MetricCard({
         {detail && <span className="ml-auto font-normal text-neutral-mid">{detail}</span>}
       </div>
       <p
+        data-metric-valor=""
         className={cn(
           "mt-3 text-2xl font-bold tabular-nums text-neutral-dark",
           danger && "text-danger-600",
