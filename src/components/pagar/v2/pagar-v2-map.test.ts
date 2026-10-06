@@ -179,7 +179,9 @@ const docM = (over: Partial<DocMaestro>): DocMaestro => ({
   ...over,
 });
 const cpM = (over: Partial<ContraparteMaestro>): ContraparteMaestro => ({
+  key: "77111222-3",
   rut: "77111222-3",
+  rutDocumental: "77111222-3",
   name: "Proveedor X",
   docCount: 1,
   total: 1_000_000,

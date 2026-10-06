@@ -199,10 +199,12 @@ export function MaestroContrapartes({
               {cpsSorted.map((cp) => (
                 <ContraparteRow
                   kind={kind}
-                  key={cp.rut}
+                  /* `cp.key`, no `cp.rut`: con identidad débil el RUT es null y todas esas
+                     filas compartirían key (React las colapsaría y abrir una abriría otra). */
+                  key={cp.key}
                   cp={cp}
-                  isOpen={openRut === cp.rut}
-                  onToggle={() => setOpenRut(openRut === cp.rut ? null : cp.rut)}
+                  isOpen={openRut === cp.key}
+                  onToggle={() => setOpenRut(openRut === cp.key ? null : cp.key)}
                   onSetTerm={onSetTerm}
                   onResetTerm={onResetTerm}
                   pending={pending}
@@ -310,7 +312,11 @@ function ContraparteRow({
               <span className="block max-w-[220px] truncate font-medium text-neutral-dark">
                 {cp.name}
               </span>
-              <span className="block text-xs text-neutral-mid">{formatRut(cp.rut)}</span>
+              <span className="block text-xs text-neutral-mid">
+                {/* Sin RUT que distinga a nadie, la fila se nombra por lo que SÍ se sabe: su
+                    razón social, arriba. Acá va la misma frase que usa el Libro. */}
+                {cp.rut ? formatRut(cp.rut) : "contraparte extranjera o sin RUT"}
+              </span>
             </span>
           </button>
         </td>
@@ -320,17 +326,25 @@ function ContraparteRow({
         </td>
         <td className="py-2 pr-3">
           <div className="flex items-center justify-center gap-1">
+            {/* El plazo por contraparte se guarda indexado por RUT. Con identidad débil no hay
+                RUT que distinga esta fila, así que un plazo guardado acá regiría sobre TODAS las
+                contrapartes extranjeras a la vez. La fila muestra el plazo que de verdad se le
+                aplica —el del tipo de documento— y no deja editarlo sólo en esta fila. */}
             <TermInput
               value={cp.termino}
-              onCommit={(d) => onSetTerm(cp.rut, d)}
-              disabled={pending}
-              ariaLabel={`Término de pago de ${cp.name} (días)`}
+              onCommit={(d) => (cp.rut ? onSetTerm(cp.rut, d) : undefined)}
+              disabled={pending || cp.rut == null}
+              ariaLabel={
+                cp.rut
+                  ? `Término de pago de ${cp.name} (días)`
+                  : `Término de pago de ${cp.name}: ${cp.termino} días, el del tipo de documento, porque el SII no entrega un RUT que distinga a esta contraparte de las otras extranjeras`
+              }
               highlighted={cp.terminoCustom}
             />
-            {cp.terminoCustom && (
+            {cp.rut && cp.terminoCustom && (
               <button
                 type="button"
-                onClick={() => onResetTerm(cp.rut)}
+                onClick={() => cp.rut && onResetTerm(cp.rut)}
                 disabled={pending}
                 aria-label="Volver al término por defecto"
                 title="Volver al término por defecto"
@@ -470,7 +484,12 @@ function DocDetail({ cp, kind }: { cp: ContraparteMaestro; kind: MaestroKind }) 
                   {formatClp(d.monto)}
                 </td>
                 <td className="py-1 pr-3 text-right">
-                  <DteActions url={pdfUrlDeDoc(kind, cp.rut, d)} label={`folio ${d.folio ?? ""}`} />
+                  {/* `rutDocumental` y no `rut`: el SII sirve el PDF por el RUT que trae el
+                      documento, que para un extranjero es literalmente el centinela. */}
+                  <DteActions
+                    url={pdfUrlDeDoc(kind, cp.rutDocumental, d)}
+                    label={`folio ${d.folio ?? ""}`}
+                  />
                 </td>
                 <td className="py-1 text-right align-top">
                   {/* Antes había acá un botón "Marcar conciliado" que sólo escribía una marca en

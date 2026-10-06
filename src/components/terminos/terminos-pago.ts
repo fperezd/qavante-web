@@ -14,7 +14,7 @@
  * conciliado contra un movimiento bancario desaparece de la lista. */
 
 import type { PreferencesBlob } from "@/lib/api/preferences";
-import { normalizeRut } from "@/lib/validators/rut";
+import { esIdentidadDebil, normalizeRut } from "@/lib/validators/rut";
 import {
   agruparConReferencias,
   type PendingAssociationStatus,
@@ -113,6 +113,46 @@ export function estadoDoc(vencimiento: Date | null, today: Date, umbralPorVencer
   return "vigente";
 }
 
+/* ── IDENTIDAD DE LA CONTRAPARTE ────────────────────────────────────
+ * UN CENTINELA NO ES UNA IDENTIDAD. El SII manda `55.555.555-5` para TODA contraparte
+ * extranjera, y los libros traen además `SIN-RUT` y `S/D`. Ese centinela pasa el módulo 11,
+ * así que entraba a este motor como un RUT normal: los nueve proveedores extranjeros de Tooxs
+ * (ANTHROPIC, MICROSOFT, GITHUB, FLY.IO, HUBSPOT, GOOGLE, GAMMA, NEON, HETZNER) y un cliente
+ * (DIVEIMPORT) caían en UNA fila, los montos se sumaban, y la fila se quedaba con el PRIMER
+ * nombre recorrido — HETZNER, que debe $10.340, apareciendo como si debiera los $650.360 del
+ * grupo completo.
+ *
+ * El Libro (`libro-kpis-format.ts`) y Contraparte 360 (`contraparte-360-model.ts`) ya tomaron
+ * esta decisión: con identidad débil la clave de verdad es la razón social. Acá se porta la
+ * MISMA, con el mismo helper (`esIdentidadDebil`), para que no haya dos definiciones de
+ * "identidad débil" en el repo. */
+
+export interface IdentidadContraparte {
+  /** Clave de agrupación y de fila. NO es un RUT: con identidad débil vale `sin-rut:<nombre>`.
+   *  Sirve para agrupar documentos y para la `key` de React; nunca para mostrar. */
+  key: string;
+  /** El RUT que SÍ distingue a esta contraparte, o `null` cuando no hay ninguno. Es un dato,
+   *  no una etiqueta humana: la vista decide cómo nombrar una fila sin RUT. */
+  rut: string | null;
+}
+
+/** Identidad de agrupación de una contraparte. Con RUT real, la clave es el RUT normalizado.
+ *  Con identidad débil (centinela de extranjero, `SIN-RUT`, `S/D`, vacío), la clave es el
+ *  nombre y el RUT queda en `null`. PURO. */
+export function identidadContraparte(
+  rut: string | null | undefined,
+  name: string | null | undefined,
+): IdentidadContraparte {
+  const nombre = (name ?? "").trim();
+  if (esIdentidadDebil(rut)) {
+    /* Mismo prefijo que el Libro: `sin-rut:<nombre>`. Sin nombre tampoco hay nada que
+       distinga, y todas esas filas comparten bucket — pero es un bucket EXPLÍCITO, no uno
+       disfrazado de RUT. */
+    return { key: `sin-rut:${nombre || "sin-identificar"}`, rut: null };
+  }
+  return { key: normalizeRut(String(rut)), rut: normalizeRut(String(rut)) };
+}
+
 /* ── Prefs: términos por tipo + override por contraparte ──────────────────────
  * Clave única `terminos_pago` en el blob de prefs (#571, "reemplaza no mergea").
  * Estructura: { ventas|compras|honorarios: { default: number, byRut: {rut: days} } }. */
@@ -141,6 +181,12 @@ export function readTerminos(blob: PreferencesBlob | undefined): TerminosResuelt
     const rawByRut = (dom.byRut ?? {}) as Record<string, unknown>;
     if (rawByRut && typeof rawByRut === "object" && !Array.isArray(rawByRut)) {
       for (const [rut, v] of Object.entries(rawByRut)) {
+        /* UN OVERRIDE GUARDADO SOBRE EL CENTINELA SE DESCARTA AL LEER. `byRut` se indexa por
+           RUT, así que un plazo guardado sobre `55555555-5` (cuando la fila fundida sí
+           aceptaba editarlo) se aplicaba a los nueve proveedores extranjeros a la vez.
+           Descartarlo acá —y no sólo al escribir— limpia los blobs que YA lo tienen: lo que
+           esté guardado deja de surtir efecto sin necesidad de migrar las prefs de nadie. */
+        if (esIdentidadDebil(rut)) continue;
         const days = toPositiveInt(v, NaN);
         if (Number.isFinite(days)) byRut[normalizeRut(rut)] = days;
       }
@@ -155,16 +201,32 @@ function toPositiveInt(v: unknown, fallback: number): number {
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : fallback;
 }
 
-/** Término efectivo para una contraparte: su override o el default del tipo. PURO. */
-export function termFor(terminos: TerminosResueltos, kind: MaestroKind, rut: string): number {
+/** Término efectivo para una contraparte: su override o el default del tipo. PURO.
+ *
+ *  Con identidad débil devuelve el DEFAULT del tipo, siempre. El override se indexa por RUT y
+ *  el centinela no distingue contrapartes: aplicarlo cambiaría el vencimiento derivado de
+ *  todos los extranjeros juntos. El default es un número concreto (ventas 30, compras 30,
+ *  honorarios 5 días), no una abstención. */
+export function termFor(
+  terminos: TerminosResueltos,
+  kind: MaestroKind,
+  rut: string | null | undefined,
+): number {
   const dom = terminos[kind];
-  const override = dom.byRut[normalizeRut(rut)];
+  if (esIdentidadDebil(rut)) return dom.default;
+  const override = dom.byRut[normalizeRut(String(rut))];
   return Number.isFinite(override) ? (override as number) : dom.default;
 }
 
-/** ¿El término de esta contraparte está personalizado (≠ default del tipo)? */
-export function isTermCustom(terminos: TerminosResueltos, kind: MaestroKind, rut: string): boolean {
-  return Number.isFinite(terminos[kind].byRut[normalizeRut(rut)]);
+/** ¿El término de esta contraparte está personalizado (≠ default del tipo)? Con identidad
+ *  débil es `false`: no hay override que pueda regir una fila que no identifica a nadie. */
+export function isTermCustom(
+  terminos: TerminosResueltos,
+  kind: MaestroKind,
+  rut: string | null | undefined,
+): boolean {
+  if (esIdentidadDebil(rut)) return false;
+  return Number.isFinite(terminos[kind].byRut[normalizeRut(String(rut))]);
 }
 
 /** Blob COMPLETO con el override de una contraparte (respeta "reemplaza, no mergea":
@@ -172,15 +234,20 @@ export function isTermCustom(terminos: TerminosResueltos, kind: MaestroKind, rut
 export function withTerm(
   blob: PreferencesBlob | undefined,
   kind: MaestroKind,
-  rut: string,
+  rut: string | null | undefined,
   days: number,
 ): PreferencesBlob {
+  /* Una identidad débil NO puede aceptar un override: el único índice disponible es el RUT y
+     el centinela es compartido, así que guardar acá cambiaría el plazo de todos los
+     extranjeros. Se devuelve el blob SIN ese override (y sin el que hubiera quedado de antes),
+     que es lo mismo que `readTerminos` ya decide al leer. */
+  if (esIdentidadDebil(rut)) return withoutTerm(blob, kind, rut);
   const cur = readTerminos(blob);
   const next: TerminosResueltos = {
     ...cur,
     [kind]: {
       ...cur[kind],
-      byRut: { ...cur[kind].byRut, [normalizeRut(rut)]: Math.max(0, Math.round(days)) },
+      byRut: { ...cur[kind].byRut, [normalizeRut(String(rut))]: Math.max(0, Math.round(days)) },
     },
   };
   return { ...(blob ?? {}), [TERMINOS_KEY]: next };
@@ -190,11 +257,13 @@ export function withTerm(
 export function withoutTerm(
   blob: PreferencesBlob | undefined,
   kind: MaestroKind,
-  rut: string,
+  rut: string | null | undefined,
 ): PreferencesBlob {
   const cur = readTerminos(blob);
   const byRut = { ...cur[kind].byRut };
-  delete byRut[normalizeRut(rut)];
+  /* `readTerminos` ya descartó las claves de identidad débil, así que acá el delete es un
+     no-op sobre ellas: la función sigue siendo idempotente para cualquier RUT. */
+  delete byRut[normalizeRut(String(rut ?? ""))];
   const next: TerminosResueltos = { ...cur, [kind]: { ...cur[kind], byRut } };
   return { ...(blob ?? {}), [TERMINOS_KEY]: next };
 }
@@ -311,7 +380,20 @@ export interface DocMaestro {
 }
 
 export interface ContraparteMaestro {
-  rut: string;
+  /** Clave de agrupación de la fila (`identidadContraparte`). Con RUT real es el RUT
+   *  normalizado; con identidad débil es `sin-rut:<nombre>`. Úsala como `key` de React y para
+   *  cruzar esta fila con otra lista derivada del maestro. NO se muestra. */
+  key: string;
+  /** `null` cuando la contraparte llega con identidad débil (centinela de extranjero,
+   *  `SIN-RUT`, `S/D`): no hay RUT que distinga esta fila, y la vista decide cómo nombrarla
+   *  (por su razón social, que es lo que SÍ se sabe). Nunca se mete una etiqueta humana en
+   *  este campo, que es un dato. */
+  rut: string | null;
+  /** El RUT tal como viene en los DOCUMENTOS de esta contraparte, incluso cuando es el
+   *  centinela. NO es identidad — no lo uses para agrupar ni para mostrar: existe porque el
+   *  SII pide ese mismo valor para servir el PDF del DTE/BHE, y una factura de un proveedor
+   *  extranjero está emitida literalmente contra `55555555-5`. */
+  rutDocumental: string;
   name: string;
   docCount: number;
   total: number;
@@ -357,20 +439,33 @@ export function buildMaestro(
   conciliacion?: ConciliacionMap,
 ): ContraparteMaestro[] {
   const conMotor = conciliacion !== undefined;
-  // Agrupar los documentos por contraparte.
-  const byRut = new Map<string, DocConVencimiento[]>();
+  /* AGRUPAR POR IDENTIDAD, NO POR EL CAMPO RUT. Con RUT real la clave es el RUT; con
+     identidad débil es `sin-rut:<nombre>` (`identidadContraparte`), así que cada extranjero
+     queda en SU fila. Antes el centinela `55555555-5` entraba como un RUT normal —pasa el
+     módulo 11— y fundía contrapartes distintas en una sola, que además se quedaba con el
+     primer nombre recorrido. */
+  const byCp = new Map<string, DocConVencimiento[]>();
   for (const d of docs) {
-    const rut = normalizeRut(String(d.rut ?? ""));
-    if (!rut) continue;
-    const arr = byRut.get(rut);
+    const { key } = identidadContraparte(d.rut, d.name);
+    if (!key) continue;
+    const arr = byCp.get(key);
     if (arr) arr.push(d);
-    else byRut.set(rut, [d]);
+    else byCp.set(key, [d]);
   }
 
   const list: ContraparteMaestro[] = [];
-  for (const [rut, cpDocs] of byRut) {
-    const termino = termFor(terminos, kind, rut);
-    const name = cpDocs.find((d) => d.name)?.name || rut;
+  for (const [key, cpDocs] of byCp) {
+    /* El nombre de la fila. Con identidad débil la clave YA es el nombre, así que el primer
+       nombre recorrido es el de ESTA contraparte y no el de otra. */
+    const primerDoc = cpDocs.find((d) => d.name);
+    const rutDocumental = normalizeRut(String(cpDocs[0]?.rut ?? ""));
+    const { rut: rutIdentidad } = identidadContraparte(cpDocs[0]?.rut, primerDoc?.name);
+    const name = primerDoc?.name || rutIdentidad || "Contraparte extranjera o sin RUT";
+    const termino = termFor(terminos, kind, rutIdentidad);
+    /* `rut` para todo lo que se le pasa al agrupador de NC y al mapa legacy de "marqué esto
+       pagado": ambos viven en el espacio del RUT documental (la clave natural del DTE y el
+       `docKey` ya guardado), no en el de la identidad. */
+    const rut = rutDocumental;
 
     // Vincular NC ↔ factura por la referencia del DTE (reusa la lógica del Libro):
     // cada factura conoce las NC que la modifican; las NC sin factura quedan "huérfanas".
@@ -553,7 +648,9 @@ export function buildMaestro(
     vigente -= tg;
 
     list.push({
-      rut,
+      key,
+      rut: rutIdentidad,
+      rutDocumental,
       name,
       docCount: conMotor ? docsOut.length : cpDocs.length,
       total,
@@ -564,7 +661,7 @@ export function buildMaestro(
       declaradoSinEvidencia,
       docsDeclarados,
       termino,
-      terminoCustom: isTermCustom(terminos, kind, rut),
+      terminoCustom: isTermCustom(terminos, kind, rutIdentidad),
       proximoVencimiento: proximo,
       docs: docsOut,
     });

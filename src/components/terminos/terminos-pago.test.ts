@@ -11,6 +11,7 @@ import {
   withoutTerm,
   withDefaultTerm,
   buildMaestro,
+  identidadContraparte,
   totalesMaestro,
   readPagados,
   isPagado,
@@ -407,5 +408,294 @@ describe("buildMaestro", () => {
     ];
     const m = buildMaestro(bhe, readTerminos(undefined), "honorarios", HOY);
     expect(m[0]!.docs[0]!.estado).toBe("por_vencer");
+  });
+});
+
+/* ═══ D08/T03: UN CENTINELA NO ES UNA IDENTIDAD ═══════════════════════════════
+ * El SII manda `55.555.555-5` para TODA contraparte extranjera. Ese número pasa el módulo 11,
+ * así que entraba a `buildMaestro` como un RUT normal: una sola fila con los montos sumados y
+ * el PRIMER nombre recorrido. El inventario de abajo es el medido en la base de producción de
+ * Tooxs el 2026-10-06: 14 documentos de compra de 9 proveedores extranjeros, $650.360 en total,
+ * de los cuales HETZNER aporta $10.340 (1,6%). Fundidos, la fila de HETZNER decía $650.360. */
+
+/** Los 9 proveedores extranjeros de Tooxs y sus 14 facturas, todos bajo el centinela. */
+const COMPRAS_EXTRANJERAS: ReadonlyArray<readonly [string, number, number]> = [
+  // [razón social, folio, monto]
+  ["ANTHROPIC, PBC", 101, 100_000],
+  ["ANTHROPIC, PBC", 102, 91_251],
+  ["MICROSOFT CORPORATION", 103, 100_000],
+  ["MICROSOFT CORPORATION", 104, 89_641],
+  ["GITHUB, INC.", 105, 60_000],
+  ["GITHUB, INC.", 106, 50_383],
+  ["FLY.IO, INC.", 107, 34_850],
+  ["FLY.IO, INC.", 108, 30_000],
+  ["HUBSPOT INC.", 109, 18_067],
+  ["HUBSPOT INC.", 110, 10_000],
+  ["GOOGLE LLC", 111, 25_633],
+  ["GAMMA", 112, 18_723],
+  ["NEON, LLC", 113, 11_472],
+  ["HETZNER ONLINE GMBH", 114, 10_340],
+];
+
+/** Totales por proveedor, tal como se midieron en producción. */
+const ESPERADO_POR_PROVEEDOR: Record<string, number> = {
+  "ANTHROPIC, PBC": 191_251,
+  "MICROSOFT CORPORATION": 189_641,
+  "GITHUB, INC.": 110_383,
+  "FLY.IO, INC.": 64_850,
+  "HUBSPOT INC.": 28_067,
+  "GOOGLE LLC": 25_633,
+  GAMMA: 18_723,
+  "NEON, LLC": 11_472,
+  "HETZNER ONLINE GMBH": 10_340,
+};
+
+const TOTAL_GRUPO_FUNDIDO = 650_360;
+
+const docsExtranjeros = (): DocConVencimiento[] =>
+  COMPRAS_EXTRANJERAS.map(([name, folio, monto]) => ({
+    rut: "55555555-5",
+    name,
+    fecha: "01/06/2026",
+    monto,
+    folio,
+    tipoDoc: 33,
+  }));
+
+describe("identidadContraparte", () => {
+  it("con RUT real, la clave ES el RUT normalizado y el RUT se publica", () => {
+    expect(identidadContraparte("96.572.360-9", "COMERCIAL KAUFMANN S.A.")).toEqual({
+      key: "96572360-9",
+      rut: "96572360-9",
+    });
+  });
+
+  it("con identidad débil, la clave es el nombre y el RUT queda en null", () => {
+    expect(identidadContraparte("55555555-5", "HETZNER ONLINE GMBH")).toEqual({
+      key: "sin-rut:HETZNER ONLINE GMBH",
+      rut: null,
+    });
+    expect(identidadContraparte("SIN-RUT", "GAMMA")).toEqual({
+      key: "sin-rut:GAMMA",
+      rut: null,
+    });
+    expect(identidadContraparte("S/D", "")).toEqual({
+      key: "sin-rut:sin-identificar",
+      rut: null,
+    });
+    expect(identidadContraparte(null, null)).toEqual({
+      key: "sin-rut:sin-identificar",
+      rut: null,
+    });
+  });
+});
+
+describe("buildMaestro: el centinela de extranjero no funde contrapartes", () => {
+  const terminos = readTerminos(undefined);
+
+  it("los 9 proveedores de Tooxs quedan en 9 filas, y la suma cuadra con el grupo fundido", () => {
+    const cps = buildMaestro(docsExtranjeros(), terminos, "compras", HOY);
+    expect(cps).toHaveLength(9);
+    const porNombre = new Map(cps.map((cp) => [cp.name, cp]));
+    for (const [nombre, esperado] of Object.entries(ESPERADO_POR_PROVEEDOR)) {
+      expect(porNombre.get(nombre)?.total, nombre).toBe(esperado);
+    }
+    // LA SUMA: desagregar no crea ni pierde un peso.
+    expect(cps.reduce((s, cp) => s + cp.total, 0)).toBe(TOTAL_GRUPO_FUNDIDO);
+  });
+
+  it("HETZNER debe $10.340, no los $650.360 del grupo completo", () => {
+    const cps = buildMaestro(docsExtranjeros(), terminos, "compras", HOY);
+    const hetzner = cps.find((cp) => cp.name === "HETZNER ONLINE GMBH");
+    expect(hetzner?.total).toBe(10_340);
+    expect(hetzner?.total).not.toBe(TOTAL_GRUPO_FUNDIDO);
+    expect(hetzner?.docCount).toBe(1);
+  });
+
+  it("ninguna fila extranjera reclama el centinela como RUT; se nombra por su razón social", () => {
+    const cps = buildMaestro(docsExtranjeros(), terminos, "compras", HOY);
+    for (const cp of cps) {
+      expect(cp.rut).toBeNull();
+      expect(cp.key).toBe(`sin-rut:${cp.name}`);
+      // El RUT del DOCUMENTO sigue disponible: el SII sirve el PDF por ese valor.
+      expect(cp.rutDocumental).toBe("55555555-5");
+    }
+  });
+
+  /* GEMELO: dos documentos del MISMO extranjero SÍ se agrupan juntos (si el arreglo separara
+     por documento en vez de por contraparte, ANTHROPIC quedaría en dos filas de $100.000 y
+     $91.251). */
+  it("dos facturas del MISMO extranjero quedan en una sola fila", () => {
+    const cps = buildMaestro(docsExtranjeros(), terminos, "compras", HOY);
+    const anthropic = cps.find((cp) => cp.name === "ANTHROPIC, PBC");
+    expect(anthropic?.docCount).toBe(2);
+    expect(anthropic?.total).toBe(191_251);
+    expect(cps.filter((cp) => cp.name === "ANTHROPIC, PBC")).toHaveLength(1);
+  });
+
+  /* GEMELO: dos contrapartes con RUT REAL y nombres distintos siguen separadas, y una
+     contraparte con RUT real NO pierde su RUT. */
+  it("dos contrapartes con RUT real distinto siguen separadas y conservan su RUT", () => {
+    const docs: DocConVencimiento[] = [
+      {
+        rut: "96572360-9",
+        name: "COMERCIAL KAUFMANN S.A.",
+        fecha: "01/06/2026",
+        monto: 5_000_000,
+        folio: 1,
+        tipoDoc: 33,
+      },
+      {
+        rut: "77111222-3",
+        name: "OTRA EMPRESA SPA",
+        fecha: "01/06/2026",
+        monto: 2_000_000,
+        folio: 2,
+        tipoDoc: 33,
+      },
+    ];
+    const cps = buildMaestro(docs, terminos, "compras", HOY);
+    expect(cps).toHaveLength(2);
+    expect(cps.map((cp) => cp.rut).sort()).toEqual(["77111222-3", "96572360-9"]);
+    expect(cps.every((cp) => cp.key === cp.rut)).toBe(true);
+  });
+
+  /* GEMELO: el MISMO nombre con DOS RUT reales distintos NO se funde (si el arreglo agrupara
+     por nombre siempre, dos sociedades con RUT propio colapsarían en una). */
+  it("el mismo nombre con dos RUT reales distintos NO se funde", () => {
+    const docs: DocConVencimiento[] = [
+      { rut: "96572360-9", name: "MISMO NOMBRE", fecha: "01/06/2026", monto: 1_000, folio: 1 },
+      { rut: "77111222-3", name: "MISMO NOMBRE", fecha: "01/06/2026", monto: 2_000, folio: 2 },
+    ];
+    const cps = buildMaestro(docs, terminos, "compras", HOY);
+    expect(cps).toHaveLength(2);
+    expect(cps.reduce((s, cp) => s + cp.total, 0)).toBe(3_000);
+  });
+
+  it("un cliente bajo el centinela queda en su propia fila, con su nombre", () => {
+    // DIVEIMPORT llega bajo el centinela en el RCV de VENTAS: +$42.776.821 en 27 documentos.
+    const ventas: DocConVencimiento[] = Array.from({ length: 27 }, (_, i) => ({
+      rut: "55555555-5",
+      name: "DIVEIMPORT S.A.",
+      fecha: "01/06/2026",
+      monto: i === 0 ? 42_776_821 - 26 : 1,
+      folio: 200 + i,
+      tipoDoc: 33,
+    }));
+    const cps = buildMaestro(ventas, terminos, "ventas", HOY);
+    expect(cps).toHaveLength(1);
+    expect(cps[0]!.name).toBe("DIVEIMPORT S.A.");
+    expect(cps[0]!.rut).toBeNull();
+    expect(cps[0]!.docCount).toBe(27);
+    expect(cps[0]!.total).toBe(42_776_821);
+  });
+
+  it("el orden de recorrido no cambia el resultado", () => {
+    const directo = buildMaestro(docsExtranjeros(), terminos, "compras", HOY);
+    const alReves = buildMaestro([...docsExtranjeros()].reverse(), terminos, "compras", HOY);
+    const resumen = (cps: ReturnType<typeof buildMaestro>) =>
+      cps
+        .map((cp) => `${cp.key}=${cp.total}`)
+        .sort()
+        .join("|");
+    expect(resumen(alReves)).toBe(resumen(directo));
+  });
+
+  it("un documento sin RUT ni nombre queda en una fila explícita, no se descarta", () => {
+    const docs: DocConVencimiento[] = [
+      { rut: "", name: "", fecha: "01/06/2026", monto: 7_777, folio: 1, tipoDoc: 33 },
+    ];
+    const cps = buildMaestro(docs, terminos, "compras", HOY);
+    expect(cps).toHaveLength(1);
+    expect(cps[0]!.key).toBe("sin-rut:sin-identificar");
+    expect(cps[0]!.rut).toBeNull();
+    expect(cps[0]!.total).toBe(7_777);
+  });
+});
+
+describe("overrides de plazo: una identidad débil no acepta ni aplica override", () => {
+  it("termFor sobre el centinela devuelve el default del tipo, no el override guardado", () => {
+    const blob = { [TERMINOS_KEY]: { compras: { default: 30, byRut: { "55555555-5": 90 } } } };
+    const t = readTerminos(blob);
+    // readTerminos lo descarta al LEER: limpia los blobs que ya lo tenían guardado.
+    expect(t.compras.byRut).toEqual({});
+    expect(termFor(t, "compras", "55555555-5")).toBe(TERMINO_DEFAULT.compras);
+    expect(termFor(t, "compras", "SIN-RUT")).toBe(TERMINO_DEFAULT.compras);
+    expect(termFor(t, "compras", null)).toBe(TERMINO_DEFAULT.compras);
+    expect(isTermCustom(t, "compras", "55555555-5")).toBe(false);
+  });
+
+  it("un override guardado sobre el centinela NO cambia el vencimiento de los 9 proveedores", () => {
+    const blob = { [TERMINOS_KEY]: { compras: { default: 30, byRut: { "55555555-5": 1 } } } };
+    const cps = buildMaestro(docsExtranjeros(), readTerminos(blob), "compras", HOY);
+    expect(cps).toHaveLength(9);
+    for (const cp of cps) {
+      expect(cp.termino).toBe(TERMINO_DEFAULT.compras);
+      expect(cp.terminoCustom).toBe(false);
+    }
+  });
+
+  it("withTerm no guarda un override sobre identidad débil, y limpia el que hubiera", () => {
+    const blob = { [TERMINOS_KEY]: { compras: { default: 30, byRut: { "55555555-5": 90 } } } };
+    const next = withTerm(blob, "compras", "55555555-5", 120);
+    expect(readTerminos(next).compras.byRut).toEqual({});
+    // Idempotente: aplicarlo dos veces da lo mismo.
+    expect(withTerm(next, "compras", "55555555-5", 120)).toEqual(next);
+  });
+
+  it("withoutTerm sigue siendo idempotente, con y sin identidad débil", () => {
+    const blob = withTerm(undefined, "compras", "96572360-9", 45);
+    const sin1 = withoutTerm(blob, "compras", "96572360-9");
+    const sin2 = withoutTerm(sin1, "compras", "96572360-9");
+    expect(readTerminos(sin1).compras.byRut).toEqual({});
+    expect(sin2).toEqual(sin1);
+    expect(withoutTerm(sin1, "compras", "55555555-5")).toEqual(sin1);
+  });
+
+  /* GEMELO: una contraparte REAL sí acepta su override, lo aplica al vencimiento derivado y
+     se marca como personalizado. Si el arreglo bloqueara de más, este test caería. */
+  it("una contraparte con RUT real SÍ acepta y aplica su override", () => {
+    const blob = withTerm(undefined, "compras", "96.572.360-9", 60);
+    const t = readTerminos(blob);
+    expect(t.compras.byRut).toEqual({ "96572360-9": 60 });
+    expect(termFor(t, "compras", "96572360-9")).toBe(60);
+    expect(isTermCustom(t, "compras", "96572360-9")).toBe(true);
+
+    const docs: DocConVencimiento[] = [
+      {
+        rut: "96572360-9",
+        name: "COMERCIAL KAUFMANN S.A.",
+        fecha: "01/06/2026",
+        monto: 1_000_000,
+        folio: 1,
+        tipoDoc: 33,
+      },
+    ];
+    const cps = buildMaestro(docs, t, "compras", HOY);
+    expect(cps[0]!.termino).toBe(60);
+    expect(cps[0]!.terminoCustom).toBe(true);
+    // 01/06 + 60 días = 31/07/2026 (con el default de 30 habría sido 01/07).
+    expect(cps[0]!.docs[0]!.vencimiento?.getMonth()).toBe(6);
+    expect(cps[0]!.docs[0]!.vencimiento?.getDate()).toBe(31);
+  });
+
+  it("el override de una contraparte real no se contagia a las extranjeras", () => {
+    const blob = withTerm(undefined, "compras", "96572360-9", 90);
+    const docs: DocConVencimiento[] = [
+      ...docsExtranjeros(),
+      {
+        rut: "96572360-9",
+        name: "COMERCIAL KAUFMANN S.A.",
+        fecha: "01/06/2026",
+        monto: 1_000_000,
+        folio: 1,
+        tipoDoc: 33,
+      },
+    ];
+    const cps = buildMaestro(docs, readTerminos(blob), "compras", HOY);
+    expect(cps.find((cp) => cp.rut === "96572360-9")?.termino).toBe(90);
+    for (const cp of cps.filter((c) => c.rut === null)) {
+      expect(cp.termino).toBe(TERMINO_DEFAULT.compras);
+    }
   });
 });

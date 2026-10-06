@@ -3,7 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { siiKeys, type RcvVentasResponse } from "@/lib/api/sii";
 import { expandPeriodRange, type PeriodRange } from "@/lib/period/period-range";
-import { normalizeRut } from "@/lib/validators/rut";
+import { esIdentidadDebil, normalizeRut } from "@/lib/validators/rut";
 import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 
 /* Facturas por deudor — reusa el Libro de Ventas (RCV). El SII entrega por mes;
@@ -13,24 +13,47 @@ import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
    saldo pendiente por documento — ese dato es gap del backend (banner "parcial").
    Solo lo REAL: folio, fecha, monto emitido. */
 
-/** Agrupa los documentos de varios meses por RUT del cliente (normalizado).
-    PURO/testeable. */
-export function indexInvoicesByRut(docArrays: ReadonlyArray<ReadonlyArray<RcvDoc>>): Map<string, RcvDoc[]> {
+/** Clave de agrupación de un cliente en este índice. Con RUT real es el RUT normalizado; con
+    identidad débil (el centinela `55.555.555-5` de extranjero, `SIN-RUT`, `S/D`) es
+    `sin-rut:<razón social>`.
+
+    POR QUÉ: el centinela pasa el módulo 11, así que entraba acá como un RUT de cliente
+    cualquiera y TODOS los clientes extranjeros compartían bucket. Al expandir uno, el panel
+    le mostraba las facturas de todos los demás. Es el mismo defecto que el Libro y
+    Contraparte 360 ya cerraron con `esIdentidadDebil`; acá se porta la misma decisión.
+
+    Quien consulte el mapa tiene que construir la clave con ESTA función (no con el RUT suelto),
+    para que el índice y la búsqueda hablen el mismo idioma. PURO. */
+export function debtorInvoiceKey(
+  rut: string | null | undefined,
+  name: string | null | undefined,
+): string {
+  if (esIdentidadDebil(rut)) return `sin-rut:${(name ?? "").trim() || "sin-identificar"}`;
+  return normalizeRut(String(rut));
+}
+
+/** Agrupa los documentos de varios meses por cliente (`debtorInvoiceKey`). PURO/testeable. */
+export function indexInvoicesByRut(
+  docArrays: ReadonlyArray<ReadonlyArray<RcvDoc>>,
+): Map<string, RcvDoc[]> {
   const map = new Map<string, RcvDoc[]>();
   for (const docs of docArrays) {
     for (const doc of docs) {
-      const rut = normalizeRut(String(doc.rut_contraparte ?? ""));
-      if (!rut) continue;
-      const list = map.get(rut);
+      const key = debtorInvoiceKey(doc.rut_contraparte, doc.razon_social);
+      /* Un documento sin RUT NI razón social no se descarta: su monto existe igual. Queda en
+         el bucket explícito `sin-rut:sin-identificar`, no disfrazado de cliente. */
+      if (!key) continue;
+      const list = map.get(key);
       if (list) list.push(doc);
-      else map.set(rut, [doc]);
+      else map.set(key, [doc]);
     }
   }
   return map;
 }
 
 export interface DebtorInvoicesState {
-  /** RUT normalizado → documentos emitidos a ese cliente en el rango. */
+  /** `debtorInvoiceKey(rut, razón social)` → documentos emitidos a ese cliente en el rango.
+   *  La clave NO siempre es un RUT: con identidad débil es `sin-rut:<razón social>`. */
   byRut: Map<string, RcvDoc[]>;
   /** Rango consultado (para el label "Libro de Ventas · feb–jul 2026"). */
   range: PeriodRange;

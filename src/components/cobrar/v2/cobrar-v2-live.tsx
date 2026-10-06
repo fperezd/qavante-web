@@ -36,6 +36,7 @@ import {
   readTerminos,
   readPagados,
   buildMaestro,
+  identidadContraparte,
   type DocMaestro,
 } from "@/components/terminos/terminos-pago";
 import { CobrarHero } from "./cobrar-hero";
@@ -160,7 +161,10 @@ function Assembled({
      fetch aparte (antes era `useDebtorInvoices`, que traía RcvDoc crudo sin vencimiento). */
   const docsByRut = React.useMemo(() => {
     const m = new Map<string, DocMaestro[]>();
-    for (const cp of cps) m.set(rutKey(cp.rut), cp.docs);
+    /* Clave `identidadContraparte` y no `rutKey(cp.rut)`: con el centinela de extranjero el
+       RUT es null y todas esas contrapartes compartirían la clave vacía — expandir una
+       mostraría los documentos de la última. */
+    for (const cp of cps) m.set(identidadContraparte(cp.rut, cp.name).key, cp.docs);
     return m;
   }, [cps]);
   const totalConciliado = React.useMemo(
@@ -245,7 +249,8 @@ function Assembled({
       {
         key: "mora",
         kind: "number",
-        get: (d) => peorMoraDias(docsByRut.get(rutKey(d.rut)) ?? []) ?? null,
+        get: (d) =>
+          peorMoraDias(docsByRut.get(identidadContraparte(d.rut, d.name).key) ?? []) ?? null,
       },
     ],
     [docsByRut],

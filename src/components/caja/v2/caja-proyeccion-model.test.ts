@@ -32,7 +32,9 @@ const docM = (over: Partial<DocMaestro>): DocMaestro => ({
 });
 
 const cpM = (docs: DocMaestro[], over: Partial<ContraparteMaestro> = {}): ContraparteMaestro => ({
+  key: "77111222-3",
   rut: "77111222-3",
+  rutDocumental: "77111222-3",
   name: "Cliente X",
   docCount: docs.length,
   total: docs.reduce((s, d) => s + d.monto, 0), // net de NC (montos ya signados); buildMaestro lo calcula

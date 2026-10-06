@@ -32,7 +32,7 @@ import { defaultRange } from "@/lib/period/period-range";
 import { cn } from "@/lib/utils";
 import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 import { fechaSortKey } from "@/components/sii/rcv-sort";
-import { useDebtorInvoices } from "./debtor-invoices";
+import { debtorInvoiceKey, useDebtorInvoices } from "./debtor-invoices";
 import {
   parseAmount,
   parseAmountOrNull,
@@ -371,7 +371,10 @@ export function TopDebtors({
         {ordered.map((d) => {
           const rut = rutKey(d.rut);
           const isOpen = openRut === rut;
-          const docs = invoices.byRut.get(rut) ?? [];
+          /* La clave del índice la construye `debtorInvoiceKey`, no el RUT suelto: con el
+             centinela de extranjero el RUT no distingue clientes y expandir uno mostraba las
+             facturas de todos los demás. */
+          const docs = invoices.byRut.get(debtorInvoiceKey(d.rut, d.name)) ?? [];
           // El Brief canónico ya publica la alternativa. No calculamos concentración local
           // cuando la cartera sólo se presenta como evidencia.
           const pct = showDecisionSignals ? shareOfTotal(d.total, total) : null;

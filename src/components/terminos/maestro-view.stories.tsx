@@ -23,7 +23,9 @@ const doc = (over: Partial<DocMaestro>): DocMaestro => ({
 });
 
 const kaufmann: ContraparteMaestro = {
+  key: "96572360-9",
   rut: "96572360-9",
+  rutDocumental: "96572360-9",
   name: "COMERCIAL KAUFMANN S.A.",
   docCount: 2,
   total: 8_000_000,
@@ -50,8 +52,14 @@ const kaufmann: ContraparteMaestro = {
   ],
 };
 
+/* DIVEIMPORT llega bajo el centinela `55.555.555-5` en el RCV de ventas de Tooxs. La fila no
+   reclama ese RUT (`rut: null`): se agrupa y se identifica por su razón social, y el plazo que
+   se le aplica es el del tipo de documento, porque un override indexado por el centinela
+   regiría sobre todas las contrapartes extranjeras a la vez. */
 const diveimport: ContraparteMaestro = {
-  rut: "55555555-5",
+  key: "sin-rut:DIVEIMPORT S.A.",
+  rut: null,
+  rutDocumental: "55555555-5",
   name: "DIVEIMPORT S.A.",
   docCount: 1,
   total: 1_000_000,
@@ -61,8 +69,8 @@ const diveimport: ContraparteMaestro = {
   pagado: 0,
   declaradoSinEvidencia: 1_000_000,
   docsDeclarados: 1,
-  termino: 45,
-  terminoCustom: true,
+  termino: 30,
+  terminoCustom: false,
   proximoVencimiento: new Date(2026, 7, 1),
   docs: [
     doc({
