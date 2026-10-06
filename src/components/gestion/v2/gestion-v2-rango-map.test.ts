@@ -18,6 +18,35 @@ describe("warningLabel", () => {
     expect(warningLabel("payroll_cost_missing")).toMatch(/nómina/i);
     expect(warningLabel("payroll_cost_missing")).toMatch(/sincroniza remuneraciones/i);
   });
+  /* api#1124 — EL PAR. Gestión publicaba «Falta la nómina del período … Sincroniza
+     remuneraciones» con 21 obligaciones selladas del 202609 en producción: el backend se abstenía
+     de leer la nómina (tenant con dos sociedades) y usaba igual el código de AUSENCIA. Ahora son
+     dos códigos y dos textos, y éste es el que exige que el nuevo no pida la acción inútil. */
+  it("payroll_cost_unattributed → da el motivo verdadero y NO pide sincronizar", () => {
+    const texto = warningLabel("payroll_cost_unattributed");
+    expect(texto).toMatch(/no se pueden atribuir a la sociedad/i); // el motivo verdadero
+    expect(texto).toMatch(/no se leyeron/i); // abstención, no ausencia medida
+    expect(texto).toMatch(/no cambia esto/i); // y cancela la acción inútil
+    // GEMELO del aviso: el texto nuevo NO le ORDENA sincronizar («Sincroniza remuneraciones»),
+    // que es la acción que no sirve. Sin esta línea, copiar el texto de `payroll_cost_missing`
+    // al código nuevo pasaría igual de verde.
+    expect(texto).not.toMatch(/sincroniza remuneraciones/i);
+    expect(texto).not.toBe(warningLabel("payroll_cost_missing"));
+  });
+  /* La trampa simétrica: nadie miró la nómina, así que el texto tampoco puede afirmar que
+     existe. Un tenant con dos sociedades y SIN empleados pasa por esta misma rama — decirle
+     «la nómina está sincronizada» sería la misma mentira al revés. */
+  it("payroll_cost_unattributed no afirma que la nómina falta NI que está", () => {
+    const texto = warningLabel("payroll_cost_unattributed").toLowerCase();
+    for (const afirmacion of ["falta la nómina", "está sincronizada", "está cargada", "sí está"]) {
+      expect(texto).not.toContain(afirmacion);
+    }
+  });
+  it("tenant_wide_personal_sources_abstained deja de caer al texto genérico", () => {
+    const texto = warningLabel("tenant_wide_personal_sources_abstained");
+    expect(texto).toMatch(/más de una sociedad/i);
+    expect(texto).not.toBe(warningLabel("codigo_que_no_existe"));
+  });
   it("código desconocido → usa un aviso seguro y no expone el código", () => {
     expect(warningLabel("algo_nuevo_del_backend")).toBe(
       "Hay información del período que requiere revisión.",
@@ -128,6 +157,14 @@ describe("rangoConfiable", () => {
     const sinNomina = { ...BD, warnings: ["payroll_cost_missing"] };
     expect(margenDistorsionado(sinNomina)).toBe(true);
     expect(rangoConfiable(sinNomina)).toBe(false);
+  });
+  it("payroll_cost_unattributed distorsiona igual: la nómina no entra al cálculo (api#1124)", () => {
+    // El motivo cambia el TEXTO, no la cifra: el costo laboral sigue sin restarse. Si el código
+    // nuevo no entrara a WARNINGS_DISTORSION, el arreglo del aviso habría vuelto CONFIABLE un
+    // margen inflado — cambiar una mentira por otra.
+    const sinAtribuir = { ...BD, warnings: ["payroll_cost_unattributed"] };
+    expect(margenDistorsionado(sinAtribuir)).toBe(true);
+    expect(rangoConfiable(sinAtribuir)).toBe(false);
   });
 });
 

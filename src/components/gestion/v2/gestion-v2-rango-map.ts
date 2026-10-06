@@ -17,6 +17,15 @@ const WARNING_LABEL: Record<string, string> = {
     "Hay ingresos de productos sin costo de venta asociado, así que el margen puede verse más alto de lo real.",
   payroll_cost_missing:
     "Falta la nómina del período: el resultado está sobreestimado porque no incluye el costo laboral. Sincroniza remuneraciones.",
+  /* api#1124: acá el backend NO midió una ausencia — se ABSTUVO de leer la nómina, porque el
+     tenant tiene más de una sociedad y la fuente se guarda sin sociedad. El resultado queda
+     igual de sobreestimado, pero pedir "sincroniza remuneraciones" manda al usuario a una acción
+     que no cambia nada: el texto lo dice en vez de pedirla. Y tampoco afirma que la nómina ESTÁ:
+     nadie la miró, y un tenant sin empleados pasa por esta misma rama. */
+  payroll_cost_unattributed:
+    "Este resultado no descuenta el costo laboral: con más de una sociedad, las remuneraciones todavía no se pueden atribuir a la sociedad que estás viendo, así que no se leyeron. Sincronizar remuneraciones no cambia esto.",
+  tenant_wide_personal_sources_abstained:
+    "Con más de una sociedad, las remuneraciones y las boletas de honorarios todavía no se pueden atribuir a la sociedad que estás viendo, así que quedan fuera de este resultado.",
   direct_cost_nc_reversal:
     "Parte del costo directo fue reversado por notas de crédito, así que el costo puede estar sub-declarado (margen inflado) hasta que sincronice.",
 };
@@ -29,7 +38,13 @@ export function warningLabel(code: string): string {
    (ej. ingresos de productos sin costo de venta): el margen ≤ 100% no lo atrapa, pero el backend sí lo
    avisa. Cubre el caso COGS-en-cero; el "faltan SOLO las remuneraciones" necesita un warning nuevo o
    costos por línea (escalado a CC-API, issue #734). */
-const WARNINGS_DISTORSION = new Set(["product_income_without_cogs", "payroll_cost_missing"]);
+const WARNINGS_DISTORSION = new Set([
+  "product_income_without_cogs",
+  "payroll_cost_missing",
+  // api#1124: la nómina no entra al cálculo igual que si faltara — el margen está inflado lo
+  // mismo. Que la causa sea una abstención y no una ausencia cambia el TEXTO, no la cifra.
+  "payroll_cost_unattributed",
+]);
 
 /** ¿El backend avisó que el margen del período está distorsionado (inflado por costos faltantes)? */
 export function margenDistorsionado(bd: OperationalResultBreakdown): boolean {
