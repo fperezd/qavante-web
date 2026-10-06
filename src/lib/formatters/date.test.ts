@@ -12,6 +12,13 @@ import {
   formatHoraCorta,
 } from "./date";
 
+/** Un instante a partir de una hora de pared de CHILE. En agosto Chile es UTC-4 (sin horario de
+ *  verano), asi que la hora local chilena + 4 son las UTC. Explicito a proposito: una fixture
+ *  construida con `new Date(y, m, d, h)` depende del huso de quien corra el test. */
+function enChile(y: number, mes: number, dia: number, hora: number, minuto: number): Date {
+  return new Date(Date.UTC(y, mes - 1, dia, hora + 4, minuto));
+}
+
 describe("formatDate", () => {
   it("usa el orden día-mes-año con guiones (es-CL)", () => {
     expect(formatDate(new Date(2026, 4, 30, 12, 0, 0))).toBe("30-05-2026");
@@ -78,10 +85,20 @@ describe("formatDateShort", () => {
     expect(formatDateShort("2026-01-05")).toBe("5 ene");
   });
 
-  it("NO corre el día por timezone (el bug clásico de `new Date('2026-08-23')`)", () => {
-    // Medianoche UTC leída en Chile (UTC−3/−4) daría "22 ago": un día menos en
-    // cada vencimiento. Por eso el string ISO se lee literal, sin pasar por Date.
-    expect(formatDateShort("2026-08-23T00:00:00Z")).toBe("23 ago");
+  it("una FECHA DE CALENDARIO no corre el día por timezone", () => {
+    // El bug clásico de `new Date('2026-08-23')`: medianoche UTC leída en Chile (UTC-3/-4) daría
+    // "22 ago", un día menos en cada vencimiento. Una fecha que la fuente informó SIN hora no
+    // tiene zona, así que se lee literal, sin pasar por `Date`.
+    expect(formatDateShort("2026-08-23")).toBe("23 ago");
+  });
+
+  it("un INSTANTE sí se convierte, y su día es el de Chile (B16)", () => {
+    // Este caso lo cubría la misma aserción de arriba, con un fixture `...T00:00:00Z` que la
+    // contradecía: pedía que un timestamp NO se convirtiera. De ahí salía «actualizada mañana»
+    // después de las 21:00 — el sello de las 21:30 del 5 llega como `2026-10-06T00:30Z` y se
+    // leía como el 6. Un instante tiene zona; el día que se muestra es el que se ve desde Chile.
+    expect(formatDateShort("2026-08-23T00:00:00Z")).toBe("22 ago"); // 21:00 del 22 en Chile
+    expect(formatDateShort("2026-08-23T12:00:00Z")).toBe("23 ago"); // 08:00 del 23 en Chile
   });
 
   it("acepta Date y la convención vigente DD-MM-AAAA", () => {
@@ -127,8 +144,14 @@ describe("formatRelative", () => {
   it("cuenta DÍAS CIVILES, no bloques de 24 horas", () => {
     // Anoche a las 23:00 es "ayer" aunque hayan pasado 16 horas, que es como lo
     // lee una persona.
-    expect(formatRelative(new Date(2026, 7, 22, 23, 0), HOY)).toBe("ayer");
-    expect(formatRelative(new Date(2026, 7, 23, 0, 30), HOY)).toBe("hoy");
+    //
+    // Las horas son de CHILE, no del runner. Antes la fixture se armaba con
+    // `new Date(2026, 7, 22, 23, 0)` —hora local de quien corriera el test— y pasaba en
+    // cualquier huso porque el formateador tambien leia el huso local: los dos lados se movian
+    // juntos y el test no fijaba nada. Con el dia anclado a Chile solo se mueve un lado, asi
+    // que la fixture tiene que decir en que huso estan esas 23:00. En agosto Chile es UTC-4.
+    expect(formatRelative(enChile(2026, 8, 22, 23, 0), HOY)).toBe("ayer");
+    expect(formatRelative(enChile(2026, 8, 23, 0, 30), HOY)).toBe("hoy");
   });
 
   it("no escala a meses: en cobranza la distancia exacta ES el dato", () => {
@@ -142,15 +165,16 @@ describe("formatRelative", () => {
 });
 
 describe("formatHoraCorta — el sello de hora del chip KPI (§1.3)", () => {
-  it("HH:MM local, con cero a la izquierda", () => {
-    expect(formatHoraCorta(new Date(2026, 7, 30, 8, 12, 45))).toBe("08:12");
-    expect(formatHoraCorta(new Date(2026, 7, 30, 23, 5))).toBe("23:05");
+  it("HH:MM en hora de Chile, con cero a la izquierda", () => {
+    expect(formatHoraCorta(enChile(2026, 8, 30, 8, 12))).toBe("08:12");
+    expect(formatHoraCorta(enChile(2026, 8, 30, 23, 5))).toBe("23:05");
   });
 
-  it("acepta el ISO del backend (misma hora local que el Date equivalente)", () => {
-    const d = new Date("2026-08-30T08:12:00Z");
-    const p = (n: number) => String(n).padStart(2, "0");
-    expect(formatHoraCorta("2026-08-30T08:12:00Z")).toBe(`${p(d.getHours())}:${p(d.getMinutes())}`);
+  it("acepta el ISO del backend y lo muestra en hora de Chile, no la del navegador", () => {
+    // El sello viaja en UTC. Un CFO en Santiago y el mismo CFO de viaje tienen que leer la
+    // MISMA hora: la que el banco informo. Antes esta asercion derivaba el esperado de
+    // `d.getHours()`, o sea del huso del runner, y por eso no podia detectar lo contrario.
+    expect(formatHoraCorta("2026-08-30T12:12:00Z")).toBe("08:12"); // agosto: Chile es UTC-4
   });
 
   it("null / vacío / no reconocido → 's/d'", () => {

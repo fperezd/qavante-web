@@ -23,6 +23,8 @@ import { useSourcesStatus } from "@/lib/api/sources-status";
 import { ApiError } from "@/lib/api/errors";
 import { unknownErrorToUserMessage } from "@/lib/api/error-messages";
 import { toast } from "sonner";
+import { BUSINESS_TIME_ZONE } from "@/lib/formatters/date";
+import { MESES_LARGOS } from "@/lib/formatters/months";
 import { BancoV03View } from "./banco-v03-view";
 import { resolutionDetailFromApi } from "./bank-resolution-detail-model";
 import type { MovimientoV03 } from "./banco-v03-model";
@@ -36,14 +38,47 @@ function mutationErrorMessage(error: unknown): string {
  *   · `GET /api/dashboard/summary`               — "Caja hoy" vía `cajaHoy()` (la MISMA fuente que V01/V02);
  *   · `GET /api/treasury/bank-accounts?active=false` — cuentas y saldos que trajo Fintoc;
  *   · `GET /api/sources/status`                    — estado y frescura de la conexión;
- *   · `GET /api/bank-movements` (últimos 3 meses)  — los movimientos con su ciclo de vida;
+ *   · `GET /api/bank-movements` (3 meses calendario) — los movimientos con su ciclo de vida;
  *   · `GET /api/treasury/canonical-categories`     — la etiqueta humana de cada categoría.
  *
  * Nada bloquea la pantalla entera: cada sección degrada a su propio "sin dato" con motivo. */
 
-/** `YYYY-MM` de una fecha local. */
+/** `YYYY-MM` del mes de negocio de un instante.
+ *
+ *  `getFullYear()/getMonth()` daban el mes del NAVEGADOR. El último día de cada mes chileno,
+ *  entre las 21:00 y las 24:00, el día en UTC ya es el 1 del mes siguiente, así que la ventana
+ *  saltaba un mes entero. El mes se mira desde Chile, igual que el día de negocio de la API. */
 function periodo(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+  }).format(d);
+}
+
+/** El alcance REAL de la cartola, nombrado por sus meses: "agosto a octubre de 2026".
+ *
+ *  La pantalla decía "los últimos 3 meses" (B17). No lo son: `/api/bank-movements` filtra por
+ *  MES CALENDARIO (`period_from`/`period_to` son `YYYY-MM`; `treasury_repo.list_movements` arma
+ *  el rango `[1 de period_from, fin de period_to]`), así que el 6 de octubre la ventana empieza
+ *  el **1 de agosto** y son dos meses y seis días, no noventa.
+ *
+ *  La cuenta en dólares lo delató: le faltaban los movimientos del 10 y del 17 de julio, que
+ *  "los últimos 3 meses" promete y la ventana nunca incluyó. En la cuenta en pesos no se notaba
+ *  porque hay movimientos todos los días y ninguno falta a la vista.
+ *
+ *  De las dos salidas posibles —noventa días corridos de verdad, o un texto que diga qué cubre—
+ *  se toma la segunda: el contrato de la API es mensual y no expresa un rango por día, así que
+ *  noventa días corridos exigiría una superficie nueva. El texto ahora nombra lo que hay. */
+export function alcanceDeLaCartola(desde: string, hasta: string): string {
+  const a = desde.split("-").map(Number);
+  const b = hasta.split("-").map(Number);
+  const ya = Number(a[0]);
+  const yb = Number(b[0]);
+  const primero = MESES_LARGOS[Number(a[1]) - 1];
+  const ultimo = MESES_LARGOS[Number(b[1]) - 1];
+  if (ya !== yb) return `${primero} de ${ya} a ${ultimo} de ${yb}`;
+  return `${primero} a ${ultimo} de ${yb}`;
 }
 
 /** Cuántos meses hacia atrás se listan (declarado en la vista como alcance). */
@@ -301,7 +336,7 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
             }
           : undefined
       }
-      alcance={`los últimos ${MESES_ALCANCE} meses`}
+      alcance={alcanceDeLaCartola(desde, hasta)}
       cuentasCargando={cuentas.isLoading}
       movimientosCargando={movs.isLoading}
       refrescando={!cuentas.isLoading && cuentas.isFetching}

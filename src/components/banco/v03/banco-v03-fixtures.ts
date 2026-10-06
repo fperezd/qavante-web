@@ -15,6 +15,12 @@ import type {
   TarjetasResponse,
 } from "@/lib/api/treasury";
 
+/* NOTA DE ZONA HORARIA (B16). Los sellos de estas fixtures son INSTANTES en UTC y la pantalla
+   los muestra en el día de CHILE. Un `...T00:12:00Z` NO es "hoy temprano": en agosto Chile está
+   en UTC-4, así que las 00:12Z son las 20:12 del día ANTERIOR. Estas fixtures lo tenían así y
+   los tests lo leían como "hoy" porque el formateador devolvía el día en UTC — la misma causa
+   del «actualizada mañana» que reportó el dueño del producto. Las horas son 12:xx Z (08:xx en
+   Chile) para que el día del sello y el día que se quiere afirmar sean el mismo. */
 export const HOY = new Date("2026-08-30T12:00:00Z");
 export const BANCO = "BICE";
 
@@ -24,7 +30,7 @@ export function summary(over: Partial<DashboardSummaryV2> = {}): DashboardSummar
     pulso: null,
     cash_today: {
       total: "9800000",
-      last_updated: "2026-08-30T00:12:00Z",
+      last_updated: "2026-08-30T12:12:00Z",
       data_state: "available",
     },
     cash_forecast: null,
@@ -39,14 +45,14 @@ export function summary(over: Partial<DashboardSummaryV2> = {}): DashboardSummar
 
 /** `cash_today` viejo (dos días) y marcado `stale` — el caso vivo con el banco caído. */
 export const SUMMARY_STALE = summary({
-  cash_today: { total: "9800000", last_updated: "2026-08-28T00:00:00Z", data_state: "stale" },
+  cash_today: { total: "9800000", last_updated: "2026-08-28T12:00:00Z", data_state: "stale" },
 });
 
 export function saldoOk(): SaldoResponse {
   return {
     status: "ok",
     cached: false,
-    as_of: "2026-08-30T00:12:00Z",
+    as_of: "2026-08-30T12:12:00Z",
     cuentas: [
       {
         numeroCuenta: "tok-clp",
@@ -164,7 +170,7 @@ export function sourcesOk(): SourceStatus[] {
     {
       source: "bank_bice",
       state: "ok",
-      last_sync: "2026-08-30T00:12:00Z",
+      last_sync: "2026-08-30T12:12:00Z",
       display_name: "Banco BICE",
       category: "bank",
     },
@@ -178,7 +184,7 @@ export function sourcesError(): SourceStatus[] {
       source: "bank_bice",
       state: "error",
       reason: "BiceAuthError: Sesión BICE no disponible",
-      last_sync: "2026-08-28T00:02:47Z",
+      last_sync: "2026-08-28T12:02:47Z",
       display_name: "Banco BICE",
       category: "bank",
     },
@@ -191,7 +197,7 @@ export function sourcesSyncing(): SourceStatus[] {
       source: "bank_bice",
       state: "syncing",
       reason: "Trayendo la cartola",
-      last_sync: "2026-08-29T00:12:00Z",
+      last_sync: "2026-08-29T12:12:00Z",
       display_name: "Banco BICE",
       category: "bank",
       sync_progress: {

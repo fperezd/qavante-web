@@ -71,7 +71,7 @@ describe("conexionBanco — el estado de la conexión, sin defaults tranquilizad
     expect(c.estado).toBe("conectada");
     expect(c.pill).toBe("Conectada ✓");
     expect(c.tono).toBe("ok");
-    expect(c.ultimaSync).toBe("2026-08-30T00:12:00Z");
+    expect(c.ultimaSync).toBe("2026-08-30T12:12:00Z");
   });
 
   it("bice responde 200 con cuerpo de error (session_expired) → Tu acción, aunque sources diga ok", () => {
@@ -102,7 +102,7 @@ describe("conexionBanco — el estado de la conexión, sin defaults tranquilizad
     const c = conexionBanco(sourcesError(), saldoSesionVencida(), tarjetasSesionVencida());
     expect(c.estado).toBe("accion_requerida");
     expect(c.tono).toBe("warn"); // ámbar, nunca rojo (Ley 2)
-    expect(c.ultimaSync).toBe("2026-08-28T00:02:47Z");
+    expect(c.ultimaSync).toBe("2026-08-28T12:02:47Z");
   });
 
   it("sin dato de sources NI de bice → Sin dato de conexión (nunca 'Conectada')", () => {
@@ -132,7 +132,7 @@ describe("conexionBanco — el estado de la conexión, sin defaults tranquilizad
 
   it("unavailable CON last_sync es una caída real (Tu acción); SIN last_sync, nunca se conectó", () => {
     const base = { source: "bank_bice", state: "unavailable" as const, category: "bank" };
-    expect(conexionBanco([{ ...base, last_sync: "2026-08-28T00:00:00Z" }], null).estado).toBe(
+    expect(conexionBanco([{ ...base, last_sync: "2026-08-28T12:00:00Z" }], null).estado).toBe(
       "accion_requerida",
     );
     expect(conexionBanco([base], null).estado).toBe("sin_conectar");
@@ -420,7 +420,7 @@ describe("cuadreCajaHoy — Ley 1: Caja hoy es cajaHoy(); el banco es OTRO núme
         summary({
           cash_today: {
             total: "9500000",
-            last_updated: "2026-08-30T00:12:00Z",
+            last_updated: "2026-08-30T12:12:00Z",
             data_state: "available",
           },
         }),

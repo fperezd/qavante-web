@@ -45,11 +45,12 @@ describe("kpiHoy — Ley 1: recibe el CajaHoy de la fuente única, no desarma el
     expect(k.valor).toBe("$9.800.000");
   });
 
-  it("chip = banco · hora local del sello ✓ cuando el saldo es de hoy y está `available`", () => {
+  it("chip = banco · hora de Chile del sello ✓ cuando el saldo es de hoy y está `available`", () => {
     const k = kpiHoy(cajaHoy(summary()), ["BICE"], HOY);
-    const d = new Date("2026-08-30T08:12:00Z");
-    const p = (n: number) => String(n).padStart(2, "0");
-    expect(k.chip).toBe(`BICE · ${p(d.getHours())}:${p(d.getMinutes())} ✓`);
+    // El sello `2026-08-30T08:12:00Z` son las 04:12 en Chile (agosto, UTC-4). El esperado se
+    // escribe literal y no se deriva de `d.getHours()`: derivarlo del huso del runner hacía que
+    // la aserción se moviera junto con el código y no pudiera detectar lo contrario.
+    expect(k.chip).toBe("BICE · 04:12 ✓");
     expect(k.detalle).toBe("Saldo en tus cuentas · el mismo número que en Hoy");
   });
 

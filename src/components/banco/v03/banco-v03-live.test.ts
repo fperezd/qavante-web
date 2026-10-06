@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BANK_MOVEMENTS_LIMIT_MAX } from "@/lib/api/treasury";
 import {
+  alcanceDeLaCartola,
   initialBankSelection,
   LIMITE_MOVIMIENTOS,
   MESES_ALCANCE,
@@ -25,8 +26,28 @@ describe("BancoV03Live — el limit que se pide al backend", () => {
     expect(LIMITE_MOVIMIENTOS).toBe(BANK_MOVEMENTS_LIMIT_MAX);
   });
 
-  it("el alcance declarado en pantalla es de 3 meses", () => {
+  it("la ventana es de 3 meses CALENDARIO, y el texto nombra esos meses (B17)", () => {
     expect(MESES_ALCANCE).toBe(3);
+    // El 6 de octubre la ventana arranca el 1 de agosto. El texto lo dice.
+    expect(alcanceDeLaCartola("2026-08", "2026-10")).toBe("agosto a octubre de 2026");
+    expect(alcanceDeLaCartola("2025-12", "2026-02")).toBe("diciembre de 2025 a febrero de 2026");
+  });
+
+  it("MUTANTE (c): el texto no puede prometer 90 días corridos que la ventana no cubre", () => {
+    // La promesa vieja era "los últimos 3 meses", que una persona lee como noventa días hacia
+    // atrás. El 6 de octubre eso incluiría el 10 y el 17 de julio — justo los movimientos que
+    // faltaban en la cuenta en dólares. La ventana nunca los cubrió: empieza el 1 de agosto.
+    const texto = alcanceDeLaCartola("2026-08", "2026-10");
+    expect(texto).not.toMatch(/últimos|90|noventa|días/i);
+    // Y nombra los DOS extremos, para que el lector sepa dónde empieza y dónde termina.
+    expect(texto).toContain("agosto");
+    expect(texto).toContain("octubre");
+
+    // El mutante al revés: si alguien cambia la ventana a 90 días corridos y deja este texto,
+    // el texto pasa a mentir en la otra dirección (diría "agosto" cubriendo julio).
+    const inicioDe90Dias = new Date(Date.UTC(2026, 9, 6) - 90 * 86_400_000);
+    expect(inicioDe90Dias.getUTCMonth()).toBe(6); // julio
+    expect(texto).not.toContain("julio");
   });
 
   it("no anuncia éxito cuando el backend informa que no desclasificó nada", () => {

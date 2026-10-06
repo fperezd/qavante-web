@@ -34,20 +34,60 @@ export function formatDateLike(raw: string | null | undefined): string {
    de formato, y para que nadie escriba una duodécima variante mientras tanto.
    Ningún llamador las usa aún — es a propósito.                                */
 
-/** Fecha CIVIL (año/mes/día) de una entrada, sin cruzar por `Date` cuando ya es
- *  un string ISO. Un `new Date("2026-08-23")` se interpreta como medianoche UTC y
- *  en Chile (UTC−3/−4) se muestra "22 ago": un día menos en cada vencimiento.
- *  `null` si no se reconoce. */
+/** La zona de negocio. Espeja `BUSINESS_TIME_ZONE` de `app/core/business_clock.py` en la API:
+ *  el día que decide la API y el día que escribe la pantalla tienen que ser el mismo. */
+export const BUSINESS_TIME_ZONE = "America/Santiago";
+
+/** El día civil de un INSTANTE en la zona de negocio.
+ *
+ *  `en-CA` da `YYYY-MM-DD`, que es lo que se quiere parsear de vuelta. Es el mismo recurso que
+ *  ya usaban `fechaSaldoSantiago` (inicio) y `dateInSantiago` (proyección) por su cuenta. */
+function civilEnSantiago(d: Date): { y: number; m: number; d: number } {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(d)
+    .split("-");
+  return { y: Number(partes[0]), m: Number(partes[1]), d: Number(partes[2]) };
+}
+
+/** Fecha CIVIL (año/mes/día) de una entrada. `null` si no se reconoce.
+ *
+ *  Distingue DOS cosas que se parecen y no lo son, y confundirlas es el defecto de fondo:
+ *
+ *  - Una **fecha de calendario** (`"2026-08-23"`) no tiene zona. Se lee literal. Un
+ *    `new Date("2026-08-23")` la interpretaría como medianoche UTC y en Chile mostraría
+ *    "22 ago": un día menos en cada vencimiento.
+ *  - Un **instante** (`"2026-08-23T12:00:00Z"`, o un `Date`) sí tiene zona, y su día civil es
+ *    el que se ve desde Chile. */
 function civil(raw: string | Date | null | undefined): { y: number; m: number; d: number } | null {
   if (raw == null || raw === "") return null;
+  // Un `Date` es un INSTANTE: su día depende de desde dónde se lo mire, y acá se lo mira desde
+  // Chile. `getFullYear()/getMonth()/getDate()` daban el día del NAVEGADOR.
   if (raw instanceof Date) {
     if (Number.isNaN(raw.getTime())) return null;
-    return { y: raw.getFullYear(), m: raw.getMonth() + 1, d: raw.getDate() };
+    return civilEnSantiago(raw);
   }
-  // "2026-08-23" y "2026-08-23T12:00:00Z" → se lee la parte de fecha, literal.
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
-  if (iso) return { y: Number(iso[1]), m: Number(iso[2]), d: Number(iso[3]) };
-  // "23-08-2026" (la convención vigente de la app) también se acepta.
+  // ── La distinción que importa, y que el 90% de los bugs de zona horaria confunde ──
+  //
+  // "2026-08-23" es una FECHA DE CALENDARIO: la fuente la informó SIN hora (`issue_date`,
+  // `due_date`, `treasury.bank_movements.date` — todas `DATE` en el schema). No tiene zona, así
+  // que no hay nada que convertir: se lee literal, tal como está. Convertirla la corrompería, y
+  // ése es exactamente el error que introduce un arreglo apresurado de zona horaria.
+  const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (soloFecha)
+    return { y: Number(soloFecha[1]), m: Number(soloFecha[2]), d: Number(soloFecha[3]) };
+  // "2026-10-06T00:30:00Z" es un INSTANTE: sí tiene zona, y su día es el de Chile. Leerle la
+  // parte de fecha con una regex —lo que hacía esta función— devolvía el día en UTC. Con Chile
+  // en UTC-3, un sello de las 21:30 del 05-10 llega como `2026-10-06T00:30Z` y se leía como el
+  // 06: `formatRelative` lo comparaba contra el 05 de hoy y publicaba «mañana». De ahí salía
+  // «actualizada mañana» en las tarjetas de cuenta después de las 21:00 (B16).
+  const instante = /^\d{4}-\d{2}-\d{2}[T ]/.test(raw) ? new Date(raw) : null;
+  if (instante && !Number.isNaN(instante.getTime())) return civilEnSantiago(instante);
+  // "23-08-2026" (la convención vigente de la app) también se acepta. Fecha de calendario.
   const dmy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(raw);
   if (dmy) return { y: Number(dmy[3]), m: Number(dmy[2]), d: Number(dmy[1]) };
   return null;
@@ -90,7 +130,10 @@ export function formatRelative(
   // UTC a ambos lados: compara días civiles sin que un cambio de horario de
   // verano en el medio corra la cuenta en un día.
   const objetivo = Date.UTC(c.y, c.m - 1, c.d);
-  const hoy = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  // `now` es un instante; su día también se mira desde Chile. Con `getFullYear()` acá y el día
+  // UTC del otro lado se comparaban DOS CALENDARIOS DISTINTOS, que es la mitad del defecto.
+  const h = civilEnSantiago(now);
+  const hoy = Date.UTC(h.y, h.m - 1, h.d);
   const dias = Math.round((objetivo - hoy) / MS_DIA);
   if (dias === 0) return "hoy";
   if (dias === -1) return "ayer";
@@ -116,6 +159,11 @@ export function formatHoraCorta(raw: string | Date | null | undefined): string {
   if (raw == null || raw === "") return "s/d";
   const d = raw instanceof Date ? raw : new Date(raw);
   if (Number.isNaN(d.getTime())) return "s/d";
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+  // Hora de CHILE, no del navegador: el chip sella «BICE · 08:12» sobre un timestamp UTC.
+  return new Intl.DateTimeFormat("es-CL", {
+    timeZone: BUSINESS_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
 }

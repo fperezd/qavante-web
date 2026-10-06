@@ -119,7 +119,9 @@ export interface BancoV03ViewProps {
   onAccountChange?: (accountId: string) => void;
   onOpenMovement?: (movementId: string) => void;
   classificationEditor?: BankResolutionDetailDrawerProps["classificationEditor"];
-  /** Alcance declarado de la lista ("los últimos 3 meses"). */
+  /** Alcance declarado de la lista, nombrado por sus meses ("agosto a octubre de 2026").
+   *  No dice "los últimos 3 meses": la ventana es de MESES CALENDARIO y ese texto prometía
+   *  noventa días que nunca cubrió (B17). Lo arma `alcanceDeLaCartola` en el contenedor. */
   alcance?: string;
   cuentasCargando?: boolean;
   movimientosCargando?: boolean;
@@ -164,7 +166,7 @@ export function BancoV03View({
   onAccountChange,
   onOpenMovement,
   classificationEditor,
-  alcance = "los últimos 3 meses",
+  alcance = "los meses en pantalla",
   cuentasCargando = false,
   movimientosCargando = false,
   refrescando = false,
