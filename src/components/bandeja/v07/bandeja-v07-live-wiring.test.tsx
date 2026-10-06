@@ -1,6 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { colaConciliar, MOV_DATTATEC, MOV_VOLCAN, sinClasificar } from "./bandeja-v07-fixtures";
+import {
+  colaConciliar,
+  cuentasRetiradasBice,
+  MOV_DATTATEC,
+  MOV_VOLCAN,
+  sinClasificar,
+} from "./bandeja-v07-fixtures";
 import type { BandejaV07ViewProps } from "./bandeja-v07-view";
 
 const arnes = vi.hoisted(() => ({
@@ -9,6 +15,8 @@ const arnes = vi.hoisted(() => ({
   refetch: vi.fn(),
   reviewPending: false,
   reviewError: false,
+  /* #1118 — false deja al listado SIN el resumen de cuentas retiradas (el caso "no llegó"). */
+  conRetiradas: true,
 }));
 
 const consulta = <T,>(data: T) => ({
@@ -47,7 +55,12 @@ vi.mock("@/lib/api/reconciliation", () => ({
 vi.mock("@/lib/api/treasury", () => ({
   useBankMovements: ({ status }: { status: string }) =>
     status === "unclassified"
-      ? consulta({ ...sinClasificar([MOV_DATTATEC]), total: 137 })
+      ? consulta({
+          ...sinClasificar([MOV_DATTATEC]),
+          total: 137,
+          /* #1118 — el listado publica aparte lo que dejó fuera por cuenta retirada. */
+          cuentas_retiradas: arnes.conRetiradas ? cuentasRetiradasBice() : undefined,
+        })
       : consulta({ items: [], total: 0 }),
   useCanonicalCategories: () => consulta({ items: [] }),
   useClassifyBankMovement: () => ({ mutateAsync: arnes.clasificar }),
@@ -79,6 +92,7 @@ describe("BandejaV07Live · total real y fallos de escritura", () => {
     arnes.refetch.mockReset();
     arnes.reviewPending = false;
     arnes.reviewError = false;
+    arnes.conRetiradas = true;
   });
 
   it("publica data.total aunque la página tenga menos items", () => {
@@ -87,6 +101,27 @@ describe("BandejaV07Live · total real y fallos de escritura", () => {
     expect(html).toContain("Clasificar · 137");
     expect(arnes.vistaProps?.clasificar).toHaveLength(1);
     expect(arnes.vistaProps?.clasificarTotal).toBe(137);
+  });
+
+  it("entrega a la vista el resumen de cuentas retiradas que publica el listado (#1118)", () => {
+    /* El live no interpreta ni recorta: pasa el objeto del backend tal cual, para que la vista
+       pinte SU leyenda. Si este cable se corta, las 417 filas que api#1126 excluye desaparecen
+       de Bandeja sin que nadie lo diga. */
+    renderToStaticMarkup(<BandejaV07Live />);
+
+    expect(arnes.vistaProps?.cuentasRetiradas).toEqual(cuentasRetiradasBice());
+    expect(arnes.vistaProps?.cuentasRetiradas?.movimientos).toBe(417);
+  });
+
+  it("(gemelo) sin resumen en la respuesta, entrega null y no fabrica un cero", () => {
+    /* El gemelo que separa las dos cosas que este producto no puede confundir: "no llegó el
+       dato" es `null`, y "no quedó nada fuera" es un objeto con `movimientos: 0`. Si acá se
+       degradara a un cero inventado, la pantalla afirmaría que el listado está completo sin
+       que nadie se lo haya dicho. */
+    arnes.conRetiradas = false;
+    renderToStaticMarkup(<BandejaV07Live />);
+
+    expect(arnes.vistaProps?.cuentasRetiradas).toBeNull();
   });
 
   it("entrega el movimiento enlazado a la vista que pinta la carta", () => {

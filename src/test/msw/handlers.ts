@@ -984,7 +984,23 @@ const treasuryHandlers = [
       items = items.filter((m) => !isClassified(m));
     }
 
-    return HttpResponse.json({ items, total: items.length }, { status: 200 });
+    /* #1118 — `cuentas_retiradas` es REQUERIDO en el contrato desde api#1126. El fixture no
+       tiene cuentas retiradas, así que el resumen es el cero con su leyenda: cero es una cifra
+       que dice "no quedó nada fuera", no una ausencia que se pueda omitir. */
+    return HttpResponse.json(
+      {
+        items,
+        total: items.length,
+        cuentas_retiradas: {
+          movimientos: 0,
+          cuentas: 0,
+          desde: null,
+          hasta: null,
+          leyenda: "Ninguna cuenta retirada aporta movimientos a este listado.",
+        },
+      },
+      { status: 200 },
+    );
   }),
   http.patch("*/api/bank-movements/:movementId/classify", async ({ request, params }) => {
     const body = (await request.json()) as {

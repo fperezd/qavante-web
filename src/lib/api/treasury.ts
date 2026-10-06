@@ -27,6 +27,14 @@ export type ForecastBucket = components["schemas"]["ForecastBucket"];
 export type CashCycleResponse = components["schemas"]["CashCycleResponse"];
 export type CashProjectionResponse = components["schemas"]["CashProjectionResponse"];
 export type BankMovementsListResponse = components["schemas"]["BankMovementsListResponse"];
+/** #1118 - lo que el listado dejo FUERA por venir de una cuenta bancaria retirada.
+ *
+ *  Desde api#1126 una cuenta `inactive` ya no alimenta Bandeja ni los conteos. Que no alimente
+ *  no la vuelve invisible: el backend publica aca cuantos movimientos quedaron fuera, de cuantas
+ *  cuentas, que rango cubren, y una `leyenda` lista para pantalla que la UI pinta tal cual.
+ *  Cuando no hay ninguno, `movimientos` es 0 y la leyenda lo dice: cero es una cifra, no una
+ *  ausencia. */
+export type MovimientosDeCuentasRetiradas = components["schemas"]["MovimientosDeCuentasRetiradas"];
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
 export type MovementResolutionDetailResponse =
   components["schemas"]["MovementResolutionDetailResponse"];

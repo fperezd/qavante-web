@@ -35,6 +35,8 @@ import {
   sinClasificarDolares,
   sinClasificarSinMoneda,
   sinClasificarVacio,
+  cuentasRetiradasBice,
+  sinCuentasRetiradas,
   sugerenciaSoftware,
 } from "./bandeja-v07-fixtures";
 
@@ -695,5 +697,107 @@ describe("BandejaV07View — B12, verbos segun la direccion", () => {
     const t = texto(html(cargoParcial()));
     expect(t).not.toContain("El documento es de hace");
     expect(t).toContain("18 ago 2026");
+  });
+});
+
+/* ---------------------------------------------------------------------------------------------
+ * #1118 — lo que api#1126 sacó del listado tiene que VERSE.
+ *
+ * El defecto que estos tests cuidan no es el que se arregló, es el que el arreglo podía crear:
+ * la API dejó de servir los movimientos de cuentas RETIRADAS (417 medidos en la BICE duplicada
+ * de #1007), y si la pantalla no los nombra, 417 filas desaparecen sin que nadie lo diga.
+ *
+ * Cada afirmación va con su gemelo: el caso que DEBE dar otra cosa. Sin el gemelo, un componente
+ * que imprimiera siempre la misma frase —o que no imprimiera nunca nada— pasaría igual.
+ * --------------------------------------------------------------------------------------------- */
+describe("BandejaV07View — cuentas retiradas (#1118)", () => {
+  const EN_CLASIFICAR: Partial<Props> = { tabInicial: "clasificar" };
+
+  it("(a) con 417 movimientos fuera, la pantalla LO DICE", () => {
+    const t = texto(html({ ...EN_CLASIFICAR, cuentasRetiradas: cuentasRetiradasBice() }));
+    expect(t).toContain("417 movimientos de 2 cuentas retiradas quedan fuera de este listado");
+    expect(t).toContain("del 02-01-2026 al 08-09-2026");
+    expect(t).toContain("Siguen guardados: no se borró nada.");
+  });
+
+  it("(a-gemelo) sin el dato (el listado no llegó) NO inventa un aviso", () => {
+    /* `null` es "no sabemos", y de no saber no se afirma nada — ni que falta algo ni que no.
+       Es el único caso en que callar es correcto. */
+    const t = texto(html({ ...EN_CLASIFICAR, cuentasRetiradas: null }));
+    expect(t).not.toContain("cuenta retirada");
+    expect(t).not.toContain("cuentas retiradas");
+    expect(t).not.toContain("quedan fuera de este listado");
+  });
+
+  it("(b) con 0 movimientos fuera, la pantalla NO afirma que falte nada", () => {
+    const t = texto(html({ ...EN_CLASIFICAR, cuentasRetiradas: sinCuentasRetiradas() }));
+    expect(t).not.toContain("quedan fuera de este listado");
+    expect(t).not.toContain("417");
+    expect(t).not.toMatch(/\bqueda(ron)? fuera\b/);
+  });
+
+  it("(b-gemelo) con 0 movimientos fuera TAMPOCO calla: el cero se publica como cifra", () => {
+    /* El gemelo que hace al test (b) valer algo. Si la pantalla sólo pintara el campo cuando
+       hay algo fuera, el caso cero quedaría indistinguible de una pantalla que ni siquiera lo
+       mira — que es el defecto que #1118 vino a cerrar. Cero NO es "no hay dato". */
+    const t = texto(html({ ...EN_CLASIFICAR, cuentasRetiradas: sinCuentasRetiradas() }));
+    expect(t).toContain("Ninguna cuenta retirada aporta movimientos a este listado.");
+  });
+
+  it("(c) la leyenda que se muestra es la del BACKEND: si el backend cambia, la pantalla cambia", () => {
+    /* El frontend no reescribe una verdad que el backend ya publica. Este test cambia el texto
+       del backend por uno que ningún código de este repo podría construir y exige verlo tal cual:
+       si alguien reemplazara `leyenda` por una frase armada acá con los números, fallaría. */
+    const otraLeyenda =
+      "Nueve movimientos de una cuenta retirada quedaron afuera; el backend lo dirá así mañana.";
+    const t = texto(
+      html({
+        ...EN_CLASIFICAR,
+        cuentasRetiradas: { ...cuentasRetiradasBice(), leyenda: otraLeyenda },
+      }),
+    );
+    expect(t).toContain(otraLeyenda);
+  });
+
+  it("(c-gemelo) cambiada la leyenda del backend, la vieja YA NO aparece", () => {
+    /* Sin este gemelo, una pantalla que imprimiera las dos —la del backend y una propia—
+       pasaría el test (c). Las cifras siguen siendo 417 y 2: si la pantalla las reconstruyera
+       por su cuenta, la frase vieja seguiría ahí. */
+    const t = texto(
+      html({
+        ...EN_CLASIFICAR,
+        cuentasRetiradas: { ...cuentasRetiradasBice(), leyenda: "Otra frase del productor." },
+      }),
+    );
+    expect(t).toContain("Otra frase del productor.");
+    expect(t).not.toContain("quedan fuera de este listado");
+    expect(t).not.toContain("Siguen guardados: no se borró nada.");
+  });
+
+  it("(d) con la bandeja VACÍA también lo dice: no se celebra sobre 417 desaparecidos", () => {
+    /* "Nada espera tu decisión" con 417 movimientos afuera es sencillamente falso, y el estado
+       celebratorio es donde más cara sale una desaparición muda. */
+    const t = texto(
+      html({
+        conciliar: itemsConciliar(colaConciliarVacia()),
+        clasificar: itemsClasificar(sinClasificarVacio()),
+        cuentasRetiradas: cuentasRetiradasBice(),
+      }),
+    );
+    expect(t).toContain("Nada espera tu decisión");
+    expect(t).toContain("417 movimientos de 2 cuentas retiradas quedan fuera de este listado");
+  });
+
+  it("(d-gemelo) con la bandeja vacía y nada fuera, el cero también se publica", () => {
+    const t = texto(
+      html({
+        conciliar: itemsConciliar(colaConciliarVacia()),
+        clasificar: itemsClasificar(sinClasificarVacio()),
+        cuentasRetiradas: sinCuentasRetiradas(),
+      }),
+    );
+    expect(t).toContain("Nada espera tu decisión");
+    expect(t).toContain("Ninguna cuenta retirada aporta movimientos a este listado.");
+    expect(t).not.toContain("quedan fuera de este listado");
   });
 });

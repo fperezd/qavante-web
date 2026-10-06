@@ -45,7 +45,11 @@ import {
   type TabV07,
 } from "./bandeja-v07-model";
 import { categoriasParaDireccion } from "@/components/clasificacion/canonical-direction";
-import type { BankMovement, CanonicalCategoryMeta } from "@/lib/api/treasury";
+import type {
+  BankMovement,
+  CanonicalCategoryMeta,
+  MovimientosDeCuentasRetiradas,
+} from "@/lib/api/treasury";
 import type { RevertActionResponse } from "@/lib/api/reversible-actions";
 
 /* V07 · Bandeja de excepciones — "sólo lo que el piloto no resolvió solo" (Fase 2, issue #71).
@@ -134,6 +138,10 @@ export interface BandejaV07ViewProps {
   categoriasCanonicasMotivo?: string | null;
   /** Movimientos ya clasificados: de ahí salen los 3 frecuentes cuando no hay regla. */
   clasificados?: BankMovement[];
+  /** #1118 — lo que el listado de clasificar dejó FUERA por venir de una cuenta retirada.
+   *  `null`/ausente = el listado no llegó: no sabemos nada y no se afirma nada. Un objeto con
+   *  `movimientos: 0` NO es eso: es el backend diciendo que no quedó nada fuera. */
+  cuentasRetiradas?: MovimientosDeCuentasRetiradas | null;
   /** Confirma el match. `documentoId` va cuando el usuario eligió otro documento. */
   onConciliar: (item: ItemConciliarV07, documentoId: string | null) => Promise<void>;
   /** Deshace una conciliación ya aplicada (`.../revert`). Existe hoy. */
@@ -198,6 +206,47 @@ const BTN_FANTASMA =
   "inline-flex items-center gap-2 rounded-full px-3 py-[9px] text-[13px] font-semibold text-rediseno-tinta-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul";
 const KBD = "rounded px-1.5 py-px font-rediseno-mono text-[12px] opacity-70";
 
+/** #1118 — lo que api#1126 sacó del listado, dicho con la leyenda que publica el backend.
+ *
+ *  Por qué existe: la API dejó de servir los movimientos de cuentas RETIRADAS (la BICE duplicada
+ *  de #1007 aportaba 417). Si la pantalla no lo dice, esas 417 filas desaparecen en silencio — y
+ *  una desaparición muda es peor que el doble conteo que se vino a arreglar.
+ *
+ *  Dos reglas que este componente no negocia:
+ *
+ *  1. El texto es `resumen.leyenda`, tal cual viene. El frontend no reescribe una verdad que el
+ *     backend ya publica, y tampoco la parsea: si alguna vez hiciera falta una versión corta, se
+ *     deriva de `movimientos`/`cuentas`/`desde`/`hasta`, nunca del string.
+ *
+ *  2. `movimientos: 0` SE MUESTRA. Cero no es "no hay dato": es la cifra que certifica que el
+ *     listado está completo. Pintarlo sólo cuando hay algo fuera dejaría el caso cero
+ *     indistinguible de una pantalla que ni siquiera mira el campo — que es justo el defecto que
+ *     #1118 vino a cerrar. Lo que sí cambia con el cero es el PESO visual: con movimientos fuera
+ *     va en Banner, porque hay algo que ir a buscar; sin ninguno, en una línea secundaria, porque
+ *     no hay nada que hacer, sólo algo que saber.
+ *
+ *  `resumen == null` (el listado no respondió) no pinta nada: callar por no saber es correcto; lo
+ *  prohibido es callar sabiendo. */
+export function AvisoCuentasRetiradas({
+  resumen,
+}: {
+  resumen?: MovimientosDeCuentasRetiradas | null;
+}) {
+  if (!resumen) return null;
+  if (resumen.movimientos > 0) {
+    return (
+      <Banner variant="default" data-testid="cuentas-retiradas">
+        {resumen.leyenda}
+      </Banner>
+    );
+  }
+  return (
+    <p className="text-[12.5px] text-rediseno-tinta-3" data-testid="cuentas-retiradas">
+      {resumen.leyenda}
+    </p>
+  );
+}
+
 export function BandejaV07View(props: BandejaV07ViewProps) {
   return (
     <RedisenoToastProvider>
@@ -221,6 +270,7 @@ function BandejaV07Contenido({
   categoriasCanonicasCargando = false,
   categoriasCanonicasMotivo,
   clasificados = [],
+  cuentasRetiradas,
   onConciliar,
   onDeshacerConciliar,
   onNoEsEsta,
@@ -397,6 +447,9 @@ function BandejaV07Contenido({
             </p>
           )}
         </div>
+        {/* #1118 — el estado celebratorio es donde más cara sale una desaparición muda:
+            "nada espera tu decisión" con 417 movimientos afuera sería sencillamente falso. */}
+        <AvisoCuentasRetiradas resumen={cuentasRetiradas} />
       </div>
     );
   }
@@ -445,6 +498,10 @@ function BandejaV07Contenido({
           {avisoError}
         </Banner>
       )}
+
+      {/* #1118 — `cuentas_retiradas` viene del listado `status=unclassified`, así que habla de
+          la cola de Clasificar. Va arriba de la carta, donde el usuario mira la lista. */}
+      {tab === "clasificar" && <AvisoCuentasRetiradas resumen={cuentasRetiradas} />}
 
       {tab === "conciliar" ? (
         <CartaConciliar

@@ -305,6 +305,11 @@ export function BandejaV07Live({
       conciliarTotal={review.data?.count ?? null}
       clasificar={itemsK}
       clasificarTotal={sinClasificar.data?.total ?? null}
+      /* #1118 — api#1126 dejó de servir los movimientos de cuentas RETIRADAS. El backend publica
+         acá cuántos quedaron fuera y una leyenda lista para pantalla; la vista la pinta tal cual.
+         `?? null` es "el listado no llegó", no "no quedó nada fuera": eso último lo dice el propio
+         objeto con `movimientos: 0`, y también se muestra. */
+      cuentasRetiradas={sinClasificar.data?.cuentas_retiradas ?? null}
       conciliarMotivo={
         review.isError ? motivoFuente(review.error, "la cola de conciliación") : null
       }

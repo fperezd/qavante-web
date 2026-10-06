@@ -227,6 +227,26 @@ export function cobranza(
       { label: "15-30d", days_from: 15, days_to: 30, nominal: "6300000", expected: "5901036" },
     ],
     beyond_horizon: { nominal: "0", expected: "0" },
+    /* `ventana_14d` se volvió requerida en el contrato (arrastre del sync que trae api#1126).
+       No la lee todavía ninguna pantalla; se completa derivada de las MISMAS cifras de arriba
+       para que el fixture no se contradiga: vencido = `overdue`, confirmado = buckets 0-14,
+       fuera_de_ventana = bucket 15-30 + `beyond_horizon`, y las cinco ramas suman exacto
+       `cartera_total` (30.000.000 nominal / 24.000.000 esperado). */
+    ventana_14d: {
+      dias: 14,
+      currency_code: "CLP",
+      monedas_excluidas: [],
+      confirmado: { nominal: "16500000", expected: "14498964" },
+      condicional: { nominal: "0", expected: "0" },
+      vencido: { nominal: "7200000", expected: "3600000" },
+      sin_vencimiento: { nominal: "0", expected: "0" },
+      fuera_de_ventana: { nominal: "6300000", expected: "5901036" },
+      cartera_total: { nominal: "30000000", expected: "24000000" },
+      sin_vencimiento_count: 0,
+      total_count: 3,
+      cubre:
+        "Cubre los 3 documentos vivos en pesos de la cartera, los 14 días corridos desde la fecha de corte.",
+    },
     ...over,
   };
 }

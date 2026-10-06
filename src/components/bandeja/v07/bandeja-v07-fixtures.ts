@@ -15,6 +15,7 @@ import type {
   BankMovement,
   BankMovementsListResponse,
   CanonicalCategoryMeta,
+  MovimientosDeCuentasRetiradas,
 } from "@/lib/api/treasury";
 import type { DocumentSuggestionsResponse, ReviewQueueResponse } from "@/lib/api/reconciliation";
 import type { SuggestedCategoryResponse } from "@/lib/api/classification-rules";
@@ -328,6 +329,38 @@ function movimiento(over: Partial<BankMovement> & Pick<BankMovement, "id">): Ban
   };
 }
 
+/* #1118 - `cuentas_retiradas`: lo que api#1126 dejó FUERA del listado por venir de una cuenta
+   bancaria retirada. Las dos leyendas de abajo están copiadas VERBATIM de `_retired_legend`
+   del productor (`api/app/core/treasury_repo.py`): la pantalla pinta la del backend, nunca una
+   propia, así que el fixture tampoco puede inventar una. Si el backend cambia el texto, estos
+   fixtures se actualizan desde ahí, no al revés. */
+
+/** El caso normal: ninguna cuenta retirada aporta nada. `movimientos: 0` es una CIFRA
+ *  ("no quedó nada fuera"), no una ausencia, y el backend igual manda su leyenda. */
+export function sinCuentasRetiradas(): MovimientosDeCuentasRetiradas {
+  return {
+    movimientos: 0,
+    cuentas: 0,
+    desde: null,
+    hasta: null,
+    leyenda: "Ninguna cuenta retirada aporta movimientos a este listado.",
+  };
+}
+
+/** Lo MEDIDO en producción para la BICE duplicada de #1007: 405 movimientos en pesos y 12 en
+ *  dólares, 417 en total, del 02-01-2026 al 08-09-2026, repartidos en 2 cuentas retiradas. */
+export function cuentasRetiradasBice(): MovimientosDeCuentasRetiradas {
+  return {
+    movimientos: 417,
+    cuentas: 2,
+    desde: "2026-01-02",
+    hasta: "2026-09-08",
+    leyenda:
+      "417 movimientos de 2 cuentas retiradas quedan fuera de este listado, " +
+      "del 02-01-2026 al 08-09-2026. Siguen guardados: no se borró nada.",
+  };
+}
+
 /** Sin clasificar: uno con regla que calza, uno sin nada, y tres de la misma contraparte (lote). */
 export function sinClasificar(
   orden: readonly string[] = [MOV_DATTATEC, MOV_TERCEROS, MOV_ENTEL_1, MOV_ENTEL_2, MOV_ENTEL_3],
@@ -370,11 +403,11 @@ export function sinClasificar(
     }),
   };
   const items = orden.map((id) => todos[id]).filter((m): m is BankMovement => m != null);
-  return { items, total: items.length };
+  return { items, total: items.length, cuentas_retiradas: sinCuentasRetiradas() };
 }
 
 export function sinClasificarVacio(): BankMovementsListResponse {
-  return { items: [], total: 0 };
+  return { items: [], total: 0, cuentas_retiradas: sinCuentasRetiradas() };
 }
 
 /** El MOVIMIENTO EN DÓLARES del hallazgo B04: `US$5.862,30` se veía como "$5.862" en Bandeja.
@@ -404,7 +437,7 @@ export function sinClasificarDolares(): BankMovementsListResponse {
       currency_source: "bank_declared",
     }),
   ];
-  return { items, total: items.length };
+  return { items, total: items.length, cuentas_retiradas: sinCuentasRetiradas() };
 }
 
 /** Movimiento histórico SIN moneda declarada (`legacy_unknown`): la pantalla no puede inventarla. */
@@ -420,7 +453,7 @@ export function sinClasificarSinMoneda(): BankMovementsListResponse {
       currency_source: "legacy_unknown",
     }),
   ];
-  return { items, total: items.length };
+  return { items, total: items.length, cuentas_retiradas: sinCuentasRetiradas() };
 }
 
 /** Historial ya clasificado, del que salen los "3 frecuentes" cuando no hay regla. */

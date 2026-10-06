@@ -14,6 +14,8 @@ import {
 
 function cuota(over: Partial<F29PaymentApplication> = {}): F29PaymentApplication {
   return {
+    /* `application_id` se volvió requerido en el contrato (arrastre del sync de api#1126). */
+    application_id: "app-f29-1",
     application_kind: "bank_movement",
     applied_amount: "1000",
     applied_at: "2026-08-20T00:00:00Z",

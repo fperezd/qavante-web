@@ -209,7 +209,7 @@
             "type": "array"
           },
           "categorias_modificadas": {
-            "description": "Propuestas cuya categoría la persona cambió antes de aceptarlas. Se clasifica con la categoría que mandás acá, no con la que propuso la regla o la señal.",
+            "description": "Propuestas cuya categoría la persona cambió antes de aceptarlas. Se clasifica con la categoría que mandas acá, no con la que propuso la regla o la señal.",
             "items": {
               "$ref": "#/components/schemas/AcceptSuggestionsCategoryOverride"
             },
@@ -1805,7 +1805,7 @@
             "type": "integer"
           },
           "modo": {
-            "description": "Modo de clasificación de esta sociedad. `automatic`: el barrido aplicó las reglas. `review`: las propuso y esperan tu revisión. `sin_declarar`: esta sociedad todavía no eligió, así que el barrido propuso en vez de aplicar — elegí el modo en Configuración.",
+            "description": "Modo de clasificación de esta sociedad. `automatic`: el barrido aplicó las reglas. `review`: las propuso y esperan tu revisión. `sin_declarar`: esta sociedad todavía no eligió, así que el barrido propuso en vez de aplicar — elige el modo en Configuración.",
             "enum": [
               "review",
               "automatic",
@@ -2337,7 +2337,7 @@
         "properties": {
           "diagnostic": {
             "default": false,
-            "description": "Si es true, corre SÍNCRONO y devuelve la reconciliación por período (docs + neto por lado) para comparar contra el export oficial del SII. Máx. 13 períodos (acotá el rango) — son llamadas secuenciales al SII.",
+            "description": "Si es true, corre SÍNCRONO y devuelve la reconciliación por período (docs + neto por lado) para comparar contra el export oficial del SII. Máx. 13 períodos (acota el rango) — son llamadas secuenciales al SII.",
             "title": "Diagnostic",
             "type": "boolean"
           },
@@ -3199,6 +3199,10 @@
         "additionalProperties": false,
         "description": "Respuesta paginada de `GET /api/bank-movements`.",
         "properties": {
+          "cuentas_retiradas": {
+            "$ref": "#/components/schemas/MovimientosDeCuentasRetiradas",
+            "description": "#1118: los movimientos de cuentas retiradas NO están en `items` ni en `total`. Van acá contados, para que la pantalla pueda decir cuántos quedaron fuera."
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/BankMovement"
@@ -3215,7 +3219,8 @@
         },
         "required": [
           "items",
-          "total"
+          "total",
+          "cuentas_retiradas"
         ],
         "title": "BankMovementsListResponse",
         "type": "object"
@@ -7407,10 +7412,45 @@
       },
       "CashProjectionErrorDetail": {
         "additionalProperties": false,
+        "description": "`detail` de los errores del run. El codigo NO alcanza para arreglar nada.\n\n`missing_input` nombra el insumo ausente -tabla o estado-, `scope` el scope exacto que se\nbusco (tenant, sociedad, moneda, `as_of`, horizonte) y `message` lo dice en es-CL. Los tres\nson opcionales porque los errores de contrato -clave de idempotencia, moneda invalida- no\ntienen insumo que nombrar; nunca se rellenan con un placeholder.",
         "properties": {
           "code": {
             "title": "Code",
             "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "missing_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Input"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
           }
         },
         "required": [
@@ -7510,7 +7550,7 @@
           },
           "en_sobregiro": {
             "default": false,
-            "description": "True si el saldo de hoy ya está bajo el mínimo. En ese caso `dias_de_caja` es **0** — no te alcanza HOY — y `dias_hasta_recuperar` dice en cuántos días volvés sobre el mínimo. Hasta el #564 esta cifra era el `~1` que esta descripción llamaba degenerado, y un '1 día de caja' es una promesa falsa.",
+            "description": "True si el saldo de hoy ya está bajo el mínimo. En ese caso `dias_de_caja` es **0** — no te alcanza HOY — y `dias_hasta_recuperar` dice en cuántos días vuelves sobre el mínimo. Hasta el #564 esta cifra era el `~1` que esta descripción llamaba degenerado, y un '1 día de caja' es una promesa falsa.",
             "title": "En Sobregiro",
             "type": "boolean"
           },
@@ -8256,7 +8296,31 @@
       },
       "CashToday": {
         "additionalProperties": false,
+        "description": "`cash_today` — el saldo de hoy, con lo que la cifra CUBRE.\n\nLAS CUENTAS SIN SOCIEDAD NO SE ATRIBUYEN Y NO SE SUMAN, y eso tiene que estar dicho en el\npayload. Una cuenta de `treasury.bank_accounts` con `legal_entity_id IS NULL` es invisible\nbajo el scope de la sociedad (0207/0208): `current_cash_balance` la omite. Es la regla del\nproducto —no se atribuye sociedad por inferencia— pero el total no puede quedar incompleto\nen silencio: medido en producción el 2026-10-06, el mismo tenant mostraba $10.107.705 y\n$9.114.991 en momentos distintos según si una lectura incluía o no las cuentas sin sociedad.\n\nPor eso viajan los dos conteos. `covered_bank_accounts` son las cuentas de caja activas de\nESTA sociedad que sostienen `total`; `unattributed_bank_accounts` son las del tenant sin\nsociedad asignada, que quedaron FUERA. Nunca se reparten, nunca se prorratean y nunca se\nconvierten en cero: se declaran.",
         "properties": {
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Qué cubre `total`, en es-CL. Nombra las cuentas que entraron y las que quedaron fuera por no tener sociedad asignada.",
+            "title": "Coverage"
+          },
+          "covered_bank_accounts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Covered Bank Accounts"
+          },
           "data_state": {
             "enum": [
               "available",
@@ -8274,6 +8338,17 @@
           "total": {
             "title": "Total",
             "type": "string"
+          },
+          "unattributed_bank_accounts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unattributed Bank Accounts"
           }
         },
         "required": [
@@ -10338,6 +10413,10 @@
             ],
             "description": "Σ outstanding de todos los receivables vivos (CLP). `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera.",
             "title": "Total Nominal"
+          },
+          "ventana_14d": {
+            "$ref": "#/components/schemas/CollectionWindow",
+            "description": "La ventana de 14 dias con sus cuatro significados separados MAS la cartera completa. Es lo que hay que publicar: quedarse solo con los buckets futuros es lo que convertia una cartera viva de $84.077.773 en un '+$0 - $0 por cobrar'."
           }
         },
         "required": [
@@ -10347,7 +10426,8 @@
           "overdue",
           "sin_vencimiento",
           "buckets",
-          "beyond_horizon"
+          "beyond_horizon",
+          "ventana_14d"
         ],
         "title": "CollectionForecastResponse",
         "type": "object"
@@ -10940,6 +11020,107 @@
           "alternatives"
         ],
         "title": "CollectionSubjectEvaluation",
+        "type": "object"
+      },
+      "CollectionWindow": {
+        "additionalProperties": false,
+        "description": "La ventana de cobro, con sus cuatro significados SEPARADOS y la cartera completa.\n\nPOR QUE EXISTE. Caja publicaba \"Entra 14 dias +$0 - $0 por cobrar\" teniendo la cartera\nviva. El pronostico ya devolvia `sin_vencimiento` y `overdue` como ramas propias, pero el\nconsumidor sumaba SOLO los buckets futuros y presentaba ese cero como la cartera. Medido\ncontra produccion el 2026-10-06, filtrando por el tenant de produccion: 34 cuentas por\ncobrar vivas y no cedidas por $84.077.773, y `count(due_date) = 0` — cero de 34 con fecha.\nNada podia caer en ninguna ventana, y el conjunto vacio se publicaba como un cero afirmado.\n\nEste objeto cierra esa via: las cinco ramas y la cartera total viajan JUNTAS, de modo que\nquedarse con una sola ya no produce un cero, produce una cifra incompleta visible. Quien\nquiera publicar un numero tiene que elegir cual, y `cubre` dice en palabras que abarca.\n\nLA INVARIANTE, verificada al construirlo:\n    confirmado + condicional + vencido + sin_vencimiento + fuera_de_ventana == cartera_total\n\nCONFIRMADO vs CONDICIONAL no es una etiqueta de confianza: es de donde salio la fecha.\n`confirmado` son los documentos cuyo vencimiento declaro el DTE (`sii`), que son al contado\n(`contado`) o que el usuario posterga explicitamente (`postponed`) — la misma lista que usa\nel resto de Cobrar. `condicional` son los que tienen fecha derivada de un supuesto de plazo.\nUn peso con fecha supuesta NO puede presentarse como flujo firme: prometer plata que no\nllega es peor que no prometerla.\n\nUNA SOLA MONEDA. La ventana suma CLP y nada mas; lo que quede en otra moneda se declara en\n`monedas_excluidas` con su conteo, nunca convertido ni sumado al peso.",
+        "properties": {
+          "cartera_total": {
+            "$ref": "#/components/schemas/ForecastAmount",
+            "description": "Toda la cartera viva en CLP. Es la suma exacta de las cinco ramas de arriba. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera."
+          },
+          "condicional": {
+            "$ref": "#/components/schemas/ForecastAmount",
+            "description": "Vence dentro de la ventana con fecha derivada de un supuesto de plazo. No es flujo firme. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera."
+          },
+          "confirmado": {
+            "$ref": "#/components/schemas/ForecastAmount",
+            "description": "Vence dentro de la ventana con fecha declarada por el DTE, al contado o postergada por el usuario. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera."
+          },
+          "cubre": {
+            "description": "Frase en español de Chile que dice que abarca cada cifra, para publicarla junto al numero en vez de un numero solo.",
+            "title": "Cubre",
+            "type": "string"
+          },
+          "currency_code": {
+            "const": "CLP",
+            "default": "CLP",
+            "description": "Moneda de TODOS los montos de esta ventana.",
+            "title": "Currency Code",
+            "type": "string"
+          },
+          "dias": {
+            "description": "Largo de la ventana en dias corridos desde `as_of`.",
+            "title": "Dias",
+            "type": "integer"
+          },
+          "fuera_de_ventana": {
+            "$ref": "#/components/schemas/ForecastAmount",
+            "description": "Con fecha, pero vence despues de la ventana. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera."
+          },
+          "monedas_excluidas": {
+            "description": "Monedas vivas que la ventana NO sumo. Vacia = la cartera entera es CLP.",
+            "items": {
+              "$ref": "#/components/schemas/CollectionWindowCurrency"
+            },
+            "title": "Monedas Excluidas",
+            "type": "array"
+          },
+          "sin_vencimiento": {
+            "$ref": "#/components/schemas/ForecastAmount",
+            "description": "Vivo y sin fecha de vencimiento de ninguna procedencia. Nunca se convierte en cero ni se le inventa una fecha. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera."
+          },
+          "sin_vencimiento_count": {
+            "description": "Cuantos documentos vivos no tienen fecha de vencimiento.",
+            "title": "Sin Vencimiento Count",
+            "type": "integer"
+          },
+          "total_count": {
+            "description": "Cuantos documentos vivos en CLP cubre `cartera_total`.",
+            "title": "Total Count",
+            "type": "integer"
+          },
+          "vencido": {
+            "$ref": "#/components/schemas/ForecastAmount",
+            "description": "Vencio antes de `as_of` y sigue sin cobrarse. `null` = desconocido: hay una cuarentena de conciliación viva en ese lado (#687, ver `amount_unknown_reason`); nunca se publica la suma de lo que quedó fuera."
+          }
+        },
+        "required": [
+          "dias",
+          "confirmado",
+          "condicional",
+          "vencido",
+          "sin_vencimiento",
+          "fuera_de_ventana",
+          "cartera_total",
+          "sin_vencimiento_count",
+          "total_count",
+          "cubre"
+        ],
+        "title": "CollectionWindow",
+        "type": "object"
+      },
+      "CollectionWindowCurrency": {
+        "additionalProperties": false,
+        "description": "Una moneda que el pronostico NO sumo, y cuanto dejo afuera.",
+        "properties": {
+          "count": {
+            "description": "Cuantos documentos vivos quedaron fuera por esta moneda.",
+            "title": "Count",
+            "type": "integer"
+          },
+          "currency_code": {
+            "description": "Moneda excluida de la ventana (p.ej. 'USD').",
+            "title": "Currency Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency_code",
+          "count"
+        ],
+        "title": "CollectionWindowCurrency",
         "type": "object"
       },
       "CombinationSetRead": {
@@ -15424,7 +15605,7 @@
         "description": "La sociedad declara su modo. No hay valor para 'no sé': eso es no declarar.",
         "properties": {
           "modo": {
-            "description": "`review`: el barrido propone y vos aceptás. `automatic`: el barrido aplica las reglas sin intervención.",
+            "description": "`review`: el barrido propone y tú aceptas. `automatic`: el barrido aplica las reglas sin intervención.",
             "enum": [
               "review",
               "automatic"
@@ -17147,6 +17328,9 @@
           "counterparty_resolution": {
             "$ref": "#/components/schemas/CounterpartyResolutionState"
           },
+          "identity_gate": {
+            "$ref": "#/components/schemas/IdentityGateState"
+          },
           "tax_id_evidence": {
             "$ref": "#/components/schemas/TaxIdEvidenceState"
           }
@@ -17154,7 +17338,8 @@
         "required": [
           "tax_id_evidence",
           "counterparty_resolution",
-          "candidate_search"
+          "candidate_search",
+          "identity_gate"
         ],
         "title": "DocumentSuggestionsOperationalState",
         "type": "object"
@@ -19316,6 +19501,83 @@
         "title": "F29DeclarationReceiptSchema",
         "type": "object"
       },
+      "F29DeclareApplicationRequest": {
+        "additionalProperties": false,
+        "description": "#440: el cuerpo con que una PERSONA declara que un F29 se pago.\n\n`extra=\"forbid\"` no es higiene: es el mecanismo. Un cuerpo que trajera\n`buscar_movimiento`, `monto`, `fecha_aproximada` o cualquier variante de «busca\nel que mas se parezca» se rechaza con 422 en vez de ignorarse en silencio. Lo\nque esta API no hace es elegir el movimiento, y un campo desconocido es\nexactamente la forma en que alguien lo pediria.\n\n`bank_movement_id` no tiene default. La procedencia no es opcional (#440).",
+        "properties": {
+          "application_kind": {
+            "description": "`bank_movement` = hay un movimiento bancario que salio y se identifica. `declaration_receipt` = el SII acusa el pago y el movimiento todavia no se identifico. Son dos hechos distintos y ninguno implica el otro.",
+            "enum": [
+              "bank_movement",
+              "declaration_receipt"
+            ],
+            "title": "Application Kind",
+            "type": "string"
+          },
+          "applied_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Lo que esta cuota aplico. Mayor que 0; un F29 se puede pagar en cuotas.",
+            "title": "Applied Amount"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuando salio la plata: la fecha del HECHO, distinta de cuando se declara. Debe traer zona horaria. Si se omite, se registra el momento de la declaracion.",
+            "title": "Applied At"
+          },
+          "bank_movement_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El movimiento declarado. OBLIGATORIO con `application_kind=bank_movement` y prohibido con `declaration_receipt`. Nunca se elige el mas parecido por monto o fecha: para el folio 9238206586 el parecido da DOS respuestas.",
+            "title": "Bank Movement Id"
+          },
+          "currency": {
+            "description": "Moneda de la cuota, ISO-4217 en mayusculas. Sin valor por omision.",
+            "title": "Currency",
+            "type": "string"
+          },
+          "receipt_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identidad del comprobante (numero de operacion del SII, folio del recibo). OBLIGATORIO con `application_kind=declaration_receipt` y prohibido con `bank_movement`.",
+            "title": "Receipt Reference"
+          }
+        },
+        "required": [
+          "application_kind",
+          "applied_amount",
+          "currency"
+        ],
+        "title": "F29DeclareApplicationRequest",
+        "type": "object"
+      },
       "F29EstadoResponse": {
         "additionalProperties": true,
         "description": "Estado del F29 por período (año x mes): los 12 meses con su situación derivada de lo\npersistido + el calendario.",
@@ -19807,6 +20069,11 @@
         "additionalProperties": true,
         "description": "Una aplicación DECLARADA contra un F29: una cuota (#440, migración 0256).\n\nUn F29 pagado en dos cuotas publica DOS de estos objetos. Antes de 0256 la\nsegunda no tenía dónde ir: el vínculo era una columna escalar.",
         "properties": {
+          "application_id": {
+            "description": "Identidad de ESTA cuota. Es lo que el consumidor manda para revertirla (`POST .../aplicaciones/{application_id}/reversa`): sin este campo una cuota mal atribuida no se puede corregir desde la pantalla.",
+            "title": "Application Id",
+            "type": "string"
+          },
           "application_kind": {
             "description": "`bank_movement` = evidencia bancaria: hay un movimiento que salió. `declaration_receipt` = comprobante del F29: el SII acusa el pago y el movimiento todavía no se identificó. Son dos hechos distintos y ninguno implica el otro.",
             "title": "Application Kind",
@@ -19866,6 +20133,7 @@
           }
         },
         "required": [
+          "application_id",
           "application_kind",
           "applied_amount",
           "currency",
@@ -20132,6 +20400,23 @@
           "rut_base"
         ],
         "title": "F29Response",
+        "type": "object"
+      },
+      "F29ReverseApplicationRequest": {
+        "additionalProperties": false,
+        "description": "#440: corregir un vinculo es una transaccion explicita, no un UPDATE.\n\nEl motivo es obligatorio y no tiene default: una reversa sin motivo es una fila\nque nadie puede discutir despues. No se borra nada (el rol runtime no tiene\nDELETE desde 0232): la fila revertida deja de contar para el residual y libera\nsu movimiento, y queda el rastro.",
+        "properties": {
+          "reason": {
+            "description": "Por que se revierte. Queda escrito en la fila revertida.",
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "F29ReverseApplicationRequest",
         "type": "object"
       },
       "F29SyncErrorDetail": {
@@ -24816,6 +25101,16 @@
             "title": "Db Configured",
             "type": "boolean"
           },
+          "migrations": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MigrationLedgerHealth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "description": "'ok' si todo OK, 'degraded' si DB falla",
             "title": "Status",
@@ -25006,6 +25301,41 @@
           "valid_from"
         ],
         "title": "IdentifierView",
+        "type": "object"
+      },
+      "IdentityGateState": {
+        "additionalProperties": false,
+        "description": "Candidatos que la puerta de identidad descarto, con los RUT a la vista.",
+        "properties": {
+          "discarded_by_tax_id_mismatch": {
+            "description": "Documentos con la razon social parecida que se descartaron porque la glosa nombra otro RUT.",
+            "minimum": 0.0,
+            "title": "Discarded By Tax Id Mismatch",
+            "type": "integer"
+          },
+          "explanations": {
+            "description": "Las razones distintas de los descartes, con el RUT de la glosa y el del documento. Se publican sin repetir: varios documentos del mismo RUT comparten una frase.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Explanations",
+            "type": "array"
+          },
+          "glosa_tax_ids": {
+            "description": "RUT que identifican contraparte leidos en la glosa del movimiento.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Glosa Tax Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "glosa_tax_ids",
+          "discarded_by_tax_id_mismatch",
+          "explanations"
+        ],
+        "title": "IdentityGateState",
         "type": "object"
       },
       "InboxItem": {
@@ -25358,7 +25688,7 @@
             "type": "string"
           },
           "reason": {
-            "description": "Motivo, ej. 'payroll_not_loaded' (nómina no cargada ese mes).",
+            "description": "Motivo. `payroll_not_loaded`: la nómina NO fue cargada ese mes — sincronizarla lo corrige. `payroll_not_attributed`: la nómina del mes SÍ está, pero el tenant tiene más de una sociedad y la fuente se guarda sin sociedad, así que no se pudo atribuir a la sociedad activa y el margen del mes no la incluye; sincronizar de nuevo no cambia nada.",
             "title": "Reason",
             "type": "string"
           }
@@ -28192,6 +28522,193 @@
         "title": "MeUser",
         "type": "object"
       },
+      "MigrationDriftReadingResponse": {
+        "description": "Una medición del desfase, con los nombres de archivo adentro.",
+        "properties": {
+          "acreditadas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Migraciones que la base acredita. `null` = no se pudo medir.",
+            "title": "Acreditadas"
+          },
+          "adelantadas": {
+            "description": "Acreditadas en la base y ausentes de este artefacto, por nombre.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Adelantadas",
+            "type": "array"
+          },
+          "medido": {
+            "description": "`false` → `pendientes` está vacío porque no se sabe, no porque no falte ninguna.",
+            "title": "Medido",
+            "type": "boolean"
+          },
+          "medido_en": {
+            "description": "Cuándo se tomó esta medición.",
+            "format": "date-time",
+            "title": "Medido En",
+            "type": "string"
+          },
+          "mensaje": {
+            "description": "La misma frase que queda en el log, en una línea.",
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "motivo": {
+            "default": "",
+            "description": "Por qué no se pudo medir. Vacío cuando se midió. Nunca lleva el conninfo: el de producción tiene usuario y host, y un `OperationalError` los reemite.",
+            "title": "Motivo",
+            "type": "string"
+          },
+          "paquete": {
+            "description": "Migraciones que trae el artefacto desplegado.",
+            "title": "Paquete",
+            "type": "integer"
+          },
+          "pendientes": {
+            "description": "**Los nombres.** Un número solo no es accionable: lo que se aplica es un archivo. Van en el orden en que el runner las aplicaría.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Pendientes",
+            "type": "array"
+          },
+          "rol": {
+            "description": "El `current_user` con el que se leyó el ledger. Vacío cuando no se pudo ni abrir la conexión. Sin esto, «no pude medir» no dice a quién le falta el permiso.",
+            "title": "Rol",
+            "type": "string"
+          },
+          "verdict": {
+            "description": "`al_dia`: la base acredita el paquete de este artefacto. `faltan_migraciones`: el código va adelante de la base — la ventana del #1074, y lo que hay que arreglar. `base_adelantada`: la base va adelante del código, que es la forma de un rollback de imagen sin rollback de datos y un procedimiento legítimo. `no_pude_medir`: no se pudo leer el ledger. **`no_pude_medir` no es `al_dia`:** el chequeo que lo trate como verde es el defecto, no la señal.",
+            "enum": [
+              "al_dia",
+              "base_adelantada",
+              "faltan_migraciones",
+              "no_pude_medir"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "medido",
+          "rol",
+          "paquete",
+          "medido_en",
+          "mensaje"
+        ],
+        "title": "MigrationDriftReadingResponse",
+        "type": "object"
+      },
+      "MigrationDriftResponse": {
+        "description": "El desfase visto desde el arranque del proceso y desde ahora mismo.",
+        "properties": {
+          "ahora": {
+            "$ref": "#/components/schemas/MigrationDriftReadingResponse",
+            "description": "Una lectura nueva contra la base, tomada al atender este request."
+          },
+          "arranque": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MigrationDriftReadingResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que midió el proceso que está sirviendo, al arrancar. `null` cuando arrancó sin `DATABASE_URL` y no hubo nada que medir."
+          },
+          "hay_que_gritar": {
+            "description": "`true` cuando `ahora.verdict` es `faltan_migraciones` **o** `no_pude_medir`. Los dos son rojo: el primero porque el código va adelante de la base, el segundo porque el instrumento está ciego y el silencio no es salud.",
+            "title": "Hay Que Gritar",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ahora",
+          "hay_que_gritar"
+        ],
+        "title": "MigrationDriftResponse",
+        "type": "object"
+      },
+      "MigrationLedgerHealth": {
+        "description": "Qué sabe ESTE proceso sobre el desfase entre su código y la base.\n\n**No mueve `status`.** `/health` es la sonda del contenedor: si este bloque\npudiera degradarla, un desfase de migraciones —que es el estado normal de\nla ventana entre el merge y la migración a mano— sacaría las réplicas de\nrotación y dejaría el producto entero abajo. Acá se ve; la consecuencia la\ndecide quien lea.\n\nNo nombra los archivos: `/health` es anónimo. Los nombres —lo único\naccionable— los da `GET /api/admin/migrations/drift`, con credencial.",
+        "properties": {
+          "acreditadas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Migraciones que la base acredita. `null` = no se pudo medir.",
+            "title": "Acreditadas"
+          },
+          "adelantadas": {
+            "default": 0,
+            "description": "Acreditadas en la base y ausentes del artefacto.",
+            "title": "Adelantadas",
+            "type": "integer"
+          },
+          "medido": {
+            "description": "`False` → los contadores de abajo no describen la base, describen lo que no se pudo averiguar. Un `pendientes: 0` con `medido: false` no dice que no falte ninguna.",
+            "title": "Medido",
+            "type": "boolean"
+          },
+          "medido_en": {
+            "description": "Cuándo se tomó esta medición (arranque del proceso).",
+            "format": "date-time",
+            "title": "Medido En",
+            "type": "string"
+          },
+          "mensaje": {
+            "description": "El estado en una frase, SIN los nombres de archivo: esta ruta es anónima. Los nombres los da `GET /api/admin/migrations/drift`.",
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "paquete": {
+            "description": "Migraciones que trae el artefacto desplegado.",
+            "title": "Paquete",
+            "type": "integer"
+          },
+          "pendientes": {
+            "default": 0,
+            "description": "En el artefacto y sin acreditar en la base.",
+            "title": "Pendientes",
+            "type": "integer"
+          },
+          "verdict": {
+            "description": "`al_dia`: la base acredita el paquete de este artefacto. `faltan_migraciones`: el código va adelante de la base (la ventana del #1074). `base_adelantada`: la base va adelante del código (rollback de imagen). `no_pude_medir`: no se pudo leer el ledger. **No es `al_dia`.**",
+            "enum": [
+              "al_dia",
+              "base_adelantada",
+              "faltan_migraciones",
+              "no_pude_medir"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "medido",
+          "paquete",
+          "medido_en",
+          "mensaje"
+        ],
+        "title": "MigrationLedgerHealth",
+        "type": "object"
+      },
       "MonthIntegrity": {
         "description": "Integridad POR MES del rango, de la MISMA regla que `/operational-result`\n(`assess_financial_integrity` vía `operational_result_range`). web#318: si un mes no es\n`eligible`, su resultado no es publicable y la suma del rango tampoco.",
         "properties": {
@@ -28471,6 +28988,62 @@
           }
         },
         "title": "MovimientoDeuda",
+        "type": "object"
+      },
+      "MovimientosDeCuentasRetiradas": {
+        "additionalProperties": false,
+        "description": "Lo que el listado dejó fuera por venir de una cuenta bancaria RETIRADA (#1118).\n\nUna cuenta `inactive` no alimenta Bandeja, clasificación ni los conteos; pero que\nno alimente no la vuelve invisible. Este objeto es la cifra con lo que cubre:\ncuántos movimientos quedaron fuera, de cuántas cuentas y qué rango abarcan.\nCuando no hay ninguno, `movimientos` es 0 y la leyenda lo dice — cero es una\ncifra, no una ausencia.",
+        "properties": {
+          "cuentas": {
+            "description": "Cuentas retiradas distintas que los aportan.",
+            "minimum": 0.0,
+            "title": "Cuentas",
+            "type": "integer"
+          },
+          "desde": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fecha del movimiento más antiguo que quedó fuera. None si no hay ninguno.",
+            "title": "Desde"
+          },
+          "hasta": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fecha del movimiento más reciente que quedó fuera. None si no hay ninguno.",
+            "title": "Hasta"
+          },
+          "leyenda": {
+            "description": "Frase lista para pantalla: la cifra y qué cubre. Nunca una ausencia muda.",
+            "title": "Leyenda",
+            "type": "string"
+          },
+          "movimientos": {
+            "description": "Movimientos que el filtro dejó fuera por pertenecer a una cuenta retirada, contados con los MISMOS filtros del listado (período, dirección, estado).",
+            "minimum": 0.0,
+            "title": "Movimientos",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "movimientos",
+          "cuentas",
+          "leyenda"
+        ],
+        "title": "MovimientosDeCuentasRetiradas",
         "type": "object"
       },
       "MovimientosDeudasResponse": {
@@ -31096,7 +31669,7 @@
             "type": "string"
           },
           "incomplete_months": {
-            "description": "Meses con dato INCOMPLETO (su margen puede estar sobreestimado). Hoy: meses cerrados con ingreso/costo pero SIN nómina cargada (`payroll_not_loaded`) — típico de los meses previos a que arrancara la integración de remuneraciones, que si no aparecen con margen ~100% falso. A diferencia de `warnings.payroll_cost_missing` (a nivel de rango), esto es POR MES → no se enmascara porque otro mes del rango sí tenga nómina. Es señal de completitud, NO un error: un $0 real de nómina (empresa sin empleados) no se marca.",
+            "description": "Meses con dato INCOMPLETO (su margen puede estar sobreestimado). Hoy: meses cerrados con ingreso/costo pero sin costo laboral aplicable: `payroll_not_loaded` (la nómina no fue cargada) o `payroll_not_attributed` (no se pudo atribuir a la sociedad activa, así que no se leyó) — el primero es típico de los meses previos a que arrancara la integración de remuneraciones, que si no aparecen con margen ~100% falso. A diferencia de `warnings.payroll_cost_missing` (a nivel de rango), esto es POR MES → no se enmascara porque otro mes del rango sí tenga nómina. Es señal de completitud, NO un error: un $0 real de nómina (empresa sin empleados) no se marca.",
             "items": {
               "$ref": "#/components/schemas/IncompleteMonth"
             },
@@ -31152,7 +31725,7 @@
             "type": "array"
           },
           "warnings": {
-            "description": "Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activá una cuenta de costo y clasificá las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verificá re-emisiones pendientes. `payroll_cost_missing`: la nómina NO fue sincronizada en el rango (ausente, no $0) pero hay actividad → el Resultado está SOBREESTIMADO (falta el costo laboral); sincronizá remuneraciones. No dispara para empresas legítimamente sin empleados.",
+            "description": "Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activa una cuenta de costo y clasifica las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verifica re-emisiones pendientes. `payroll_cost_missing`: la nómina NO fue sincronizada en el rango (ausente, no $0) pero hay actividad → el Resultado está SOBREESTIMADO (falta el costo laboral); sincroniza remuneraciones. No dispara para empresas legítimamente sin empleados. `payroll_cost_unattributed`: el tenant tiene más de una sociedad y la nómina se guarda sin sociedad, así que este lector se ABSTUVO de leerla; el Resultado está igual de sobreestimado, pero la causa NO es una ausencia medida — nadie miró. El texto no debe afirmar que la nómina falta NI que está, y no debe pedir que se sincronice: sincronizar remuneraciones no cambia nada. `tenant_wide_personal_sources_abstained`: acompaña al anterior y cubre también los honorarios (BHE), que se abstienen por la misma razón.",
             "items": {
               "type": "string"
             },
@@ -36355,6 +36928,76 @@
         "title": "PulsoAbstentionEvidenceItem",
         "type": "object"
       },
+      "PulsoCededExposure": {
+        "additionalProperties": false,
+        "description": "Cuánta de la cartera que sostiene el Pulso ya no la cobra el dueño (#158).\n\nEl cuarto factor del Pulso **excluye** las facturas cedidas al factoring, y está bien: la\nmorosidad de una factura cedida es riesgo del factor. Pero sobre el tenant productivo esa\nexclusión llevó el ratio de cobranza de 0,9091 a 0,0000 — el factor pasó de pésimo a\nperfecto y el score **subió**. Sin este bloque, un tenant que financia su operación cediendo\nlo vencido se ve igual que uno que cobra al día.\n\nEs **aditivo**: el score no cambia de valor. Al lado se publica cuánta de la cartera está\ncedida, con el mismo dato y la misma fórmula que ya acompañan al DSO desde el #100.",
+        "properties": {
+          "amount_unknown_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`reconciliation_quarantine` cuando alguno de los dos saldos es desconocido. Un saldo que no se pudo determinar no se publica como cero.",
+            "title": "Amount Unknown Reason"
+          },
+          "ar_ceded": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo vivo cedido al factoring (CLP, base neta). No entra en `ar_total`: lo cobra el factor. Es el mismo número que acompaña al DSO en `/api/management/metrics`.",
+            "title": "Ar Ceded"
+          },
+          "ar_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cartera viva PROPIA (CLP, base neta): la que cobra el dueño. Ya excluye lo cedido. `null` cuando el saldo de ese lado es desconocido por cuarentena de conciliación.",
+            "title": "Ar Total"
+          },
+          "ceded_pct_of_ar": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Porcentaje cedido sobre la cartera viva total (propia + cedida), acotado a [0, 100]. 0 si no hay cartera. Distinto de 0 ⇒ el factor de cobranza del Pulso descansa sobre una cartera parcialmente cedida.",
+            "title": "Ceded Pct Of Ar"
+          },
+          "cesiones_sin_marcar": {
+            "default": 0,
+            "description": "Cesiones del SII que no se pudieron calzar con una factura. Distinto de 0 ⇒ lo cedido medido es un PISO: hay cesiones reales que este número no alcanzó a contar.",
+            "title": "Cesiones Sin Marcar",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ar_total",
+          "ar_ceded",
+          "ceded_pct_of_ar"
+        ],
+        "title": "PulsoCededExposure",
+        "type": "object"
+      },
       "PulsoComponent": {
         "additionalProperties": false,
         "description": "Un factor del composite (auditable).",
@@ -36420,6 +37063,17 @@
             ],
             "description": "Causa enumerada de por qué `score` es null (#661). Ausente en el motor v1 y cuando hay número.",
             "title": "Abstention Reason"
+          },
+          "ceded_exposure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PulsoCededExposure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Exposición cedida al factoring que acompaña al score (#158). `null` sólo cuando la lectura de cartera no se pudo ejecutar; el campo es best-effort y su ausencia no tumba el Pulso. Se publica en los DOS motores (v1 y v2): no depende del flag, porque la exclusión que lo hace necesario está viva en los dos."
           },
           "components": {
             "items": {
@@ -37756,6 +38410,77 @@
           "password"
         ],
         "title": "PutSiiPersonRequest",
+        "type": "object"
+      },
+      "QhsSnapshotResponse": {
+        "description": "El resultado del corte, contado por causa y no por «algo pasó».",
+        "properties": {
+          "abstained": {
+            "description": "Sociedades donde el QHS no se compuso porque a un subíndice le faltó evidencia. Queda la fila con la causa y con cuántos de los cinco sí se midieron: cuatro de cinco no es un QHS con menos precisión, es otro instrumento.",
+            "title": "Abstained",
+            "type": "integer"
+          },
+          "cutoff": {
+            "description": "Cierre de mes efectivamente procesado. Por omisión es el último cierre anterior o igual a hoy: el QHS es mensual y un corte a mitad de mes no se puede componer.",
+            "format": "date",
+            "title": "Cutoff",
+            "type": "string"
+          },
+          "entities": {
+            "description": "Sociedades con scope financiero canónico al corte.",
+            "title": "Entities",
+            "type": "integer"
+          },
+          "errors": {
+            "description": "Fallos best-effort por sociedad (no abortan el resto).",
+            "title": "Errors",
+            "type": "integer"
+          },
+          "policy_not_producible": {
+            "description": "1 cuando la versión QHS activa más nueva no puede producir los cinco subíndices (por ejemplo, su policy no trae `subindex_methodologies`). El job NO cae a una versión más vieja: publicar bajo un modelo superado es peor que no publicar.",
+            "title": "Policy Not Producible",
+            "type": "integer"
+          },
+          "policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Versión de policy QHS bajo la que se produjo. Nula cuando ninguna versión activa podía producir los cinco subíndices; en ese caso no se escribió nada.",
+            "title": "Policy Version"
+          },
+          "scope_errors": {
+            "description": "Tenants cuyas sociedades no se pudieron enumerar.",
+            "title": "Scope Errors",
+            "type": "integer"
+          },
+          "snapshots": {
+            "description": "Snapshots QHS persistidos con score.",
+            "title": "Snapshots",
+            "type": "integer"
+          },
+          "tenants": {
+            "description": "Tenants recorridos.",
+            "title": "Tenants",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cutoff",
+          "policy_version",
+          "tenants",
+          "entities",
+          "snapshots",
+          "abstained",
+          "scope_errors",
+          "errors",
+          "policy_not_producible"
+        ],
+        "title": "QhsSnapshotResponse",
         "type": "object"
       },
       "RcvComprasResponse": {
@@ -50777,6 +51502,33 @@
         ]
       }
     },
+    "/api/admin/migrations/drift": {
+      "get": {
+        "description": "Nombra las migraciones que el artefacto trae y la base no acredita.\n\nSOLO LECTURA, y estructuralmente: la conexión de la medición se abre con\n`default_transaction_read_only=on`. No aplica nada — aplicar migraciones es\ndel job `ca-qavante-api-migrate-net`, y un chequeo que arreglara lo que\nvigila se vería siempre verde porque él mismo haría el trabajo.",
+        "operationId": "admin_migrations_drift",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationDriftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Migraciones: qué le falta a la base para soportar este código (observabilidad)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/notifications/dispatch-email": {
       "post": {
         "description": "Escanea vencimientos del tenant y, si hay items que cruzan el umbral de\nseveridad, envía email al `admin_email` del tenant via Resend.\n\nComportamiento:\n  - Sin items que crucen el umbral → no envía email; devuelve summary.\n  - Sin admin_email configurado → outcome=skipped(reason=no_recipient).\n  - Sin RESEND_API_KEY en env → outcome=skipped(reason=no_api_key).\n  - Resend respondió error → outcome=error con detalles.",
@@ -51365,6 +52117,64 @@
           }
         ],
         "summary": "PULSO v2: persiste el snapshot del día de todos los tenants (cron, ADR-0064 §5)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/qhs/snapshot": {
+      "post": {
+        "description": "Persiste el QHS del cierre de mes de **todas** las sociedades con scope canónico.",
+        "operationId": "admin_qhs_snapshot",
+        "parameters": [
+          {
+            "description": "Cierre de mes a procesar. Por omisión, el último cierre anterior o igual a hoy. Una fecha que no sea fin de mes no produce snapshot.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cierre de mes a procesar. Por omisión, el último cierre anterior o igual a hoy. Una fecha que no sea fin de mes no produce snapshot.",
+              "title": "As Of"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QhsSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "QHS: compone y persiste el snapshot del cierre de mes de todas las sociedades",
         "tags": [
           "admin"
         ]
@@ -53519,7 +54329,7 @@
     },
     "/api/admin/treasury/payroll-worker-outstanding/{period}": {
       "get": {
-        "description": "Saldo por trabajador del período según el ledger D14 (#422).\n\nUn trabajador aparece `confirmed_paid` sólo cuando una asignación individual colgada de un\npago confirmado cubre su obligación sellada. Un lote asignado al snapshot y no repartido\nbaja lo que se debe en total y no alcanza para nombrar a nadie: el período lo declara en\n`abstention_reasons` junto con `distribution_gap_amount`.\n\nLas cifras legadas (`legacy_*`) viajan al lado, cada una etiquetada por lo que la respalda,\npara que un pago asumido no se lea como uno observado. A diferencia de\n`GET /treasury/payroll-settlements/{period}`, esta lectura no hace `seed` ni escribe nada,\ny no exige una sola sociedad legal: las tablas de evidencia de 0173 son tenant-wide.\n\nLa respuesta está TIPADA (`PayrollWorkerOutstandingResponse`): antes salía al OpenAPI como\nun objeto abierto y la pantalla no tenía con qué consumirla sin inventarse la forma.",
+        "description": "Saldo por trabajador del período según el ledger D14 (#422).\n\nUn trabajador aparece `confirmed_paid` sólo cuando una asignación individual colgada de un\npago confirmado cubre su obligación sellada. Un lote asignado al snapshot y no repartido\nbaja lo que se debe en total y no alcanza para nombrar a nadie: el período lo declara en\n`abstention_reasons` junto con `distribution_gap_amount`.\n\nLas cifras legadas (`legacy_*`) viajan al lado, cada una etiquetada por lo que la respalda,\npara que un pago asumido no se lea como uno observado. A diferencia de\n`GET /treasury/payroll-settlements/{period}`, esta lectura no hace `seed` ni escribe nada,\ny no exige una sola sociedad legal. Lee la sociedad ACTIVA del request: con dos sociedades\ncon nómina y ninguna elegida, no nombra a ningún trabajador y lo declara en\n`abstention_reasons` (`obligation_spans_legal_entities`) en vez de publicar la lista de una\nsola sociedad como si fuera la del tenant (api#1069).\n\nLa respuesta está TIPADA (`PayrollWorkerOutstandingResponse`): antes salía al OpenAPI como\nun objeto abierto y la pantalla no tenía con qué consumirla sin inventarse la forma.",
         "operationId": "admin_payroll_worker_outstanding",
         "parameters": [
           {
@@ -64979,7 +65789,7 @@
     },
     "/api/sii/dte-emitidos/pdf": {
       "get": {
-        "description": "Render propio del PDF de un DTE **emitido**: baja su XML (Obtener Envío) y lo dibuja\ncon el timbre PDF417. Auth: certificado per-tenant (igual que `dte-emitidos`).\n\nDos modos (pasá UNO):\n- **Por folio** (`folio` + `desde` + `hasta`): ubica el DTE por folio en el listado del rango\n  y resuelve su CODIGO internamente. Es el que usa Ventas — mismo URL-builder que\n  `dte-recibidos/pdf`/BHE.\n- **Por código** (`codigo` + `tpo_doc`): la variante original (el CODIGO del listado Portal001).",
+        "description": "Render propio del PDF de un DTE **emitido**: baja su XML (Obtener Envío) y lo dibuja\ncon el timbre PDF417. Auth: certificado per-tenant (igual que `dte-emitidos`).\n\nDos modos (pasa UNO):\n- **Por folio** (`folio` + `desde` + `hasta`): ubica el DTE por folio en el listado del rango\n  y resuelve su CODIGO internamente. Es el que usa Ventas — mismo URL-builder que\n  `dte-recibidos/pdf`/BHE.\n- **Por código** (`codigo` + `tpo_doc`): la variante original (el CODIGO del listado Portal001).",
         "operationId": "sii_dte_emitido_pdf",
         "parameters": [
           {
@@ -66121,6 +66931,237 @@
           }
         ],
         "summary": "F29 bridge: componentes oficiales, residual y estado de pago del período",
+        "tags": [
+          "sii"
+        ]
+      }
+    },
+    "/api/sii/f29/declaraciones/{declaration_id}/aplicaciones": {
+      "post": {
+        "description": "Declara que una evidencia concreta cubrió parte o todo un F29 (#440, 0256).\n\nCada llamada es una CUOTA: un F29 pagado en dos veces se declara dos veces, y el\nresidual del período es `declaration_total` menos la suma de las cuotas vigentes\n—una resta entre hechos declarados, nunca una estimación—.\n\n**No infiere nada.** El `bank_movement_id` entra en el cuerpo. Si el código 91 no\nestá observado todavía, la aplicación se rechaza con\n`application_declaration_total_unobserved`: el total oficial es la cifra contra la\nque se mide, y afirmar `paid` sin ella sería afirmar un hecho sin cifra.\n\nLas invariantes no viven acá: el trigger `f29_payment_application_guard` (0256)\nverifica el egreso, la moneda, la exclusión de conciliación, el tope del\nmovimiento, el tope del total declarado y la coherencia de sociedad. Este endpoint\ntraduce esos rechazos a códigos estables.",
+        "operationId": "sii_f29_declarar_aplicacion_de_pago",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "declaration_id",
+            "required": true,
+            "schema": {
+              "title": "Declaration Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/F29DeclareApplicationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/F29PaymentLinkSchema"
+                }
+              }
+            },
+            "description": "Aplicación declarada; devuelve el estado de pago del período."
+          },
+          "403": {
+            "description": "El rol no puede escribir evidencia financiera."
+          },
+          "404": {
+            "description": "La declaración no tiene bridge compuesto en esta sociedad."
+          },
+          "409": {
+            "description": "FinancialScope no verificable."
+          },
+          "422": {
+            "description": "La evidencia declarada no sostiene la aplicación, o la pide una API-key sin persona. `detail.code` es estable y no lleva datos del contribuyente."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "F29: declarar una aplicación de pago (movimiento bancario o comprobante)",
+        "tags": [
+          "sii"
+        ]
+      }
+    },
+    "/api/sii/f29/declaraciones/{declaration_id}/aplicaciones/{application_id}/reversa": {
+      "post": {
+        "description": "Revierte una aplicación declarada y recalcula el residual del período.\n\nNo borra: el rol runtime no tiene DELETE (0232) y corregir un hecho financiero\ntiene que dejar rastro, como la reversa de 0226/0238. La fila revertida deja de\ncontar para el residual y libera su movimiento para que se lo pueda declarar\ndonde corresponda.\n\nUn id que no existe, que es de otra sociedad o que ya estaba revertido devuelve\n404 con el mismo código: la respuesta no sirve para averiguar si existe en otro\ntenant.",
+        "operationId": "sii_f29_revertir_aplicacion_de_pago",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "declaration_id",
+            "required": true,
+            "schema": {
+              "title": "Declaration Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/F29ReverseApplicationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/F29PaymentLinkSchema"
+                }
+              }
+            },
+            "description": "Revertida; devuelve el estado de pago recalculado del período."
+          },
+          "403": {
+            "description": "El rol no puede escribir evidencia financiera."
+          },
+          "404": {
+            "description": "Esa aplicación no está vigente en esta sociedad."
+          },
+          "409": {
+            "description": "FinancialScope no verificable."
+          },
+          "422": {
+            "description": "Motivo ausente, scope sin sociedad o rechazo de la base."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "F29: revertir una aplicación de pago declarada",
+        "tags": [
+          "sii"
+        ]
+      }
+    },
+    "/api/sii/f29/declaraciones/{declaration_id}/pago": {
+      "get": {
+        "description": "El estado de pago de UNA declaración, misma forma que el `payment` del bridge.\n\nExiste para que la pantalla pueda releer un período después de declarar o revertir\nsin volver a pedir el período completo. La ausencia no se devuelve como un hueco:\ndevuelve `applied_amount = 0`, el `residual_amount` igual al total oficial\ncompleto, `evidence_declared = 0` contra `evidence_required = 1` y el token de lo\nque falta en `missing_requirements`.",
+        "operationId": "sii_f29_estado_de_pago",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "declaration_id",
+            "required": true,
+            "schema": {
+              "title": "Declaration Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/F29PaymentLinkSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La declaración no tiene bridge compuesto en esta sociedad."
+          },
+          "409": {
+            "description": "FinancialScope no verificable."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "F29: estado de pago de una declaración, con la ausencia explícita",
         "tags": [
           "sii"
         ]
@@ -70374,7 +71415,7 @@
               "application/json": {
                 "example": {
                   "detail": {
-                    "code": "cash_projection_snapshot_unavailable"
+                    "code": "v14_scope_authority_missing"
                   }
                 },
                 "schema": {
@@ -70382,7 +71423,7 @@
                 }
               }
             },
-            "description": "No accredited V14 generation is available."
+            "description": "No accredited V14 generation is available. `detail.code` separa las causas: `v14_scope_authority_missing` (falta la autoridad del scope), `v14_scope_authority_ambiguous` (hay más de una para el mismo scope), `v14_generation_unavailable` (autoridad OK, ninguna generación sellada). `detail.missing_input` nombra el insumo y `detail.scope` el scope buscado."
           }
         },
         "security": [

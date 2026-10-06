@@ -51,7 +51,10 @@ async function cargarBandeja(
   const pClasificar = esperarApi(page, /^\/api\/bank-movements\?.*status=unclassified/);
   await page.goto("/bandeja");
   let review = (await jsonDeRespuesta<ReviewQueue>(await pReview))?.items ?? null;
-  let clas = await jsonDeRespuesta<BankMovementsList>(await pClasificar);
+  /* Sólo se usan `items` y `total`: el fallback por API no puede fabricar el resto de la
+     respuesta, y menos `cuentas_retiradas`, que es una medición de producción. */
+  let clas: Pick<BankMovementsList, "items" | "total"> | null =
+    await jsonDeRespuesta<BankMovementsList>(await pClasificar);
   if (!review) {
     evidencia.nota("La página no pidió la cola de conciliación: se lee por API.");
     review = (await revision(api, empresa)).items;
