@@ -200,3 +200,130 @@ export function evidenceWorkerTally(
     withoutRut: workers.filter((w) => !w.worker_rut).length,
   };
 }
+
+/* ───────────────────────────────────────────────────────────────────────────────────────────
+   El PERÍODO: su estado y la cobertura de la asignación (#203).
+
+   Acá está la categoría que faltaba en pantalla. El read model por trabajador sólo cuenta lo
+   confirmado, así que un pago **observado y no confirmado** no figuraba en ninguna cifra: un
+   período con un pago por verificar se leía igual que uno donde nadie pagó. El contrato lo
+   publica con nombre propio (`observed_payment_amount`, `state: "observed_unconfirmed"`), y
+   esta traducción existe para que la pantalla lo diga en esos términos.
+
+   La regla que ordena todas las frases de abajo: **observado no es pagado.** Un pago observado
+   es una pista de que alguien movió plata, no la prueba de que esta obligación quedó cubierta.
+   Ninguna copia de un estado no confirmado usa la palabra "pagado" para el período. */
+
+export type EvidencePeriodState =
+  | "accrued_liquid"
+  | "observed_unconfirmed"
+  | "confirmed_outstanding"
+  | "confirmed_paid"
+  | "conflict"
+  | "unknown";
+
+export interface EvidencePeriodStateCopy {
+  label: string;
+  detail: string;
+  /** `confirmed` sólo cuando la evidencia confirma. Un observado NUNCA llega acá. */
+  tone: "neutral" | "observed" | "partial" | "confirmed" | "conflict";
+  /** Si el período puede rotularse como pagado. Lo decide el `state` del backend, nada más. */
+  countsAsPaid: boolean;
+}
+
+const PERIOD_STATE_COPY: Record<EvidencePeriodState, EvidencePeriodStateCopy> = {
+  accrued_liquid: {
+    label: "Obligación sellada, sin pago observado",
+    detail:
+      "El origen selló lo que se debe en el período y todavía ningún pago observado se cuenta contra esa obligación.",
+    tone: "neutral",
+    countsAsPaid: false,
+  },
+  observed_unconfirmed: {
+    label: "Pago observado, por verificar",
+    detail:
+      "Hay un pago observado contra el período que todavía nadie confirmó. Mientras siga por verificar, el período no cuenta como cubierto: la cifra de abajo dice cuánto se observó, no cuánto quedó pagado.",
+    tone: "observed",
+    countsAsPaid: false,
+  },
+  confirmed_outstanding: {
+    label: "Pago confirmado, con saldo abierto",
+    detail:
+      "Hay pago confirmado contra el período y la obligación sellada sigue sin quedar cubierta por completo.",
+    tone: "partial",
+    countsAsPaid: false,
+  },
+  confirmed_paid: {
+    label: "Pagado con evidencia confirmada",
+    detail: "Un pago confirmado cubre la obligación sellada del período.",
+    tone: "confirmed",
+    countsAsPaid: true,
+  },
+  conflict: {
+    label: "La evidencia del período se contradice",
+    detail:
+      "El período tiene evidencia que no cuadra entre sí, así que la lectura se abstiene de afirmar un saldo. Las razones de abajo dicen en qué se contradice.",
+    tone: "conflict",
+    countsAsPaid: false,
+  },
+  unknown: {
+    label: "Estado que esta pantalla no traduce",
+    detail:
+      "La lectura publicó un estado del período que esta pantalla todavía no traduce, así que no lo interpreta: las cifras y las razones de abajo son las que publicó la lectura.",
+    tone: "neutral",
+    countsAsPaid: false,
+  },
+};
+
+export function periodStateCopy(state: string | null | undefined): EvidencePeriodStateCopy {
+  if (
+    state === "accrued_liquid" ||
+    state === "observed_unconfirmed" ||
+    state === "confirmed_outstanding" ||
+    state === "confirmed_paid" ||
+    state === "conflict"
+  ) {
+    return PERIOD_STATE_COPY[state];
+  }
+  return PERIOD_STATE_COPY.unknown;
+}
+
+/* La cobertura de la asignación es una pregunta DISTINTA de si el pago está confirmado, y por
+   eso #203 pide las dos por separado: un lote confirmado puede bajar el total del período y
+   seguir `unallocated`, o sea sin alcanzar para nombrar a una sola persona. */
+export interface EvidenceCoverageCopy {
+  label: string;
+  detail: string;
+}
+
+const COVERAGE_COPY: Record<string, EvidenceCoverageCopy> = {
+  unallocated: {
+    label: "Sin repartir por persona",
+    detail:
+      "Lo observado o confirmado en el período no está repartido persona por persona, así que no alcanza para nombrar a nadie.",
+  },
+  partial: {
+    label: "Repartido en parte",
+    detail:
+      "Una parte de lo asignado al período está repartida persona por persona; el resto baja el total sin nombrar a nadie.",
+  },
+  full: {
+    label: "Repartido persona por persona",
+    detail: "Todo lo asignado al período está repartido con nombre y RUT.",
+  },
+};
+
+export function allocationCoverageCopy(coverage: string | null | undefined): EvidenceCoverageCopy {
+  if (!coverage) {
+    return {
+      label: "Reparto que la lectura no declara",
+      detail: "La lectura del período no declaró cómo está repartido lo que se le asignó.",
+    };
+  }
+  return (
+    COVERAGE_COPY[coverage] ?? {
+      label: `Reparto declarado "${coverage}"`,
+      detail: `La lectura declaró un reparto "${coverage}" que esta pantalla todavía no traduce.`,
+    }
+  );
+}

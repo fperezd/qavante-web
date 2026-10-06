@@ -36,7 +36,7 @@ const TONE_CLASS: Record<EvidenceWorkerStateCopy["tone"], string> = {
   neutral: "bg-neutral-100 text-neutral-700 border-neutral-200",
 };
 
-function Cifra({
+export function Cifra({
   titulo,
   valor,
   currency,

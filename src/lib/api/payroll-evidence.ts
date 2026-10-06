@@ -32,6 +32,8 @@ export const payrollEvidenceKeys = {
   all: ["payroll-evidence"] as const,
   workerOutstanding: (period: string) =>
     [...payrollEvidenceKeys.all, "worker-outstanding", period] as const,
+  periodEvidence: (period: string) =>
+    [...payrollEvidenceKeys.all, "period-evidence", period] as const,
 };
 
 /** Saldo por trabajador del período (`period` = YYYYMM). Owner/admin — degrada honesto si 403. */
@@ -41,6 +43,50 @@ export function usePayrollWorkerOutstanding(period: string, enabled = true) {
     queryFn: () =>
       api.get<PayrollWorkerOutstanding>(
         `/api/admin/treasury/payroll-worker-outstanding/${encodeURIComponent(period)}`,
+      ),
+    enabled: enabled && Boolean(period),
+  });
+}
+
+/* ───────────────────────────────────────────────────────────────────────────────────────────
+   Lectura POR PERÍODO del mismo ledger D14: `GET /api/treasury/payroll-evidence/{YYYY-MM}`.
+
+   Por qué hace falta ADEMÁS de la lectura por trabajador, que es lo que #203 todavía no tenía
+   en pantalla: la lectura por trabajador cuenta sólo lo CONFIRMADO
+   (`batch_allocated_amount` son lotes confirmados; `confirmed_paid_amount` son asignaciones
+   colgadas de un pago confirmado). Un pago **observado y todavía no confirmado** no aparece en
+   ninguna de sus cifras. En pantalla, entonces, un período con un pago observado por verificar
+   se veía EXACTAMENTE igual que un período donde nadie pagó nada.
+
+   Esta lectura publica esa categoría con nombre propio: `observed_payment_amount` y
+   `state: "observed_unconfirmed"`. Es la segunda de las cinco separaciones que pide #203
+   —obligación, pago observado por verificar, pago de lote confirmado, saldo y cobertura de la
+   asignación— y la única que no estaba cableada.
+
+   Dos diferencias con la lectura por trabajador que NO se pueden perder:
+
+   1. **El período va en `YYYY-MM`, no en `YYYYMM`.** El contrato lo fija con el patrón
+      `^\d{4}-(0[1-9]|1[0-2])$`. Pasarle el `YYYYMM` de la otra ruta da 422.
+   2. **No es admin.** La lectura por trabajador vive bajo `/api/admin/` y un CFO sin rol admin
+      recibe 403; ésta no, así que es la que puede ver cualquiera que entre a la pantalla.
+
+   `confirmed_outstanding_amount` en `null` es abstención, no impago, y `allocation_coverage`
+   dice aparte si lo asignado alcanza o no para nombrar a alguien. */
+
+export type PayrollPeriodEvidence = components["schemas"]["PayrollPeriodEvidenceResponse"];
+
+/** `YYYYMM` → `YYYY-MM`, que es el formato que exige esta ruta. Devuelve "" si no es un YYYYMM. */
+export function yyyymmToDashedPeriod(yyyymm: string): string {
+  return /^\d{6}$/.test(yyyymm) ? `${yyyymm.slice(0, 4)}-${yyyymm.slice(4, 6)}` : "";
+}
+
+/** Evidencia del período (`period` = `YYYY-MM`). Visible sin rol admin. */
+export function usePayrollPeriodEvidence(period: string, enabled = true) {
+  return useQuery({
+    queryKey: payrollEvidenceKeys.periodEvidence(period),
+    queryFn: () =>
+      api.get<PayrollPeriodEvidence>(
+        `/api/treasury/payroll-evidence/${encodeURIComponent(period)}`,
       ),
     enabled: enabled && Boolean(period),
   });
