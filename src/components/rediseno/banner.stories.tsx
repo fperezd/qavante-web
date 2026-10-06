@@ -52,7 +52,7 @@ export const Ok: Story = {
 
 export const Dismissible: Story = {
   args: {
-    children: "Recordatorio contextual: podés descartarlo sin que vuelva a aparecer.",
+    children: "Recordatorio contextual: puedes descartarlo sin que vuelva a aparecer.",
     dismissible: true,
     onDismiss: fn(),
   },

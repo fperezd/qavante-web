@@ -39,11 +39,11 @@ export function AuthCallbackView() {
     const state = searchParams.get("state");
 
     if (oauthError) {
-      setError("Cancelaste el login o Auth0 lo rechazó. Volvé a intentar.");
+      setError("Cancelaste el login o Auth0 lo rechazó. Vuelve a intentarlo.");
       return;
     }
     if (!code || !state) {
-      setError("Falta el código de Auth0. Volvé a /login-correo e intentá de nuevo.");
+      setError("Falta el código de Auth0. Vuelve a /login-correo e inténtalo de nuevo.");
       return;
     }
 
@@ -63,7 +63,7 @@ export function AuthCallbackView() {
           }
           setError(apiErrorToUserMessage(err, "login-correo"));
         } else {
-          setError("No pudimos completar el login. Reintentá.");
+          setError("No pudimos completar el login. Vuelve a intentarlo.");
         }
       }
     })();

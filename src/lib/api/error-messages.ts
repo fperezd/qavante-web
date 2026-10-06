@@ -20,11 +20,11 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
   if (err.code === "oauth_pending_verification") {
     return (
       err.message ||
-      "Esa cuenta existe pero todavía no confirmó el correo. Revisá la bandeja o reenviá la verificación."
+      "Esa cuenta existe pero todavía no confirmó el correo. Revisa la bandeja o reenvía la verificación."
     );
   }
   if (err.code === "oauth_state_mismatch" || err.code === "oauth_exchange_failed") {
-    return err.message || "No pudimos completar el login con Google o Microsoft. Volvé a intentar.";
+    return err.message || "No pudimos completar el login con Google o Microsoft. Vuelve a intentarlo.";
   }
   if (err.code === "oauth_not_configured") {
     return "Login con Google o Microsoft no está disponible en este ambiente.";

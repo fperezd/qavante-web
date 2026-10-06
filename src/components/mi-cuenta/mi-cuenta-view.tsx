@@ -172,7 +172,7 @@ function DeleteAccountCard() {
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
           title="¿Borrar tu cuenta?"
-          description="Se eliminan tu usuario, la empresa y los datos asociados. Después podés volver a crear la cuenta en /registro."
+          description="Se eliminan tu usuario, la empresa y los datos asociados. Después puedes volver a crear la cuenta en /registro."
           confirmLabel="Borrar cuenta"
           loading={del.isPending}
           error={del.isError ? deleteAccountErrorMessage(del.error) : null}
