@@ -45,6 +45,8 @@ function doc(over: Partial<DocMaestro>): DocMaestro {
 const debtor = (over: Partial<TopDebtor> & { name: string; total: string }): TopDebtor => ({
   rut: "11111111-1",
   overdue: "0",
+  counterparty_key: null,
+  identity_resolution: "not_evaluated",
   ...over,
 });
 

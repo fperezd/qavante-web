@@ -91,9 +91,17 @@ export const Normal: Story = {
     await expect(canvas.getAllByText("Conciliado ✓")).toHaveLength(2);
     await expect(canvas.getAllByText("Clasificado ✓")).toHaveLength(4);
     await expect(canvas.getAllByText("Sin clasificar")).toHaveLength(4);
-    // Ley 7: la glosa completa está en el DOM.
+    /* La contraparte que el banco acreditó manda en la columna principal (api#1134). */
+    await expect(canvas.getByText("Abono · Cliente Norte SpA")).toBeInTheDocument();
+    /* Ley 7: la glosa completa sigue en el DOM, entera. Ahora viaja dentro del `.sub` junto a la
+       procedencia, así que se busca por contenido y no por nodo exacto: lo custodiado es que la
+       glosa no se pierda ni se recorte, no en qué línea quedó. */
     await expect(
-      canvas.getByText("Abono por transferencia de Cliente Norte SpA 76.123.456-7"),
+      canvas.getByText(/Abono por transferencia de Cliente Norte SpA 76\.123\.456-7/),
+    ).toBeInTheDocument();
+    /* Y la procedencia va al lado del nombre: la pantalla dice de dónde salió esa identidad. */
+    await expect(
+      canvas.getByText(/Contraparte informada por el banco · 76\.123\.456-7/),
     ).toBeInTheDocument();
     // "Clasificar" abre el flujo actual con el ítem cargado.
     const cta = canvas.getAllByRole("link", { name: "Clasificar" })[0]!;
@@ -113,6 +121,13 @@ const rawHistoricalMovement = {
   bank_account_id: "account-historical",
   date: "2025-01-15",
   description: "Pago histórico abierto desde una factura",
+  /* Se declara la contraparte en vez de heredar la de m1 al spread: este movimiento es de enero
+     de 2025 y entró por el historial, un camino de ingesta que no mira contraparte, así que al
+     banco nunca se le preguntó por él. Heredar "Cliente Norte SpA" le pondría a un movimiento
+     histórico una identidad que nadie acreditó. */
+  counterparty_name: null,
+  counterparty_tax_id: null,
+  counterparty_source: "not_captured" as const,
 };
 const historicalMovement = movimientosV03({
   items: [rawHistoricalMovement],
@@ -256,8 +271,11 @@ export const BuscarYFiltrar: Story = {
     const input = canvas.getByRole("searchbox", { name: "Buscar por glosa, RUT o monto" });
     await userEvent.type(input, "76.123.456-7");
     await expect(canvas.getByRole("radio", { name: "Todos · 1" })).toBeInTheDocument();
+    /* El RUT buscado está en el campo de contraparte Y en la glosa; el único resultado se lee por
+       su principal nueva, y la glosa completa sigue presente debajo (Ley 7). */
+    await expect(canvas.getByText("Abono · Cliente Norte SpA")).toBeInTheDocument();
     await expect(
-      canvas.getByText("Abono por transferencia de Cliente Norte SpA 76.123.456-7"),
+      canvas.getByText(/Abono por transferencia de Cliente Norte SpA 76\.123\.456-7/),
     ).toBeInTheDocument();
     await expect(canvas.queryByText("Transf. Dattatec.com hosting")).not.toBeInTheDocument();
 

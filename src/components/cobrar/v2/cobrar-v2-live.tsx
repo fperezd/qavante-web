@@ -187,6 +187,11 @@ function Assembled({
           rut: cp.rut,
           total: String(Math.max(0, cp.total - cp.pagado)),
           overdue: String(Math.max(0, cp.vencido)),
+          /* Esta fila se deriva del maestro RCV en el cliente: acá nunca se le preguntó al grafo
+             canónico por la identidad, y decir `unresolved` afirmaría que se preguntó y no se
+             resolvió. `not_evaluated` es el hecho. */
+          counterparty_key: null,
+          identity_resolution: "not_evaluated" as const,
         }));
     }
     return data.top_debtors ?? [];

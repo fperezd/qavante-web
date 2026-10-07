@@ -245,6 +245,13 @@ function mov(over: Partial<BankMovement> & Pick<BankMovement, "id">): BankMoveme
     classification_status: "unclassified",
     confidence: null,
     classification_notes: null,
+    /* La procedencia por defecto es la de la mayoría de los movimientos de hoy: entraron por una
+       carga que no mira contraparte (cartola, archivo de tarjeta, historial), así que nadie
+       preguntó. No hubo relleno retroactivo a propósito: no se puede saber después si el banco la
+       habría informado. */
+    counterparty_name: null,
+    counterparty_tax_id: null,
+    counterparty_source: "not_captured",
     ...over,
   };
 }
@@ -254,6 +261,10 @@ function mov(over: Partial<BankMovement> & Pick<BankMovement, "id">): BankMoveme
  *   m4 abono clasificado sólo por cuenta de gestión · m5 cargo conciliado · m6 cargo USD por
  *   clasificar (sugerido) · m7 "classified" SIN categoría (→ por clasificar) · m8 abono excluido
  *   de conciliación y sin clasificar.
+ *
+ *  Procedencia de contraparte, las tres cubiertas: m1 `bank_transfer_party` (el banco informó
+ *  "Cliente Norte SpA" y su RUT) · m8 `not_published_by_bank` (se preguntó y no la publica) ·
+ *  el resto `not_captured` (entraron por una carga que no la mira).
  *
  *  Conteos: todos 8 · abonos 3 · cargos 5 · por conciliar 5 (m2, m3, m4, m6, m7).
  *  Totales CLP: abonos +7.120.000 · cargos −7.966.983. USD: cargos −184. */
@@ -265,6 +276,11 @@ export function movimientos(): BankMovement[] {
       description: "Abono por transferencia de Cliente Norte SpA 76.123.456-7",
       amount: "6000000.00",
       direction: "credit",
+      /* La única procedencia que acredita identidad: el banco informó el titular de la otra
+         cuenta de la transferencia. */
+      counterparty_name: "Cliente Norte SpA",
+      counterparty_tax_id: "76.123.456-7",
+      counterparty_source: "bank_transfer_party",
       canonical_category: "client_collection",
       management_account_id: "ma-1",
       reconciliation_status: "matched",
@@ -335,6 +351,9 @@ export function movimientos(): BankMovement[] {
       amount: "1000000.00",
       direction: "credit",
       reconciliation_status: "excluded",
+      /* Se le preguntó al proveedor por ESTE movimiento y no publica contraparte. Es la otra
+         ausencia, y no es la misma que la de m3/m6. */
+      counterparty_source: "not_published_by_bank",
     }),
   ];
 }

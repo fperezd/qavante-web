@@ -9,6 +9,7 @@ const movement: MovimientoV03 = {
   bankAccountId: "account-1",
   fecha: "2026-09-07",
   glosa: "Transferencia de ejemplo",
+  contraparte: { nombre: null, rut: null, procedencia: "carga_no_la_mira" },
   monto: -100_000,
   moneda: "CLP",
   esAbono: false,
@@ -24,6 +25,7 @@ function detail(
 ): BankMovementResolutionDetail {
   return {
     movementId: "m1",
+    contraparte: { nombre: null, rut: null, procedencia: "carga_no_la_mira" },
     reconciliation: {
       status: "conciliado",
       canUnreconcile: true,
@@ -152,5 +154,49 @@ describe("BankResolutionDetailDrawer", () => {
     );
     expect(error).toContain("No pudimos cargar el detalle del movimiento");
     expect(error).not.toContain("Desconciliar");
+  });
+});
+
+describe("BankResolutionDetailDrawer — con quién fue la plata", () => {
+  /* Acá la persona decide con qué documento concilia. Las dos ausencias llevan a búsquedas
+     distintas: si el banco no la publica, hay que buscar por monto y fecha; si la carga no la
+     mira, puede existir otra carga de la misma cuenta que sí la trae. */
+  const conProcedencia = (contraparte: BankMovementResolutionDetail["contraparte"]) =>
+    html({ ...detail(), contraparte });
+
+  it("contraparte acreditada: nombre, identificador y la glosa completa, las dos cosas", () => {
+    const rendered = conProcedencia({
+      nombre: "Cliente Norte SpA",
+      rut: "76.123.456-7",
+      procedencia: "banco_informo",
+    });
+    expect(rendered).toContain("Contraparte");
+    expect(rendered).toContain("Cliente Norte SpA");
+    expect(rendered).toContain("76.123.456-7");
+    expect(rendered).toContain("El banco informó el titular de la otra cuenta");
+    /* La glosa del movimiento sigue en el panel, entera. */
+    expect(rendered).toContain("Transferencia de ejemplo");
+  });
+
+  it("EL GEMELO: sin contraparte acreditada el panel DICE cuál ausencia es, y las dos frases difieren", () => {
+    const preguntado = conProcedencia({
+      nombre: null,
+      rut: null,
+      procedencia: "banco_no_la_publica",
+    });
+    const nadiePregunto = conProcedencia({
+      nombre: null,
+      rut: null,
+      procedencia: "carga_no_la_mira",
+    });
+    expect(preguntado).toContain("Le preguntamos al banco por este movimiento y no publica");
+    expect(nadiePregunto).toContain("al banco nunca se le preguntó por él");
+    expect(preguntado).not.toContain("nunca se le preguntó");
+    expect(nadiePregunto).not.toContain("Le preguntamos al banco");
+    /* Y en ninguno de los dos aparece un nombre: sin acreditación no se exhibe identidad. */
+    for (const rendered of [preguntado, nadiePregunto]) {
+      expect(rendered).not.toContain("Cliente Norte SpA");
+      expect(rendered).toContain("Transferencia de ejemplo");
+    }
   });
 });

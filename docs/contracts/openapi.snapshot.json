@@ -1254,6 +1254,19 @@
       "AdoptLegacyOpeningCutoffRequest": {
         "additionalProperties": false,
         "properties": {
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Humano con rol owner/admin/technical_admin que ADOPTA el corte. Obligatorio con X-Api-Key cuando `dry_run=False` (un runbook no es una persona); con cookie de sesión se omite, y declarar a otro usuario es 403. En `dry_run` no hace falta: una previsualización no escribe autoría.",
+            "title": "Actor User Id"
+          },
           "created_after": {
             "anyOf": [
               {
@@ -3020,6 +3033,40 @@
             ],
             "title": "Confidence"
           },
+          "counterparty_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nombre del titular de la otra cuenta, tal como lo informó el banco. `null` cuando `counterparty_source` no es `bank_transfer_party`: léelo junto a la procedencia, que dice por qué. Nunca se deriva de `description`.",
+            "title": "Counterparty Name"
+          },
+          "counterparty_source": {
+            "description": "Procedencia de la contraparte, para que la pantalla no tenga que interpretar un `null`. `bank_transfer_party`: el banco informó la contraparte estructurada de la transferencia. `not_published_by_bank`: se le preguntó al proveedor por este movimiento y no publica contraparte — no es transferencia, o el banco no la informa. `not_captured`: este movimiento entró por un camino de ingesta que no mira contraparte (cartola BICE, PDF de tarjeta, histórico), así que nadie preguntó; no es lo mismo que haber preguntado y no obtener contraparte. Es obligatorio en la respuesta para que una consulta que omita la columna falle en vez de inventar procedencia.",
+            "enum": [
+              "bank_transfer_party",
+              "not_published_by_bank",
+              "not_captured"
+            ],
+            "title": "Counterparty Source",
+            "type": "string"
+          },
+          "counterparty_tax_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identificador tributario de la contraparte, normalizado (en Chile, el RUT). `null` bajo la misma condición que `counterparty_name`. Nunca se deriva de `description`.",
+            "title": "Counterparty Tax Id"
+          },
           "currency_code": {
             "anyOf": [
               {
@@ -3190,7 +3237,8 @@
           "amount",
           "direction",
           "currency_source",
-          "imported_at"
+          "imported_at",
+          "counterparty_source"
         ],
         "title": "BankMovement",
         "type": "object"
@@ -28831,6 +28879,40 @@
             "title": "Bank Account Id",
             "type": "string"
           },
+          "counterparty_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nombre del titular de la otra cuenta, tal como lo informó el banco. `null` cuando `counterparty_source` no es `bank_transfer_party`. Nunca se deriva de la glosa.",
+            "title": "Counterparty Name"
+          },
+          "counterparty_source": {
+            "description": "Procedencia de la contraparte. `bank_transfer_party`: el banco la informó. `not_published_by_bank`: se le preguntó al proveedor y no la publica. `not_captured`: este movimiento entró por un camino de ingesta que no mira contraparte, así que nadie preguntó.",
+            "enum": [
+              "bank_transfer_party",
+              "not_published_by_bank",
+              "not_captured"
+            ],
+            "title": "Counterparty Source",
+            "type": "string"
+          },
+          "counterparty_tax_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identificador tributario de la contraparte, normalizado (en Chile, el RUT). `null` bajo la misma condición que `counterparty_name`. Nunca se deriva de la glosa.",
+            "title": "Counterparty Tax Id"
+          },
           "currency_code": {
             "anyOf": [
               {
@@ -28872,7 +28954,8 @@
           "description",
           "amount",
           "direction",
-          "bank_account"
+          "bank_account",
+          "counterparty_source"
         ],
         "title": "MovementDetail",
         "type": "object"
@@ -30218,6 +30301,43 @@
           "sii"
         ],
         "title": "OnboardingSyncSources",
+        "type": "object"
+      },
+      "OpeningCutoffApplyRequest": {
+        "additionalProperties": false,
+        "description": "Body del corte de apertura que SÍ escribe. Suma la autoría a los parámetros (#1108).\n\n`/opening-cutoff/preview` NO lo usa a propósito: la previsualización no escribe nada, así que\nno tiene autor que registrar y su `extra=\"forbid\"` rechaza el campo en vez de aceptarlo y\ntirarlo a la basura.",
+        "properties": {
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Humano con rol owner/admin/technical_admin que AUTORIZA el corte. Obligatorio con X-Api-Key (un runbook no es una persona); con cookie de sesión se omite, y declarar a otro usuario es 403.",
+            "title": "Actor User Id"
+          },
+          "cutoff_date": {
+            "description": "Los documentos con issue_date y los movimientos bancarios con date hasta esta fecha entran al corte de apertura (YYYY-MM-DD).",
+            "title": "Cutoff Date",
+            "type": "string"
+          },
+          "keep_open": {
+            "description": "source_external_id de los documentos que SIGUEN pendientes (no se saldan).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Keep Open",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cutoff_date"
+        ],
+        "title": "OpeningCutoffApplyRequest",
         "type": "object"
       },
       "OpeningCutoffRequest": {
@@ -38853,6 +38973,19 @@
             "title": "Complete",
             "type": "boolean"
           },
+          "counterparty_key": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nodo canónico vigente del grafo D08 del tenant. `null` cuando no hay identidad acreditada: léelo junto a `identity_resolution`, que dice por qué. Nunca se deriva del RUT ni del nombre.",
+            "title": "Counterparty Key"
+          },
           "dhdr_codigo": {
             "anyOf": [
               {
@@ -38964,6 +39097,20 @@
               }
             ],
             "title": "Folio"
+          },
+          "identity_resolution": {
+            "default": "not_evaluated",
+            "description": "Procedencia de `counterparty_key`, para que agrupar no dependa de adivinar. `graph`: el grafo canónico D08 asignó este documento. `legacy_fallback`: el grafo no lo tiene y se publicó la identidad legada persistida, que acredita un RUT propio. `mixed`: la fila agrega documentos de las dos procedencias. `unresolved`: el grafo no resolvió y no hay identidad legada publicable, así que `counterparty_key` va `null`. `conflict`: la fila agrega documentos de más de una identidad canónica y publicar una sola sería elegir por el consumidor; también va `null`. `not_evaluated`: esta respuesta no le preguntó al grafo por este documento, que no es lo mismo que haber preguntado y no obtener identidad; agrupar por nombre sobre estas filas sigue siendo una apuesta.",
+            "enum": [
+              "graph",
+              "legacy_fallback",
+              "mixed",
+              "unresolved",
+              "conflict",
+              "not_evaluated"
+            ],
+            "title": "Identity Resolution",
+            "type": "string"
           },
           "iva": {
             "anyOf": [
@@ -42110,6 +42257,27 @@
           "reabiertos"
         ],
         "title": "RevertMarkCollectedResponse",
+        "type": "object"
+      },
+      "RevertOpeningCutoffRequest": {
+        "additionalProperties": false,
+        "description": "Body OPCIONAL de la reversa del corte. Sólo existe para declarar la autoría (#1108).",
+        "properties": {
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Humano con rol owner/admin/technical_admin que AUTORIZA deshacer el corte. Obligatorio con X-Api-Key; con cookie de sesión se omite, y declarar a otro usuario es 403.",
+            "title": "Actor User Id"
+          }
+        },
+        "title": "RevertOpeningCutoffRequest",
         "type": "object"
       },
       "RevertOpeningCutoffResponse": {
@@ -47490,6 +47658,32 @@
             "description": "`reconciliation_quarantine` cuando el importe es desconocido porque la evidencia de pago está en revisión (#687); `null` si el importe es conocido.",
             "title": "Amount Unknown Reason"
           },
+          "counterparty_key": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nodo canónico vigente del grafo D08 del tenant. `null` cuando no hay identidad acreditada: léelo junto a `identity_resolution`, que dice por qué. Nunca se deriva del RUT ni del nombre.",
+            "title": "Counterparty Key"
+          },
+          "identity_resolution": {
+            "description": "Procedencia de `counterparty_key`, para que agrupar no dependa de adivinar. `graph`: el grafo canónico D08 asignó este documento. `legacy_fallback`: el grafo no lo tiene y se publicó la identidad legada persistida, que acredita un RUT propio. `mixed`: la fila agrega documentos de las dos procedencias. `unresolved`: el grafo no resolvió y no hay identidad legada publicable, así que `counterparty_key` va `null`. `conflict`: la fila agrega documentos de más de una identidad canónica y publicar una sola sería elegir por el consumidor; también va `null`. `not_evaluated`: esta respuesta no le preguntó al grafo por este documento, que no es lo mismo que haber preguntado y no obtener identidad; agrupar por nombre sobre estas filas sigue siendo una apuesta.",
+            "enum": [
+              "graph",
+              "legacy_fallback",
+              "mixed",
+              "unresolved",
+              "conflict",
+              "not_evaluated"
+            ],
+            "title": "Identity Resolution",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -47544,6 +47738,8 @@
         },
         "required": [
           "name",
+          "counterparty_key",
+          "identity_resolution",
           "total",
           "overdue"
         ],
@@ -53796,7 +53992,7 @@
     },
     "/api/admin/treasury/opening-cutoff/adopt-legacy": {
       "post": {
-        "description": "Previsualiza (o aplica, si `dry_run=False`) la adopción de un corte de apertura\nhistórico. Devuelve el run, los conteos exactos por lado y los documentos —acotados en la\nrespuesta, completos en el audit— con sus valores actuales y los valores previos DECLARADOS\nque restauraría el revert. Una corrida sin filas no escribe nada.",
+        "description": "Previsualiza (o aplica, si `dry_run=False`) la adopción de un corte de apertura\nhistórico. Devuelve el run, los conteos exactos por lado y los documentos —acotados en la\nrespuesta, completos en el audit— con sus valores actuales y los valores previos DECLARADOS\nque restauraría el revert. Una corrida sin filas no escribe nada.\n\n**Auth (#1108): X-Api-Key o cookie de sesión**, las dos con rol owner/admin/technical_admin.\nCon `dry_run=False` este endpoint hace un UPSERT con `DO UPDATE SET applied_by` sobre\n`treasury.opening_cutoff_config`: con X-Api-Key el autor era `None` y la\nadopción **pisaba** con NULL a quien hubiera aplicado el corte antes. Por eso el camino\napi-key exige `actor_user_id` en el body y lo valida contra `core.memberships` (422\n`actor_user_id_required`, 403 `actor_not_authorized`). En `dry_run` no se pide: no escribe\nnada, así que no hay autoría que registrar.",
         "operationId": "admin_adopt_legacy_opening_cutoff",
         "parameters": [
           {
@@ -53838,13 +54034,13 @@
             "description": "Successful Response"
           },
           "403": {
-            "description": "Rol sin permiso (requiere owner/admin/technical_admin)."
+            "description": "Rol sin permiso (requiere owner/admin/technical_admin), o `actor_user_id` no autorizado."
           },
           "409": {
             "description": "La empresa tiene un corte de apertura registrado con otra fecha."
           },
           "422": {
-            "description": "Marca temporal sin zona horaria."
+            "description": "Marca temporal sin zona horaria, o falta `actor_user_id`."
           }
         },
         "security": [
@@ -78154,7 +78350,7 @@
         ]
       },
       "post": {
-        "description": "Conciliación de APERTURA (ADR-0088): asume saldados los documentos previos al corte salvo\n`keep_open` y TGR/Previred/remuneraciones (siempre reales), y retira los movimientos bancarios\npendientes de las colas sin inventar categoría ni match. Para una empresa que entra con su\nhistoria ya conciliada fuera del sistema. Idempotente y reversible.",
+        "description": "Conciliación de APERTURA (ADR-0088): asume saldados los documentos previos al corte salvo\n`keep_open` y TGR/Previred/remuneraciones (siempre reales), y retira los movimientos bancarios\npendientes de las colas sin inventar categoría ni match. Para una empresa que entra con su\nhistoria ya conciliada fuera del sistema. Idempotente y reversible.\n\n**Auth (#1108): X-Api-Key o cookie de sesión**, las dos con rol owner/admin/technical_admin.\nEl camino api-key exige `actor_user_id` en el body: es la operación más amplia del\nonboarding y no se acepta anónima. Sin él responde 422 `actor_user_id_required`; si ese\nusuario no tiene membership activa con rol admin en el tenant, 403 `actor_not_authorized`.\nCon cookie el autor es la sesión, y declarar a otro usuario es 403 `actor_mismatch`.",
         "operationId": "treasury_reconciliation_opening_cutoff",
         "parameters": [
           {
@@ -78178,7 +78374,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OpeningCutoffRequest"
+                "$ref": "#/components/schemas/OpeningCutoffApplyRequest"
               }
             }
           },
@@ -78195,8 +78391,18 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "description": "`actor_user_id` no autorizado, o declarado por una sesión ajena."
+          },
           "422": {
-            "description": "cutoff_date mal formado."
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -78269,7 +78475,7 @@
     },
     "/api/treasury/reconciliation/opening-cutoff/revert": {
       "post": {
-        "description": "Revierte la conciliación de apertura: restaura sólo las filas del run activo y sus valores\nanteriores, sin tocar pagos reales ni conciliaciones manuales. Idempotente.",
+        "description": "Revierte la conciliación de apertura: restaura sólo las filas del run activo y sus valores\nanteriores, sin tocar pagos reales ni conciliaciones manuales. Idempotente.\n\n**Auth (#1108): X-Api-Key o cookie de sesión**, las dos con rol owner/admin/technical_admin.\nLa reversa escribe autoría (`opening_cutoff_config.reverted_by` + evento de auditoría), así\nque el camino api-key exige `actor_user_id` en un body opcional que sólo existe para eso:\nsin él, 422 `actor_user_id_required`; sin membership admin activa, 403\n`actor_not_authorized`. Con cookie el autor es la sesión y declarar a otro es 403\n`actor_mismatch`.",
         "operationId": "treasury_reconciliation_opening_cutoff_revert",
         "parameters": [
           {
@@ -78289,6 +78495,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RevertOpeningCutoffRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -78299,6 +78522,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "description": "`actor_user_id` no autorizado, o declarado por una sesión ajena."
           },
           "422": {
             "content": {

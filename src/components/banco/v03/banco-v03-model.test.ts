@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { BankMovement } from "@/lib/api/treasury";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import {
+  CONTRAPARTE_EXPLICACION,
+  CONTRAPARTE_LEYENDA,
   chipCajaHoy,
   cicloDe,
   coincideBusqueda,
+  contraparteDe,
   conexionBanco,
   contarMovimientosV03,
   documentoConciliadoDe,
@@ -15,10 +18,12 @@ import {
   filtrarMovimientosV03,
   frescuraCuenta,
   hrefClasificar,
+  etiquetaFilaMovimiento,
   montoConSigno,
   montoFirmado,
   movimientosV03,
   parcial,
+  principalMovimiento,
   pendientesPorCuenta,
   quedaPorConciliar,
   subMovimiento,
@@ -509,16 +514,156 @@ describe("movimientosV03 — normalización", () => {
     expect(m1.esAbono).toBe(true);
     expect(m1.cuenta).toBe("CC CLP");
     expect(m1.categoria).toBe("Cobro de cliente");
-    expect(subMovimiento(m1)).toBe("21 ago · CC CLP · Cobro de cliente");
+    expect(subMovimiento(m1)).toBe(
+      "Contraparte informada por el banco · 76.123.456-7 · " +
+        "Abono por transferencia de Cliente Norte SpA 76.123.456-7 · " +
+        "21 ago · CC CLP · Cobro de cliente",
+    );
     const m6 = lista.find((m) => m.id === "m6")!;
     expect(m6.moneda).toBe("USD");
     expect(m6.cuenta).toBe("CC USD");
-    expect(subMovimiento(m6)).toBe("18 ago · CC USD · sin categoría");
+    expect(subMovimiento(m6)).toBe(
+      "Entró por una carga que no registra contraparte: al banco no se le preguntó · " +
+        "18 ago · CC USD · sin categoría",
+    );
   });
 
   it("la glosa va COMPLETA (Ley 7): ni se recorta ni se le extrae una contraparte", () => {
     const m1 = movs().find((m) => m.id === "m1")!;
     expect(m1.glosa).toBe("Abono por transferencia de Cliente Norte SpA 76.123.456-7");
+  });
+
+  it("la columna principal: lleva la contraparte acreditada y conserva la glosa completa en el .sub", () => {
+    const m1 = movs().find((m) => m.id === "m1")!;
+    expect(m1.contraparte).toEqual({
+      nombre: "Cliente Norte SpA",
+      rut: "76.123.456-7",
+      procedencia: "banco_informo",
+    });
+    /* (a) Con contraparte acreditada MANDA sobre la glosa: la principal deja de ser la glosa. */
+    expect(principalMovimiento(m1)).toBe("Abono · Cliente Norte SpA");
+    expect(principalMovimiento(m1)).not.toBe(m1.glosa);
+    /* …y la glosa no se pierde: baja ENTERA al `.sub`, con el identificador al lado. */
+    const sub = subMovimiento(m1);
+    expect(sub).toContain("Contraparte informada por el banco · 76.123.456-7");
+    expect(sub).toContain("Abono por transferencia de Cliente Norte SpA 76.123.456-7");
+    expect(sub).toContain("21 ago · CC CLP · Cobro de cliente");
+    /* El nombre accesible lleva las dos cosas: la fila no puede perder la glosa al cambiar la
+       principal. */
+    expect(etiquetaFilaMovimiento(m1)).toBe(
+      "Ver detalle de Cliente Norte SpA · Abono por transferencia de Cliente Norte SpA 76.123.456-7",
+    );
+  });
+
+  it("EL GEMELO de (a): con `not_published_by_bank` la pantalla LO DICE y la glosa sigue siendo la principal, entera", () => {
+    /* Sin este gemelo, un arreglo que escondiera la glosa pasaría (a) igual de verde. */
+    const m8 = movs().find((m) => m.id === "m8")!;
+    expect(m8.contraparte).toEqual({
+      nombre: null,
+      rut: null,
+      procedencia: "banco_no_la_publica",
+    });
+    expect(principalMovimiento(m8)).toBe("Abono transferencia sin identificar");
+    expect(principalMovimiento(m8)).toBe(m8.glosa);
+    const sub = subMovimiento(m8);
+    /* El hecho está dicho, no insinuado por un hueco. */
+    expect(sub).toContain("El banco no publica la contraparte de este movimiento");
+    expect(sub).toContain("10 ago · CC CLP · sin categoría");
+  });
+
+  it("EL GEMELO de (c): `not_captured` NO se confunde con `not_published_by_bank`", () => {
+    const m3 = movs().find((m) => m.id === "m3")!;
+    const m8 = movs().find((m) => m.id === "m8")!;
+    expect(m3.contraparte.procedencia).toBe("carga_no_la_mira");
+    expect(m8.contraparte.procedencia).toBe("banco_no_la_publica");
+    /* Las dos ausencias dejan la contraparte en `null`, y ahí termina el parecido. */
+    expect(m3.contraparte.nombre).toBeNull();
+    expect(m8.contraparte.nombre).toBeNull();
+    expect(subMovimiento(m3)).not.toBe(subMovimiento(m8));
+    expect(subMovimiento(m3)).toContain(
+      "Entró por una carga que no registra contraparte: al banco no se le preguntó",
+    );
+    expect(subMovimiento(m3)).not.toContain("El banco no publica la contraparte");
+    expect(subMovimiento(m8)).not.toContain("al banco no se le preguntó");
+    /* Y las cuatro frases son distintas entre sí, en la tabla y en el panel: colapsar dos
+       procedencias en una sola frase es la ausencia convertida en afirmación. */
+    for (const tabla of [CONTRAPARTE_LEYENDA, CONTRAPARTE_EXPLICACION]) {
+      const frases = Object.values(tabla);
+      expect(new Set(frases).size).toBe(frases.length);
+    }
+  });
+
+  it("EL GEMELO de (d): la contraparte mostrada VIENE DEL CAMPO — cambiar la glosa no la cambia", () => {
+    const base = movimientos().find((m) => m.id === "m1")!;
+    const otraGlosa = {
+      ...base,
+      description: "TRASPASO 00341 OTRA RAZON SOCIAL LTDA 99.888.777-6",
+    };
+    const sinGlosa = { ...base, description: "" };
+    const filas = movimientosV03({
+      items: [otraGlosa, sinGlosa],
+      cuentas: new Map(cuentasQavante().map((c) => [c.id, c])),
+      categorias: categorias(),
+    });
+    for (const fila of filas) {
+      expect(fila.contraparte.nombre).toBe("Cliente Norte SpA");
+      expect(principalMovimiento(fila)).toBe("Abono · Cliente Norte SpA");
+    }
+    /* La glosa cambió y lo mostrado como contraparte no: no hay parser de glosa detrás. */
+    expect(filas[0]!.glosa).toBe("TRASPASO 00341 OTRA RAZON SOCIAL LTDA 99.888.777-6");
+    expect(filas[1]!.glosa).toBe("Sin glosa");
+
+    /* El recíproco: una glosa que nombra una razón social y un RUT, sin campo que lo acredite,
+       NO produce contraparte. Es el parser que este modelo se niega a escribir. */
+    const soloGlosa = movimientosV03({
+      items: [
+        {
+          ...base,
+          id: "solo-glosa",
+          counterparty_name: null,
+          counterparty_tax_id: null,
+          counterparty_source: "not_published_by_bank",
+          description: "TRANSFERENCIA DE COMERCIAL KAUFMANN S.A. 96.572.360-9",
+        },
+      ],
+      cuentas: new Map(),
+      categorias: new Map(),
+    })[0]!;
+    expect(soloGlosa.contraparte.nombre).toBeNull();
+    expect(soloGlosa.contraparte.rut).toBeNull();
+    expect(principalMovimiento(soloGlosa)).toBe(
+      "TRANSFERENCIA DE COMERCIAL KAUFMANN S.A. 96.572.360-9",
+    );
+  });
+
+  it("un nombre que llega bajo una procedencia que no lo acredita NO se muestra", () => {
+    /* La respuesta se contradice: dice `not_captured` —nadie preguntó— y a la vez manda un
+       nombre. Mostrarlo exhibiría una identidad que la propia respuesta declara no tener. */
+    expect(
+      contraparteDe({
+        counterparty_name: "Alguien SpA",
+        counterparty_tax_id: "76.123.456-7",
+        counterparty_source: "not_captured",
+      }),
+    ).toEqual({ nombre: null, rut: null, procedencia: "carga_no_la_mira" });
+  });
+
+  it("sin el campo de procedencia no se asume ninguna de las tres: es su propio bucket", () => {
+    /* Mapear la ausencia del campo a `not_captured` afirmaría que se revisó el camino de ingesta
+       de este movimiento. No se revisó: la respuesta no lo dijo. */
+    const sinCampo = contraparteDe({});
+    expect(sinCampo.procedencia).toBe("procedencia_no_publicada");
+    expect(sinCampo.nombre).toBeNull();
+    expect(CONTRAPARTE_LEYENDA.procedencia_no_publicada).not.toBe(
+      CONTRAPARTE_LEYENDA.carga_no_la_mira,
+    );
+    expect(contraparteDe({ counterparty_source: "algo_que_no_existe" }).procedencia).toBe(
+      "procedencia_no_publicada",
+    );
+    /* Un nombre en blanco con la procedencia buena tampoco se muestra como contraparte. */
+    expect(
+      contraparteDe({ counterparty_name: "   ", counterparty_source: "bank_transfer_party" }),
+    ).toEqual({ nombre: null, rut: null, procedencia: "banco_informo" });
   });
 
   it("sólo toma la etiqueta del documento conciliado publicado por API", () => {
@@ -663,6 +808,25 @@ describe("buscar por glosa, RUT o monto (aceptación §V03)", () => {
     expect(coincideBusqueda(m1(), "dattatec")).toBe(false);
   });
 
+  it("contraparte acreditada: por nombre y por su identificador tributario", () => {
+    /* m1 trae la contraparte EN EL CAMPO. La búsqueda la encuentra por ahí, no por la glosa: un
+       movimiento cuya glosa no la nombra igual aparece. */
+    const soloCampo = movimientosV03({
+      items: [
+        {
+          ...movimientos().find((m) => m.id === "m1")!,
+          description: "TRASPASO 00341",
+        },
+      ],
+      cuentas: new Map(),
+      categorias: new Map(),
+    })[0]!;
+    expect(coincideBusqueda(soloCampo, "cliente norte")).toBe(true);
+    expect(coincideBusqueda(soloCampo, "76.123.456-7")).toBe(true);
+    expect(coincideBusqueda(soloCampo, "761234567")).toBe(true);
+    expect(coincideBusqueda(soloCampo, "comercial kaufmann")).toBe(false);
+  });
+
   it("RUT: con puntos, sin puntos, con o sin guion — encuentra lo mismo", () => {
     expect(coincideBusqueda(m1(), "76.123.456-7")).toBe(true);
     expect(coincideBusqueda(m1(), "76123456-7")).toBe(true);
@@ -701,12 +865,20 @@ describe("CTA y export", () => {
   it("CSV con separador ';', cabecera y monto firmado crudo; escapa comillas", () => {
     const csv = csvMovimientos(movs().filter((m) => m.id === "m3" || m.id === "m1"));
     const lineas = csv.split("\n");
-    expect(lineas[0]).toBe("fecha;glosa;cuenta;categoria;conciliacion;clasificacion;moneda;monto");
-    expect(lineas[1]).toBe(
-      "2026-08-21;Abono por transferencia de Cliente Norte SpA 76.123.456-7;CC CLP;Cobro de cliente;Conciliado;Clasificado;CLP;6000000",
+    expect(lineas[0]).toBe(
+      "fecha;contraparte;contraparte_rut;contraparte_procedencia;glosa;cuenta;categoria;" +
+        "conciliacion;clasificacion;moneda;monto",
     );
+    expect(lineas[1]).toBe(
+      "2026-08-21;Cliente Norte SpA;76.123.456-7;Contraparte informada por el banco;" +
+        "Abono por transferencia de Cliente Norte SpA 76.123.456-7;CC CLP;Cobro de cliente;" +
+        "Conciliado;Clasificado;CLP;6000000",
+    );
+    /* La planilla tampoco colapsa las dos ausencias: la contraparte va vacía, pero la columna de
+       procedencia dice CUÁL ausencia es. */
     expect(lineas[2]).toBe(
-      "2026-08-20;Transf. Dattatec.com hosting;CC CLP;;Pendiente;Sin clasificar;CLP;-66222",
+      "2026-08-20;;;Entró por una carga que no registra contraparte: al banco no se le preguntó;" +
+        "Transf. Dattatec.com hosting;CC CLP;;Pendiente;Sin clasificar;CLP;-66222",
     );
   });
 });

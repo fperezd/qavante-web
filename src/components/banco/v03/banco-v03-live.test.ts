@@ -83,6 +83,9 @@ describe("BancoV03Live — el limit que se pide al backend", () => {
         bank_account_id: "account-old",
         currency_code: "CLP",
         bank_account: { bank_name: "BICE", account_name: "Cuenta antigua" },
+        /* Un movimiento de 2025: entró por una carga que no mira contraparte y no hubo relleno
+           retroactivo. La procedencia lo dice; el enlace documental la arrastra tal cual. */
+        counterparty_source: "not_captured",
       },
       reconciliation: {
         stored_status: "matched",

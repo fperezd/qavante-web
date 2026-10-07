@@ -3,8 +3,12 @@ import { financialEventLabel } from "@/lib/formatters/financial-event";
 import { formatClpBare, formatMoney } from "@/lib/formatters/clp";
 import { formatPct } from "@/lib/formatters/pct";
 import { MONTO_EN_REVISION } from "@/lib/formatters/amount";
-import type { EstadoClasificacionV03, EstadoConciliacionV03 } from "./banco-v03-model";
-import { estadoClasificacionDe, estadoConciliacionDe } from "./banco-v03-model";
+import type {
+  ContraparteV03,
+  EstadoClasificacionV03,
+  EstadoConciliacionV03,
+} from "./banco-v03-model";
+import { contraparteDe, estadoClasificacionDe, estadoConciliacionDe } from "./banco-v03-model";
 
 /** Read model local para la UI de Banco. El adapter de OpenAPI puede reemplazarlo sin hacer que
  * la vista dependa de los tipos generados ni calcular semántica financiera en el cliente. */
@@ -41,6 +45,12 @@ export interface ResolutionComponent {
 
 export interface BankMovementResolutionDetail {
   movementId: string;
+  /** Con quién fue la plata, publicada POR MOVIMIENTO. Es distinta de la contraparte de un
+   * documento conciliado (`legacy_documents[].counterparty_name`), que llega vacía justo donde el
+   * panel más la necesita: en el movimiento sin conciliar, en los N:M y en los que están en
+   * revisión. Acá se decide con qué documento concilia, así que saber con quién fue la plata es
+   * parte de la decisión. */
+  contraparte: ContraparteV03;
   reconciliation: {
     status: EstadoConciliacionV03;
     /** Sólo true cuando el backend expone una conciliación documental que el endpoint
@@ -76,6 +86,7 @@ export function resolutionDetailFromMovement(
 ): BankMovementResolutionDetail {
   return {
     movementId: movement.id,
+    contraparte: contraparteDe(movement),
     reconciliation: {
       status: estadoConciliacionDe(movement),
       canUnreconcile: false,
@@ -148,6 +159,7 @@ export function resolutionDetailFromApi(
       : (current?.components ?? []);
   return {
     movementId: detail.movement.id,
+    contraparte: contraparteDe(detail.movement),
     reconciliation: {
       status: effectiveStatus,
       // El endpoint de reversa acepta también casos canónicos sin espejo legacy y es

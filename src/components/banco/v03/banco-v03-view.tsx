@@ -36,10 +36,12 @@ import {
   cuentasV03,
   filtrarMovimientosV03,
   fuenteBanco,
+  etiquetaFilaMovimiento,
   hrefClasificar,
   montoConSigno,
   movimientosV03,
   pendientesPorCuenta,
+  principalMovimiento,
   subMovimiento,
   sumaPorMoneda,
   tarjetasV03,
@@ -79,9 +81,14 @@ import type { BankResolutionDetailDrawerProps } from "./bank-resolution-detail-d
  * "NO SÉ" explícito — sin saldo del banco la celda dice "sin dato" con motivo (`SinDato`), nunca
  * $0; sin dato de conexión el pill dice "Sin dato de conexión", nunca "Conectada ✓".
  *
- * LO QUE FALTA, dicho acá y no sólo en el PR: (1) la contraparte NO viene como campo del
- * movimiento — la glosa va completa (Ley 7); (2) "Actualizando" usa `sync_progress` publicado
- * por la fuente: sin ETA muestra el tiempo transcurrido y declara esa ausencia; (3) "Clasificar" abre el
+ * LA CONTRAPARTE YA ES UN CAMPO DEL CONTRATO, y esta nota decía lo contrario. Desde api#1134 el
+ * movimiento publica `counterparty_name`, `counterparty_tax_id` y `counterparty_source`, y la
+ * pantalla los LEE: no hay ni puede haber un parser de glosa detrás. Lo dejo escrito acá porque
+ * mientras esto figuró como "lo que falta", el camino tentador para el que llegara era justamente
+ * recortar la glosa. La glosa sigue yendo completa (Ley 7).
+ *
+ * LO QUE FALTA, dicho acá y no sólo en el PR: (1) "Actualizando" usa `sync_progress` publicado
+ * por la fuente: sin ETA muestra el tiempo transcurrido y declara esa ausencia; (2) "Clasificar" abre el
  * Bandeja V07 (`/bandeja`), que concentra las excepciones de clasificación. El flujo detallado
  * legado sigue disponible dentro de la Bandeja cuando hace falta clasificar un movimiento a mano. */
 
@@ -754,7 +761,10 @@ function TablaMovimientos({
         header: "Movimiento",
         meta: { principal: true },
         cell: ({ row }) => (
-          <TablePrimaryCell value={row.original.glosa} sub={subMovimiento(row.original)} />
+          <TablePrimaryCell
+            value={principalMovimiento(row.original)}
+            sub={subMovimiento(row.original)}
+          />
         ),
       },
       {
@@ -831,7 +841,7 @@ function TablaMovimientos({
       onExport={onExport}
       emptyMessage={emptyMessage}
       onRowClick={onOpen}
-      rowAriaLabel={(movement) => `Ver detalle de ${movement.glosa}`}
+      rowAriaLabel={etiquetaFilaMovimiento}
     />
   );
 }

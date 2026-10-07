@@ -31,6 +31,8 @@ const deudor = (overdue: string | null) => ({
   rut: "96.572.360-9",
   total: "24741616",
   overdue,
+  counterparty_key: null,
+  identity_resolution: "not_evaluated" as const,
 });
 
 const meta = {

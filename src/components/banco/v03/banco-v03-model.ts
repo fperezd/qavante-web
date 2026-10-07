@@ -12,10 +12,13 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  *     `cajaHoy()` (Ley 1, la misma función que V01 y V02). Lo que sí hace es SUMAR POR MONEDA los
  *     saldos que el banco informa (INV-FX-001: CLP y USD nunca se mezclan) y COMPARAR la suma CLP
  *     con `cajaHoy()` para declarar si coinciden — sin adivinar cuando falta uno de los dos.
- *   · No extrae la contraparte de la glosa. La spec dice que "el parser ya la saca", pero el
- *     `BankMovement` del OpenAPI no la trae como campo y en el front no existe tal parser
- *     (medido: cero funciones con ese nombre en `src/`). Inventar un recorte de la glosa sería un
- *     default plausible; la glosa va COMPLETA (Ley 7) y el hueco queda declarado.
+ *   · No extrae la contraparte de la glosa, y ahora no hace falta: el contrato publica
+ *     `counterparty_name`, `counterparty_tax_id` y `counterparty_source` por movimiento. La
+ *     contraparte que se muestra SALE DEL CAMPO; la glosa es texto libre de cada banco y un
+ *     parser inventaría una contraparte que nadie acreditó. La glosa sigue COMPLETA (Ley 7).
+ *   · No colapsa las dos ausencias de contraparte en una sola. "El banco no la publica para este
+ *     movimiento" (se preguntó) y "esta carga no la mira" (nadie preguntó) son hechos distintos, y
+ *     mostrar lo mismo para los dos convierte una ausencia en una afirmación.
  *   · No inventa el estado de una conexión: sin dato de `/api/sources/status` ni de `/api/bice/saldo`
  *     el estado es `sin_dato`, nunca "Conectada". */
 
@@ -549,6 +552,78 @@ export type EstadoClasificacionV03 = "clasificado" | "por_clasificar" | "revisio
 /** Compatibilidad para consumidores antiguos; la UI nueva no usa este estado colapsado. */
 export type CicloMovimiento = "conciliado" | "clasificado" | "por_clasificar";
 
+/* ── Contraparte del movimiento ───────────────────────────────────────────────
+   Con quién fue la plata. El contrato publica tres campos y el tercero es el que importa: la
+   PROCEDENCIA. Sin ella, `counterparty_name: null` es un hueco que la pantalla tendría que
+   interpretar, y toda interpretación de un `null` termina siendo la misma frase para dos hechos
+   que no son el mismo. */
+
+/** Procedencia de la contraparte, en los términos de la pantalla.
+ *  · `banco_informo` — el banco informó la contraparte estructurada de la transferencia.
+ *  · `banco_no_la_publica` — se le preguntó al proveedor por ESTE movimiento y no la publica.
+ *  · `carga_no_la_mira` — el movimiento entró por una carga que no mira contraparte (cartola,
+ *    archivo de tarjeta, historial), así que nadie preguntó. NO es lo mismo que la anterior.
+ *  · `procedencia_no_publicada` — la respuesta llegó sin el campo de procedencia. Es el bucket
+ *    explícito del "no sé": no se mapea a `carga_no_la_mira`, porque eso afirmaría que se revisó
+ *    el camino de ingesta de este movimiento. */
+export type ProcedenciaContraparte =
+  "banco_informo" | "banco_no_la_publica" | "carga_no_la_mira" | "procedencia_no_publicada";
+
+const PROCEDENCIA_API: Record<string, ProcedenciaContraparte> = {
+  bank_transfer_party: "banco_informo",
+  not_published_by_bank: "banco_no_la_publica",
+  not_captured: "carga_no_la_mira",
+};
+
+export interface ContraparteV03 {
+  /** Nombre acreditado por el banco. `null` salvo con `banco_informo`. */
+  nombre: string | null;
+  /** Identificador tributario normalizado por el productor. `null` salvo con `banco_informo`. */
+  rut: string | null;
+  procedencia: ProcedenciaContraparte;
+}
+
+/** Lo que dice la fila cuando hay que explicar la contraparte. Las cuatro frases son DISTINTAS a
+ *  propósito: cada una nombra un hecho verificable, y un gemelo exige que no se repitan. */
+export const CONTRAPARTE_LEYENDA: Record<ProcedenciaContraparte, string> = {
+  banco_informo: "Contraparte informada por el banco",
+  banco_no_la_publica: "El banco no publica la contraparte de este movimiento",
+  carga_no_la_mira: "Entró por una carga que no registra contraparte: al banco no se le preguntó",
+  procedencia_no_publicada: "La contraparte de este movimiento llegó sin su procedencia",
+};
+
+/** La versión larga, para el panel de resolución, donde la persona decide con qué documento
+ *  concilia y necesita saber qué cubre cada frase. */
+export const CONTRAPARTE_EXPLICACION: Record<ProcedenciaContraparte, string> = {
+  banco_informo:
+    "El banco informó el titular de la otra cuenta de esta transferencia. La glosa completa queda abajo tal como la escribió el banco.",
+  banco_no_la_publica:
+    "Le preguntamos al banco por este movimiento y no publica la contraparte: o no es una transferencia, o el banco no la informa. La glosa completa es todo lo que entregó.",
+  carga_no_la_mira:
+    "Este movimiento entró por una carga que no registra contraparte (cartola, archivo de tarjeta o historial), así que al banco nunca se le preguntó por él. Es distinto de haber preguntado y recibir una transacción sin contraparte.",
+  procedencia_no_publicada:
+    "La respuesta de este movimiento llegó sin decir de dónde saldría su contraparte, así que la pantalla no afirma ni que se preguntó ni que no se preguntó.",
+};
+
+/** Normaliza la contraparte del contrato. El nombre y el identificador se honran SÓLO con
+ *  `banco_informo`: es la única procedencia que los acredita, y mostrarlos bajo otra sería
+ *  exhibir una identidad que la propia respuesta declara no tener. Nunca se lee `description`. */
+export function contraparteDe(
+  m: Partial<Pick<BankMovement, "counterparty_name" | "counterparty_tax_id">> & {
+    counterparty_source?: string | null;
+  },
+): ContraparteV03 {
+  const procedencia = PROCEDENCIA_API[m.counterparty_source ?? ""] ?? "procedencia_no_publicada";
+  if (procedencia !== "banco_informo") {
+    return { nombre: null, rut: null, procedencia };
+  }
+  return {
+    nombre: m.counterparty_name?.trim() || null,
+    rut: m.counterparty_tax_id?.trim() || null,
+    procedencia,
+  };
+}
+
 export interface MovimientoV03 {
   id: string;
   bankAccountId: string;
@@ -556,6 +631,9 @@ export interface MovimientoV03 {
   fecha: string;
   /** La glosa COMPLETA del banco (Ley 7: nunca se trunca). */
   glosa: string;
+  /** Con quién fue la plata, con su procedencia. Sale de los campos del contrato; jamás de la
+   * glosa. */
+  contraparte: ContraparteV03;
   /** Etiqueta del documento conciliado publicada sólo para un vínculo efectivo 1:1.
    * No es contraparte bancaria ni se deriva de la glosa. */
   documentoConciliado?: string | null;
@@ -695,6 +773,7 @@ export function movimientosV03(input: MovimientosInput): MovimientoV03[] {
       bankAccountId: m.bank_account_id,
       fecha: m.date,
       glosa: (m.description ?? "").trim() || "Sin glosa",
+      contraparte: contraparteDe(m),
       documentoConciliado: documentoConciliadoDe(m),
       monto,
       moneda,
@@ -730,15 +809,18 @@ function soloDigitos(s: string): string {
   return s.replace(/[^0-9kK]/g, "").toLowerCase();
 }
 
-/** ¿El movimiento matchea la búsqueda? Por GLOSA (texto), por RUT (los dígitos de la consulta contra
- *  los dígitos de la glosa: "76.123.456-7", "76123456-7" y "761234567" encuentran lo mismo) y por
+/** ¿El movimiento matchea la búsqueda? Por CONTRAPARTE acreditada (nombre y su identificador
+ *  tributario), por GLOSA (texto), por RUT (los dígitos de la consulta contra los dígitos de la
+ *  contraparte y de la glosa: "76.123.456-7", "76123456-7" y "761234567" encuentran lo mismo) y por
  *  MONTO (los dígitos de la consulta contra el monto absoluto redondeado). Vacío → todo pasa. */
 export function coincideBusqueda(m: MovimientoV03, consulta: string): boolean {
   const q = consulta.trim().toLowerCase();
   if (q === "") return true;
+  if (m.contraparte.nombre?.toLowerCase().includes(q)) return true;
   if (m.glosa.toLowerCase().includes(q)) return true;
   const digitos = soloDigitos(q);
   if (digitos.length < 3) return false;
+  if (m.contraparte.rut && soloDigitos(m.contraparte.rut).includes(digitos)) return true;
   if (soloDigitos(m.glosa).includes(digitos)) return true;
   return String(Math.round(Math.abs(m.monto))).includes(digitos);
 }
@@ -845,12 +927,44 @@ export function montoConSigno(m: Pick<MovimientoV03, "monto" | "moneda">): strin
   return m.monto > 0 ? `+${f}` : f;
 }
 
-/** El `.sub` del movimiento: `21 ago · CC CLP · Impuestos`. Sin categoría lo dice. */
+/** La columna principal de la tabla. Con contraparte acreditada MANDA la contraparte:
+ *  `Abono · Cliente Norte SpA`. Sin ella, la principal sigue siendo la glosa COMPLETA — que es la
+ *  lectura honesta de la mayoría de los movimientos de hoy, porque sólo las transferencias traen
+ *  contraparte y todo lo cargado antes de que el campo existiera entró por una carga que no la
+ *  mira. Nunca se recorta ninguna de las dos. */
+export function principalMovimiento(m: MovimientoV03): string {
+  if (m.contraparte.nombre == null) return m.glosa;
+  return `${m.esAbono ? "Abono" : "Cargo"} · ${m.contraparte.nombre}`;
+}
+
+/** El `.sub` del movimiento: `21 ago · CC CLP · Impuestos`. Sin categoría lo dice.
+ *
+ *  Cuando la contraparte pasa a ser la principal, la GLOSA COMPLETA baja al `.sub` (no desaparece:
+ *  es lo que el banco escribió). Cuando no hay contraparte acreditada, el `.sub` DICE cuál de las
+ *  ausencias es — preguntada y sin respuesta, o nunca preguntada. */
 export function subMovimiento(m: MovimientoV03): string {
   const metadata = `${formatDateShort(m.fecha)} · ${m.cuenta} · ${m.categoria ?? "sin categoría"}`;
-  return m.documentoConciliado
-    ? `Documento conciliado · ${m.documentoConciliado} · ${metadata}`
-    : metadata;
+  const partes: string[] = [];
+  const { nombre, rut, procedencia } = m.contraparte;
+  if (nombre != null) {
+    partes.push(
+      rut ? `${CONTRAPARTE_LEYENDA[procedencia]} · ${rut}` : CONTRAPARTE_LEYENDA[procedencia],
+    );
+    partes.push(m.glosa);
+  } else {
+    partes.push(CONTRAPARTE_LEYENDA[procedencia]);
+  }
+  if (m.documentoConciliado) partes.push(`Documento conciliado · ${m.documentoConciliado}`);
+  partes.push(metadata);
+  return partes.join(" · ");
+}
+
+/** El nombre accesible de la fila. Lleva la contraparte acreditada cuando existe Y la glosa
+ *  COMPLETA siempre: si la principal cambia, el lector de pantalla no puede perder la glosa. */
+export function etiquetaFilaMovimiento(m: MovimientoV03): string {
+  return m.contraparte.nombre == null
+    ? `Ver detalle de ${m.glosa}`
+    : `Ver detalle de ${m.contraparte.nombre} · ${m.glosa}`;
 }
 
 /* ── Exportar ────────────────────────────────────────────────────────────────── */
@@ -859,9 +973,26 @@ export function subMovimiento(m: MovimientoV03): string {
  * Monto firmado en crudo (sin formato) para que la planilla lo sume. */
 export function csvMovimientosTable(movs: readonly MovimientoV03[]): ExportTable {
   return exportTable(
-    ["fecha", "glosa", "cuenta", "categoria", "conciliacion", "clasificacion", "moneda", "monto"],
+    [
+      "fecha",
+      "contraparte",
+      "contraparte_rut",
+      "contraparte_procedencia",
+      "glosa",
+      "cuenta",
+      "categoria",
+      "conciliacion",
+      "clasificacion",
+      "moneda",
+      "monto",
+    ],
     movs.map((m) => [
       csvCell.date(m.fecha),
+      m.contraparte.nombre == null ? csvCell.missing() : csvCell.text(m.contraparte.nombre),
+      m.contraparte.rut == null ? csvCell.missing() : csvCell.text(m.contraparte.rut),
+      /* La procedencia va SIEMPRE: es la columna que impide que la planilla colapse las dos
+         ausencias en una celda vacía idéntica. */
+      csvCell.text(CONTRAPARTE_LEYENDA[m.contraparte.procedencia]),
       csvCell.text(m.glosa),
       csvCell.text(m.cuenta),
       m.categoria == null ? csvCell.missing() : csvCell.text(m.categoria),

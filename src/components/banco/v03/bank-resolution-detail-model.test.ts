@@ -37,6 +37,7 @@ describe("resolutionDetailFromApi", () => {
         direction: "debit",
         currency_code: "CLP",
         bank_account: { bank_name: "BICE", account_name: "CC" },
+        counterparty_source: "not_published_by_bank",
       },
       reconciliation: {
         stored_status: "unmatched",

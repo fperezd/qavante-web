@@ -285,3 +285,37 @@ describe("BancoV03View — el nombre del banco no se hardcodea", () => {
     expect(texto(html())).toContain("BICE · hoy ✓");
   });
 });
+
+describe("BancoV03View — la contraparte en la tabla, con su procedencia", () => {
+  it("la fila con contraparte acreditada la muestra como principal y NO pierde la glosa", () => {
+    const t = texto(html());
+    expect(t).toContain("Abono · Cliente Norte SpA");
+    /* El gemelo que impide que "mostrar la contraparte" se convierta en "esconder la glosa": la
+       glosa completa sigue en la página, entera. */
+    expect(t).toContain("Abono por transferencia de Cliente Norte SpA 76.123.456-7");
+    expect(t).toContain("Contraparte informada por el banco · 76.123.456-7");
+  });
+
+  it("las dos ausencias se leen DISTINTO en la misma pantalla", () => {
+    const t = texto(html());
+    /* m8: se le preguntó al banco y no la publica. */
+    expect(t).toContain("El banco no publica la contraparte de este movimiento");
+    /* m3, m6, m7…: entraron por una carga que no la mira. Nadie preguntó. */
+    expect(t).toContain(
+      "Entró por una carga que no registra contraparte: al banco no se le preguntó",
+    );
+    /* Y la glosa de los movimientos sin contraparte sigue siendo su columna principal. */
+    expect(t).toContain("Abono transferencia sin identificar");
+    expect(t).toContain("Transf. Dattatec.com hosting");
+    /* Negativo: la pantalla no rotula como contraparte nada derivado de la glosa. */
+    expect(t).not.toContain("Cargo · Transf. Dattatec.com hosting");
+  });
+
+  it("el nombre accesible de la fila lleva la contraparte Y la glosa completa", () => {
+    const h = html();
+    expect(h).toContain(
+      "Ver detalle de Cliente Norte SpA · Abono por transferencia de Cliente Norte SpA 76.123.456-7",
+    );
+    expect(h).toContain("Ver detalle de Abono transferencia sin identificar");
+  });
+});

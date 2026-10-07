@@ -101,6 +101,7 @@ describe("composeCustomer360Source", () => {
                 complete: true,
                 reclamado: false,
                 cedido: false,
+                identity_resolution: "not_evaluated" as const,
               },
             ],
             { last_synced_at: "2026-09-08T12:30:00Z", stale: true },
@@ -148,6 +149,7 @@ describe("composeCustomer360Source", () => {
           complete: true,
           reclamado: false,
           cedido: false,
+          identity_resolution: "not_evaluated" as const,
         },
       ]),
     );
@@ -197,6 +199,7 @@ describe("composeCustomer360Source", () => {
           complete: true,
           reclamado: false,
           cedido: false,
+          identity_resolution: "not_evaluated" as const,
         },
       ]),
     };
@@ -230,6 +233,7 @@ describe("composeCustomer360Source", () => {
       complete: true,
       reclamado: false,
       cedido: false,
+      identity_resolution: "not_evaluated" as const,
     };
     const repeated = observedInputs(periods);
     repeated[11] = {

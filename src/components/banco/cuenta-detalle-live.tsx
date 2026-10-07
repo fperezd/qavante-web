@@ -40,6 +40,7 @@ import {
   resolutionDetailFromMovement,
 } from "./v03/bank-resolution-detail-model";
 import {
+  contraparteDe,
   estadoClasificacionDe,
   estadoConciliacionDe,
   quedaPorConciliar,
@@ -109,6 +110,8 @@ export function CuentaDetalleLive({
       bankAccountId: selectedRawMovement.bank_account_id,
       fecha: selectedListMovement.fecha,
       glosa: selectedListMovement.glosa,
+      /* Del CAMPO del movimiento crudo, con su procedencia. Nunca de la glosa. */
+      contraparte: contraparteDe(selectedRawMovement),
       monto: selectedListMovement.monto,
       moneda: selectedListMovement.moneda,
       esAbono: selectedListMovement.esAbono,

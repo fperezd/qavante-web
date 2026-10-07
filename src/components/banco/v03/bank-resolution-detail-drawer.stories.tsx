@@ -13,6 +13,7 @@ const movement = movimientosV03({
 
 const detail: BankMovementResolutionDetail = {
   movementId: movement.id,
+  contraparte: movement.contraparte,
   reconciliation: {
     status: "conciliado",
     canUnreconcile: true,

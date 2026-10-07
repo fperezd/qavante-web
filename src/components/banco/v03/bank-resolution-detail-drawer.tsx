@@ -5,7 +5,13 @@ import { ExternalLink, X } from "lucide-react";
 import { QavanteButton, QavanteInlineError } from "@/components/qavante";
 import { Pill } from "@/components/rediseno/pill";
 import { formatDateShort } from "@/lib/formatters/date";
-import { CLASIFICACION_PILL, CONCILIACION_PILL, type MovimientoV03 } from "./banco-v03-model";
+import {
+  CLASIFICACION_PILL,
+  CONCILIACION_PILL,
+  CONTRAPARTE_EXPLICACION,
+  type ContraparteV03,
+  type MovimientoV03,
+} from "./banco-v03-model";
 import type {
   BankMovementResolutionDetail,
   ResolutionAllocation,
@@ -138,6 +144,7 @@ export function BankResolutionDetailDrawer({
             <h2 id={titleId} className="mt-1 text-lg font-semibold text-neutral-dark">
               Cómo se resolvió
             </h2>
+            <Contraparte contraparte={detail.contraparte} />
             <p className="mt-2 text-sm text-neutral-dark">{movement.glosa}</p>
             <p className="mt-1 text-xs text-neutral-mid">
               {formatDateShort(movement.fecha)} · {movement.cuenta}
@@ -278,6 +285,27 @@ export function BankResolutionDetailDrawer({
           )}
         </div>
       </aside>
+    </div>
+  );
+}
+
+/** Con quién fue la plata. Con contraparte acreditada se muestra el nombre y su identificador;
+ *  sin ella se dice CUÁL de las dos ausencias es, porque "se preguntó y el banco no la publica" y
+ *  "esta carga no la mira" llevan a decisiones distintas sobre qué documento buscar. La glosa
+ *  completa queda siempre debajo, intacta. */
+function Contraparte({ contraparte }: { contraparte: ContraparteV03 }) {
+  return (
+    <div className="mt-2">
+      <p className="text-xs font-semibold tracking-wide text-neutral-mid uppercase">Contraparte</p>
+      {contraparte.nombre != null && (
+        <p className="text-sm font-semibold text-neutral-dark">
+          {contraparte.nombre}
+          {contraparte.rut ? ` · ${contraparte.rut}` : ""}
+        </p>
+      )}
+      <p className="mt-0.5 text-xs text-neutral-mid">
+        {CONTRAPARTE_EXPLICACION[contraparte.procedencia]}
+      </p>
     </div>
   );
 }

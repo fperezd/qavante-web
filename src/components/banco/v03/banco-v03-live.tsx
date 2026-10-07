@@ -131,6 +131,8 @@ export function movementFromResolution(response: MovementResolutionDetailRespons
     bankAccountId: response.movement.bank_account_id,
     fecha: response.movement.date,
     glosa: response.movement.description,
+    /* La contraparte sale del detalle publicado por movimiento, no de la glosa. */
+    contraparte: detail.contraparte,
     monto: signedAmount,
     moneda: response.movement.currency_code?.trim().toUpperCase() || "S/D",
     esAbono: response.movement.direction === "credit",

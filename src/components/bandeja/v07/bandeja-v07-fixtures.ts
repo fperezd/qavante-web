@@ -323,6 +323,10 @@ function movimiento(over: Partial<BankMovement> & Pick<BankMovement, "id">): Ban
     reconciliation_quarantined: false,
     reconciliation_status: "unmatched",
     data_status: "available",
+    /* api#1134 publica la procedencia de la contraparte como campo obligatorio. La fixture
+       declara la del caso de prod: estos movimientos entraron por una carga que no mira
+       contraparte, así que nadie le preguntó al banco. */
+    counterparty_source: "not_captured",
     imported_at: "2026-08-22T09:00:00Z",
     classification_status: "unclassified",
     ...over,
