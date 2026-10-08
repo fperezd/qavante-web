@@ -37,6 +37,8 @@ export interface AppShellProps {
   presupuestoEnabled?: boolean;
   financiamientoEnabled?: boolean;
   simuladorEnabled?: boolean;
+  /** `financialAgreements` ON muestra el ítem "Acuerdos" en el nav (web#178). */
+  acuerdosEnabled?: boolean;
 }
 
 export function AppShell({
@@ -51,6 +53,7 @@ export function AppShell({
   presupuestoEnabled,
   financiamientoEnabled,
   simuladorEnabled,
+  acuerdosEnabled,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopSidebar, setDesktopSidebar] = useState(false);
@@ -100,6 +103,7 @@ export function AppShell({
               presupuestoEnabled={presupuestoEnabled}
               financiamientoEnabled={financiamientoEnabled}
               simuladorEnabled={simuladorEnabled}
+              acuerdosEnabled={acuerdosEnabled}
             />
           ) : (
             <aside

@@ -87,6 +87,11 @@ export const FEATURE_FLAGS = [
   "impuestosV06",
   "financiamientoV13",
   "simuladorV14",
+  /* Acuerdos financieros (web#178 / api#387): listado + detalle de negociaciones de pago/cobro,
+     y la sustitución en Pagar/Cobrar cuando un acuerdo está `formalized`. El contrato
+     (`/api/treasury/financial-agreements`) está en producción desde api#386; el gate es sobre
+     la UI nueva, no sobre el backend. Default OFF hasta que este PR esté revisado y desplegado. */
+  "financialAgreements",
   /* Decisión de caja canónica: un envelope server-owned para Inicio, Caja,
      Pagar y Cobrar. ON en producción desde #301 (override `NEXT_PUBLIC_FF_DECISION_BRIEF`
      en `wrangler.toml`); no existe fallback de cliente. */
@@ -477,6 +482,8 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      existentes se muestran como comparables o referencias, nunca como ofertas ejecutables.
      Default OFF hasta que qavante-api#443 esté revisado y desplegado. */
   financiamientoV13: "/api/treasury/financing-overview",
+  /* Acuerdos financieros. Endpoint ya en producción desde api#386. */
+  financialAgreements: "/api/treasury/financial-agreements",
   /* V14 · Simulador. Evalúa una hipótesis contra el scope financiero canónico y
      devuelve un memo explícitamente no ejecutable. Default OFF hasta que
      qavante-api#467 integre los productores live y su smoke productivo quede aprobado. */

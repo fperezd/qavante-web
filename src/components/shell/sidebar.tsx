@@ -11,6 +11,7 @@ import {
   LineChart,
   PiggyBank,
   WalletCards,
+  Handshake,
   FlaskConical,
   CircleGauge,
   Settings,
@@ -42,6 +43,7 @@ type ModuleLink = {
   needsPresupuesto?: boolean;
   needsFinanciamiento?: boolean;
   needsSimulador?: boolean;
+  needsAcuerdos?: boolean;
 };
 
 type NavGroup = { label: string; items: ReadonlyArray<ModuleLink> };
@@ -98,6 +100,7 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
       { href: "/banco", label: "Banco", Icon: Landmark, needsBanco: true },
       { href: "/cobrar", label: "Cobrar", Icon: ArrowDownToLine },
       { href: "/pagar", label: "Pagar", Icon: ArrowUpFromLine, children: PAGAR_CHILDREN },
+      { href: "/acuerdos", label: "Acuerdos", Icon: Handshake, needsAcuerdos: true },
     ],
   },
   {
@@ -149,6 +152,8 @@ export interface AppSidebarProps {
   financiamientoEnabled?: boolean;
   /** `simuladorV14` ON muestra la evaluación no ejecutable de hipótesis. */
   simuladorEnabled?: boolean;
+  /** `financialAgreements` ON muestra el ítem "Acuerdos" (web#178). */
+  acuerdosEnabled?: boolean;
 }
 
 export function AppSidebar({
@@ -161,6 +166,7 @@ export function AppSidebar({
   presupuestoEnabled,
   financiamientoEnabled,
   simuladorEnabled,
+  acuerdosEnabled,
 }: AppSidebarProps) {
   const pathname = usePathname();
 
@@ -173,7 +179,8 @@ export function AppSidebar({
     (!m.needsBandeja || bandejaEnabled) &&
     (!m.needsPresupuesto || presupuestoEnabled) &&
     (!m.needsFinanciamiento || financiamientoEnabled) &&
-    (!m.needsSimulador || simuladorEnabled);
+    (!m.needsSimulador || simuladorEnabled) &&
+    (!m.needsAcuerdos || acuerdosEnabled);
   const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
     (g) => g.items.length > 0,
   );

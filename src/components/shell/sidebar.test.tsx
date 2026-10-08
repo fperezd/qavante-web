@@ -11,7 +11,11 @@ vi.mock("./company-switcher", () => ({
 
 import { AppSidebar } from "./sidebar";
 
-function html(bandejaEnabled?: boolean, financiamientoEnabled?: boolean) {
+function html(
+  bandejaEnabled?: boolean,
+  financiamientoEnabled?: boolean,
+  acuerdosEnabled?: boolean,
+) {
   return renderToStaticMarkup(
     <AppSidebar
       mobileOpen={false}
@@ -19,6 +23,7 @@ function html(bandejaEnabled?: boolean, financiamientoEnabled?: boolean) {
       userRole="owner"
       bandejaEnabled={bandejaEnabled}
       financiamientoEnabled={financiamientoEnabled}
+      acuerdosEnabled={acuerdosEnabled}
     />,
   );
 }
@@ -43,5 +48,20 @@ describe("AppSidebar · Financiamiento V13", () => {
     const route = /href="\/financiamiento"/;
     expect(html(false, true)).toMatch(route);
     expect(html(false, false)).not.toMatch(route);
+  });
+});
+
+describe("AppSidebar · Acuerdos financieros (web#178)", () => {
+  it("muestra Acuerdos sólo con el flag `financialAgreements` habilitado", () => {
+    const route = /href="\/acuerdos"/;
+    expect(html(false, false, true)).toMatch(route);
+    expect(html(false, false, false)).not.toMatch(route);
+  });
+
+  it("ubica Acuerdos dentro de Cobros y pagos, después de Pagar", () => {
+    const rendered = html(false, false, true);
+
+    expect(rendered.indexOf('href="/pagar"')).toBeLessThan(rendered.indexOf('href="/acuerdos"'));
+    expect(rendered.match(/href="\/acuerdos"/g)).toHaveLength(1);
   });
 });

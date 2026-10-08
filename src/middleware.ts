@@ -39,6 +39,7 @@ export const config = {
      Login, recuperar-clave y rutas públicas (`/`, `/playground`) viven fuera de `(app)`
      y no entran. */
   matcher: [
+    "/acuerdos/:path*",
     "/administracion/:path*",
     "/alertas/:path*",
     "/banco/:path*",
