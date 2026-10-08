@@ -129,6 +129,96 @@ describe("DecisionBriefPanel — envelope server-owned", () => {
     expect(text(html)).not.toContain("Esto no reemplaza la decisión que estás evaluando arriba.");
   });
 
+  it("publica la situación, la evidencia y la frescura que trae el contrato", () => {
+    const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={BRIEF} />));
+
+    expect(rendered).toContain("Los pagos programados superan la caja proyectada.");
+    expect(rendered).toContain("Actualizada el 12-09-2026");
+    expect(rendered).toContain("Evidencia");
+    expect(rendered).toContain("Menor saldo proyectado");
+    expect(rendered).toContain("Proyección de caja de 14 días.");
+  });
+
+  it("declara la incertidumbre sin ocultarla, con la frase literal del servidor", () => {
+    const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={BRIEF} />));
+
+    expect(rendered).toContain("Incertidumbre declarada");
+    expect(rendered).toContain(
+      "Hay movimientos en revisión automática; no cambian esta evaluación.",
+    );
+    expect(rendered).toContain("(12)");
+  });
+
+  it("muestra la descripción de cada alternativa, nunca sólo el título", () => {
+    const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={BRIEF} />));
+
+    expect(rendered).toContain("No se reordena en el cliente.");
+    expect(rendered).toContain("Se mantiene después de la primera.");
+  });
+
+  it("marca la confirmación manual por alternativa sin fabricar una frase distinta a la probada", () => {
+    const html = renderToStaticMarkup(<DecisionBriefPanel brief={BRIEF} />);
+    const rendered = text(html);
+
+    expect(rendered).toContain("Confirmación manual");
+    // La primera alternativa (requires_human_confirmation: true) la trae antes que
+    // la segunda (false), que no debe traerla en absoluto.
+    expect(html.indexOf("Confirmación manual")).toBeLessThan(
+      html.indexOf("Segunda alternativa del servidor"),
+    );
+  });
+
+  it("nunca usa la palabra confianza ni preliminar, y sólo declara la evaluación cuando no es alta", () => {
+    const alta = text(renderToStaticMarkup(<DecisionBriefPanel brief={BRIEF} />));
+    expect(alta).not.toContain("confianza");
+    expect(alta).not.toContain("preliminar");
+    expect(alta).not.toContain("evidencia parcial");
+
+    const limitada = text(
+      renderToStaticMarkup(<DecisionBriefPanel brief={{ ...BRIEF, confidence: "limited" }} />),
+    );
+    expect(limitada).toContain("Esta evaluación usa evidencia parcial.");
+    expect(limitada).not.toContain("confianza");
+    expect(limitada).not.toContain("preliminar");
+
+    const sinEvidencia = text(
+      renderToStaticMarkup(<DecisionBriefPanel brief={{ ...BRIEF, confidence: "unavailable" }} />),
+    );
+    expect(sinEvidencia).toContain("No hay evidencia suficiente para calcular esta evaluación.");
+  });
+
+  it("publica las alternativas no evaluables sin ocultarlas", () => {
+    const brief = {
+      ...BRIEF,
+      alternatives: [
+        BRIEF.alternatives[0]!,
+        { ...BRIEF.alternatives[1]!, state: "not_evaluable" as const },
+      ],
+    } satisfies CashDecisionBrief;
+
+    const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={brief} />));
+    expect(rendered).toContain("No evaluable ahora");
+    expect(rendered).toContain("Segunda alternativa del servidor");
+  });
+
+  it("publica las herramientas secundarias con el título y CTA literales del servidor", () => {
+    const html = renderToStaticMarkup(<DecisionBriefPanel brief={BRIEF} />);
+    const rendered = text(html);
+
+    expect(rendered).toContain("Otras herramientas");
+    expect(rendered).toContain("Revisar movimientos pendientes");
+    expect(rendered).toContain("Sólo si necesitas confirmar una excepción concreta.");
+    expect(html).toContain(
+      'href="/caja/por-clasificar?decision_id=6cb9e47a-f682-46d6-9d8a-3c851c8ff420&amp;context_hash=ed0c2b7304923da062e78ac73c54352bd3925d5c4bbee006fe9ae9d43346d66f"',
+    );
+
+    // Siguen fuera del área de decisión primaria: aparecen después de las
+    // alternativas, no dentro de la acción recomendada.
+    expect(html.indexOf("Segunda alternativa del servidor")).toBeLessThan(
+      html.indexOf("Otras herramientas"),
+    );
+  });
+
   it("expone cada límite de cobertura que declaró el servidor sin sumar ni completar cifras", () => {
     const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={BRIEF} />));
 

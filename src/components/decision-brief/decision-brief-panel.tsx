@@ -8,6 +8,9 @@ import { formatDateLike } from "@/lib/formatters/date";
 
 type BriefAlternative = CashDecisionBrief["alternatives"][number];
 type BriefMoney = NonNullable<CashDecisionBrief["problem"]["amount"]>;
+type BriefConfidence = CashDecisionBrief["confidence"];
+type BriefUncertainty = NonNullable<CashDecisionBrief["uncertainties"]>[number];
+type BriefSecondaryAction = NonNullable<CashDecisionBrief["secondary_actions"]>[number];
 
 /**
  * Presentación literal del contrato de decisión. Este componente no decide qué
@@ -42,6 +45,10 @@ export function DecisionBriefPanel({ brief }: { brief: CashDecisionBrief }) {
     isPositiveCount(brief.coverage.conditional_due_date_items_14d) ||
     hasConditionalPayments ||
     hasConditionalCollections;
+  const confidenceNote = describeConfidence(brief.confidence);
+  const evidence = brief.evidence ?? [];
+  const uncertainties = brief.uncertainties ?? [];
+  const secondaryActions = brief.secondary_actions ?? [];
 
   return (
     <QavanteCard
@@ -63,16 +70,22 @@ export function DecisionBriefPanel({ brief }: { brief: CashDecisionBrief }) {
         </div>
       }
     >
-      <section aria-labelledby="decision-brief-problem" className="space-y-2">
+      <p className="text-xs text-neutral-mid">{brief.freshness.summary}</p>
+
+      <section aria-labelledby="decision-brief-problem" className="mt-2 space-y-2">
         <div className="flex items-start gap-2.5">
           <ProblemIcon state={brief.state} />
           <div className="min-w-0">
             <h2 id="decision-brief-problem" className="text-lg font-semibold text-neutral-dark">
               {brief.problem.title}
             </h2>
+            {brief.problem.summary && (
+              <p className="mt-1 text-sm text-neutral-mid">{brief.problem.summary}</p>
+            )}
             {amount && (
               <p className="mt-2 font-semibold tabular-nums text-neutral-dark">{amount}</p>
             )}
+            {confidenceNote && <p className="mt-1 text-sm text-neutral-mid">{confidenceNote}</p>}
           </div>
         </div>
       </section>
@@ -180,6 +193,70 @@ export function DecisionBriefPanel({ brief }: { brief: CashDecisionBrief }) {
           </ul>
         </section>
       )}
+
+      {evidence.length > 0 && (
+        <section
+          className="mt-4 border-t border-border pt-3"
+          aria-labelledby="decision-brief-evidence"
+        >
+          <h3 id="decision-brief-evidence" className="text-sm font-semibold text-neutral-dark">
+            Evidencia
+          </h3>
+          <ul className="mt-1 space-y-1 text-sm text-neutral-mid">
+            {evidence.map((item, index) => {
+              const evidenceAmount = formatBriefMoney(item.amount);
+              return (
+                <li key={`${item.kind}-${index}`}>
+                  <span className="font-medium text-neutral-dark">{item.label}</span>
+                  {evidenceAmount && (
+                    <span className="tabular-nums text-neutral-dark"> · {evidenceAmount}</span>
+                  )}
+                  {item.note && <span> · {item.note}</span>}
+                  <span className="text-xs"> · {formatDateLike(item.observed_on)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {uncertainties.length > 0 && (
+        <section
+          className="mt-4 border-t border-border pt-3"
+          aria-labelledby="decision-brief-uncertainty"
+        >
+          <h3 id="decision-brief-uncertainty" className="text-sm font-semibold text-neutral-dark">
+            Incertidumbre declarada
+          </h3>
+          <ul className="mt-1 space-y-1 text-sm text-neutral-mid">
+            {uncertainties.map((item: BriefUncertainty, index) => (
+              <li
+                key={`${item.kind}-${index}`}
+                className={item.blocks_recommendation ? "font-medium text-warning-700" : undefined}
+              >
+                {item.summary}
+                {isPositiveCount(item.item_count) && <span> ({formatCount(item.item_count)})</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {secondaryActions.length > 0 && (
+        <details
+          className="mt-3 border-t border-border pt-3"
+          data-testid="decision-brief-secondary-actions"
+        >
+          <summary className="cursor-pointer text-sm font-medium text-neutral-mid">
+            Otras herramientas
+          </summary>
+          <div className="mt-2 space-y-2">
+            {secondaryActions.map((action, index) => (
+              <SecondaryActionRow key={`${action.decision_kind}-${index}`} action={action} />
+            ))}
+          </div>
+        </details>
+      )}
     </QavanteCard>
   );
 }
@@ -194,14 +271,27 @@ function AlternativeRow({
   return (
     <article
       data-alternative-id={alternative.alternative_id}
-      className="rounded-lg border border-border bg-surface-muted/40 p-3"
+      className={
+        alternative.state === "not_evaluable"
+          ? "rounded-lg border border-border bg-surface-muted/40 p-3 opacity-70"
+          : "rounded-lg border border-border bg-surface-muted/40 p-3"
+      }
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-neutral-dark">{alternative.title}</h3>
             {recommended && <QavanteBadge variant="info">Recomendado</QavanteBadge>}
+            {alternative.requires_human_confirmation && (
+              <QavanteBadge variant="default">Confirmación manual</QavanteBadge>
+            )}
+            {alternative.state === "not_evaluable" && (
+              <QavanteBadge variant="default">No evaluable ahora</QavanteBadge>
+            )}
           </div>
+          {alternative.description && (
+            <p className="mt-1 text-sm text-neutral-mid">{alternative.description}</p>
+          )}
         </div>
         {alternative.cta_href && alternative.cta_label && (
           <Link
@@ -230,6 +320,39 @@ function AlternativeRow({
       )}
     </article>
   );
+}
+
+function SecondaryActionRow({ action }: { action: BriefSecondaryAction }) {
+  return (
+    <article className="rounded-lg border border-border/70 p-2">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h4 className="text-sm font-medium text-neutral-dark">{action.title}</h4>
+          <p className="mt-1 text-sm text-neutral-mid">{action.description}</p>
+        </div>
+        <Link
+          href={action.cta_href}
+          className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+        >
+          {action.cta_label}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+/* Nunca usa la palabra "confianza" ni "preliminar" (regla de copy del producto):
+   describe qué cubre la evaluación en vez de calificarla. "high" no agrega
+   texto porque es el caso esperado y no necesita aclaración adicional. */
+function describeConfidence(confidence: BriefConfidence): string | null {
+  if (confidence === "limited") {
+    return "Esta evaluación usa evidencia parcial.";
+  }
+  if (confidence === "unavailable") {
+    return "No hay evidencia suficiente para calcular esta evaluación.";
+  }
+  return null;
 }
 
 function ProblemIcon({ state }: { state: CashDecisionBrief["state"] }) {
