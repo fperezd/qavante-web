@@ -52,23 +52,26 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+async function expandirHorizonte90(canvas: ReturnType<typeof within>) {
+  const horizonte = canvas.getByRole("group", { name: "Horizonte de compromisos de pago" });
+  await userEvent.click(within(horizonte).getByRole("button", { name: "90 días" }));
+}
+
 export const Normal: Story = {
   name: "Normal · vencido ≠ crítico; un solo rojo (la fila crítica más urgente)",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("$8.729.650")).toBeInTheDocument();
-    await expect(canvas.getByText(/3 pagos en todo el registro/)).toBeInTheDocument();
-    await expect(canvas.getByText("$17.998.105")).toBeInTheDocument();
-    /* D02/D15 — el subtotal crítico lo publica el servidor sobre TODO el registro, no sobre la
-       página visible: 6 pagos por $16.807.705, no los que alcanzan a caber en la tabla. */
-    await expect(canvas.getByText(/\$16\.807\.705 críticos · 6 pagos/)).toBeInTheDocument();
+    await expect(canvas.getByText("$16.632.726")).toBeInTheDocument();
+    await expect(canvas.getByText("Conciliación por cerrar")).toBeInTheDocument();
     await expect(canvas.queryByText(/en la lista visible/)).not.toBeInTheDocument();
-    await expect(canvas.getByText(/No alcanza para los pagos críticos/)).toBeInTheDocument();
+    await expect(canvas.queryByText(/\$16\.807\.705 críticos · 6 pagos/)).not.toBeInTheDocument();
     await expect(canvas.queryByText(/\$2\.878\.055/)).not.toBeInTheDocument();
     /* D01 — el monto negociable ya no se deriva de la tabla; la caja proyectada no vuelve a
        restar lo que la curva ya trae. */
     await expect(canvas.queryByRole("note")).not.toBeInTheDocument();
     await expect(canvas.queryByText(/no se vuelven a restar/)).not.toBeInTheDocument();
+    await expandirHorizonte90(canvas);
     // Ley 2: UN rojo, y es el relativo de la fila crítica más urgente (Banco BICE, en 2 días).
     const marcados = rojos(canvasElement);
     await expect(marcados).toHaveLength(1);
@@ -83,9 +86,9 @@ export const Normal: Story = {
     // Ley 9: no existe "pagar todo"; el texto fijo está literal.
     await expect(canvas.queryByRole("button", { name: /pagar todo/i })).not.toBeInTheDocument();
     await expect(canvas.queryByText(/jamás entran en postergaciones/)).not.toBeInTheDocument();
-    // Footer §5.5 con el total del backend.
+    // Footer §5.5 con el total del backend; a 90 días el KPI Por pagar coincide con ese total.
     await expect(canvas.getByText(/Total por pagar/)).toBeInTheDocument();
-    await expect(canvas.getByText("$19.205.210")).toBeInTheDocument();
+    await expect(canvas.getAllByText("$19.205.210").length).toBeGreaterThanOrEqual(2);
   },
 };
 
@@ -94,8 +97,8 @@ export const AuditoriaD01: Story = {
   args: { pagos: pagosAuditoriaD01() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("−$46.865.254")).toBeInTheDocument();
-    await expect(canvas.getByText(/\$10\.373\.669 críticos · 1 pago/)).toBeInTheDocument();
+    /* La tríada ya no publica la caja proyectada legacy; sí el estado de conciliación de Pagado. */
+    await expect(canvas.getByText("Conciliación por cerrar")).toBeInTheDocument();
     await expect(canvas.queryByText(/57\.238\.923/)).not.toBeInTheDocument();
     await expect(canvas.queryByText(/faltan \$/i)).not.toBeInTheDocument();
   },
@@ -105,13 +108,14 @@ export const SelectorDePeriodo: Story = {
   name: "Por pagar · 7/14/30 · cada tramo es el número del backend",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("$17.998.105")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("radio", { name: "7 días" }));
+    const horizonte = canvas.getByRole("group", { name: "Horizonte de compromisos de pago" });
     await expect(canvas.getByText("$16.632.726")).toBeInTheDocument();
-    await expect(canvas.queryByText("$17.998.105")).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("radio", { name: "30 días" }));
-    // El tramo de 30 coincide con el total del footer: aparece en los DOS lugares.
-    await expect(canvas.getAllByText("$19.205.210")).toHaveLength(2);
+    await userEvent.click(within(horizonte).getByRole("button", { name: "14 días" }));
+    await expect(canvas.getByText("$17.998.105")).toBeInTheDocument();
+    await expect(canvas.queryByText("$16.632.726")).not.toBeInTheDocument();
+    await userEvent.click(within(horizonte).getByRole("button", { name: "30 días" }));
+    // El tramo de 30 coincide con el total del footer (KPI + pie).
+    await expect(canvas.getAllByText("$19.205.210").length).toBeGreaterThanOrEqual(2);
   },
 };
 
@@ -120,6 +124,7 @@ export const ConDuplicado: Story = {
   args: { pagos: pagosConDuplicado(), anomalias: [ANOMALIA_ENTEL] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expandirHorizonte90(canvas);
     // Ley 2: sigue habiendo UN rojo, y ahora es la pill Revisar del duplicado más urgente.
     const marcados = rojos(canvasElement);
     await expect(marcados).toHaveLength(1);
@@ -163,6 +168,7 @@ export const FiltrosYBusqueda: Story = {
   args: { onFiltroChange: fn(), onConsultaChange: fn() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+    await expandirHorizonte90(canvas);
     /* D02/D15 — los conteos de los chips los publica `filter_metadata` sobre TODO el registro:
        no salen de contar la tabla ni se mueven al filtrar o buscar. */
     await expect(canvas.getByRole("radio", { name: "Todos · 8" })).toBeInTheDocument();
@@ -188,6 +194,8 @@ export const FiltrosYBusqueda: Story = {
 export const DetallePorFila: Story = {
   name: '"detalle ▾" · los hechos del pago y el link a su módulo',
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expandirHorizonte90(canvas);
     const fila = filas(canvasElement)[0]!; // Kennedy
     await userEvent.click(within(fila).getByText("detalle ▾"));
     await expect(within(fila).getByText("Factura 1201")).toBeInTheDocument();
@@ -209,6 +217,7 @@ export const SoloImpuestosYSueldos: Story = {
   args: { pagos: pagosSoloImpuestosYSueldos() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expandirHorizonte90(canvas);
     // El filtro los muestra, con los conteos que publica el servidor…
     await expect(canvas.getByRole("radio", { name: "Impuestos · 1" })).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: "Remuneraciones · 2" })).toBeInTheDocument();
@@ -219,7 +228,7 @@ export const SoloImpuestosYSueldos: Story = {
     await expect(canvas.getAllByText("No se posterga")).toHaveLength(3);
     await expect(canvas.queryByText(/jamás entran en postergaciones/)).not.toBeInTheDocument();
     // La cobertura canónica confirma que cubre; el único rojo sigue siendo la fila más urgente.
-    await expect(canvas.getByText(/Alcanza para los pagos críticos/)).toBeInTheDocument();
+    await expect(canvas.queryByText(/Alcanza para los pagos críticos/)).not.toBeInTheDocument();
     const marcados = rojos(canvasElement);
     await expect(marcados).toHaveLength(1);
     await expect(marcados[0]!).toHaveTextContent("en 5 días");
@@ -231,6 +240,7 @@ export const DatosDegradados: Story = {
   args: { pagos: pagosDegradados() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expandirHorizonte90(canvas);
     // La fila sin fecha parseable dice "sin fecha" (la celda Vence), al final de la tabla.
     const ultima = filas(canvasElement).at(-1)!;
     await expect(ultima).toHaveTextContent("Aguas Cordillera S.A.");
@@ -244,11 +254,7 @@ export const DatosDegradados: Story = {
     await expect(
       canvas.getByText(/1 pago en otra moneda sin tipo de cambio, fuera del total/),
     ).toBeInTheDocument();
-    // La caja conserva su moneda y el backend se abstiene de afirmar cobertura.
-    await expect(canvas.getByText(/US\$\s10\.500,00/)).toBeInTheDocument();
-    await expect(canvas.getByText(/Cobertura sin dato\./)).toBeInTheDocument();
-    /* Lo sin fecha no se esconde detrás de un chip que lo recorte en el cliente: se declara en
-       la tríada con su monto y su conteo, y la fila queda visible con su "sin fecha". */
+    /* La tríada ya no publica la caja proyectada en USD; el footer sí declara monedas sin TC. */
     await expect(canvas.queryByRole("radio", { name: /^Sin fecha/ })).not.toBeInTheDocument();
   },
 };
@@ -258,6 +264,7 @@ export const FechasEstimadas: Story = {
   args: { pagos: pagosConFechasEstimadas() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expandirHorizonte90(canvas);
     // Los tres valores del contrato en la misma página: dos estimadas, una sin confirmar.
     await expect(canvas.getAllByText("Fecha aproximada")).toHaveLength(4);
     // La pill del arriendo y, sin nota, la misma etiqueta sola en su "detalle ▾" (en el DOM).

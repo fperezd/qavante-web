@@ -5,9 +5,19 @@ import { DocumentActionButton } from "@/components/documents/document-actions";
 import { downloadXlsx } from "@/lib/export/xlsx";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Search } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarClock,
+  ChevronDown,
+  CircleDollarSign,
+  Clock3,
+  Search,
+} from "lucide-react";
+import { InicioApiPendienteButton } from "@/components/inicio/resumen/inicio-api-pendiente-button";
+import { isLocalDevAppEnv } from "@/lib/app-env";
 import { cn } from "@/lib/utils";
-import { rovingIndex } from "@/lib/a11y/roving";
+import { formatDateLike } from "@/lib/formatters/date";
+import { parseAmountOrNull } from "@/lib/formatters/amount";
 import { OBLIGACIONES_FINANCIERAS } from "@/lib/nav-labels";
 import type {
   D02AccountsPayableResponse as AccountsPayableResponse,
@@ -15,33 +25,35 @@ import type {
 } from "@/lib/api/pagos";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { MONTO_EN_REVISION, MONTO_EN_REVISION_MOTIVO } from "@/lib/formatters/amount";
-import { concordar, formatCount } from "@/lib/formatters/count";
 import { Banner } from "@/components/rediseno/banner";
 import { DataState } from "@/components/rediseno/data-state";
 import { FilterChips } from "@/components/rediseno/filter-chip";
-import { KpiCard } from "@/components/rediseno/kpi-card";
 import { Pill } from "@/components/rediseno/pill";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
 import { esConfirmada } from "@/components/rediseno/certeza-vencimiento";
 import {
   FILTROS_SERVIDOR_V05,
-  PERIODOS,
+  PAGAR_HORIZONTES,
   TIPO_LABEL,
   TOPE_ITEMS,
-  VENTANA_DIAS,
   conteosServidor,
   csvPagosTable,
+  dueTramoTotalFromPagos,
   elUnicoRojo,
   faltantes,
-  kpiCritico,
-  kpiPorPagar,
-  kpiVencidoGlobal,
-  nombreExportPagina,
+  limiteHorizontePagar,
+  pagadoMetric,
+  pagoEnHorizonteCompromiso,
   pagosV05,
+  proximoPagoDesdePagos,
+  recuadroPorPagar,
+  recuadroVencidoPagar,
+  nombreExportPagina,
   totales,
   type FiltroServidorV05,
   type PagoV05,
-  type PeriodoV05,
+  type PagarHorizonte,
+  type RecuadroPagar,
   type RojoV05,
 } from "./pagar-v05-model";
 
@@ -94,6 +106,8 @@ export interface PagarV05ViewProps {
   pagina?: number;
   cursorAviso?: string | null;
   cargandoPagina?: boolean;
+  horizonte?: PagarHorizonte;
+  onHorizonteChange?: (horizonte: PagarHorizonte) => void;
   onFiltroChange?: (filtro: FiltroServidorV05) => void;
   onConsultaChange?: (consulta: string) => void;
   onAnterior?: () => void;
@@ -122,6 +136,8 @@ export function PagarV05View({
   pagina = 1,
   cursorAviso,
   cargandoPagina = false,
+  horizonte: horizonteControlado,
+  onHorizonteChange,
   onFiltroChange,
   onConsultaChange,
   onAnterior,
@@ -129,14 +145,22 @@ export function PagarV05View({
   canonicalProjection,
   suppressRecommendations = false,
 }: PagarV05ViewProps) {
-  const [periodo, setPeriodo] = React.useState<PeriodoV05>(14);
+  const [horizonteLocal, setHorizonteLocal] = React.useState<PagarHorizonte>(7);
   const [filtroLocal, setFiltroLocal] = React.useState<FiltroServidorV05>("todos");
   const [consultaLocal, setConsultaLocal] = React.useState("");
   const [includeFollowup, setIncludeFollowup] = React.useState(false);
+  const horizonte = horizonteControlado ?? horizonteLocal;
+  const setHorizonte = onHorizonteChange ?? setHorizonteLocal;
   const filtro = filtroControlado ?? filtroLocal;
   const consulta = consultaControlada ?? consultaLocal;
   const setFiltro = onFiltroChange ?? setFiltroLocal;
   const setConsulta = onConsultaChange ?? setConsultaLocal;
+  const hoyIso =
+    ap?.as_of ?? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(hoy);
+  const limiteHorizonte = React.useMemo(
+    () => limiteHorizontePagar(hoyIso, horizonte),
+    [hoyIso, horizonte],
+  );
 
   /* Con el Brief activo la tabla es EVIDENCIA: orden de la fuente y sin señales de decisión
      (criticidad y postergabilidad son heurísticas locales que el Brief ya no delega acá). */
@@ -149,16 +173,15 @@ export function PagarV05View({
     [ap, hoy, anomalias, suppressRecommendations],
   );
   const rojo = suppressRecommendations ? null : elUnicoRojo(filas);
-  const vencido = kpiVencidoGlobal(ap);
-  const porPagar = kpiPorPagar(ap, periodo);
-  const critico = kpiCritico(filas, ap);
   /* Los conteos de los chips los publica el servidor sobre TODO el registro: filtrar o paginar
      no puede cambiarlos (D02/D15). "En seguimiento" es sólo un ocultamiento de filas de ESTA
      página: no entra en ningún agregado. */
   const conteos = ap ? conteosServidor(ap) : null;
-  const visibles = filas.filter(
-    (p) => includeFollowup || !p.item.id || !deferredIds.includes(p.item.id),
-  );
+  const visibles = filas.filter((p) => {
+    if (!includeFollowup && p.item.id && deferredIds.includes(p.item.id)) return false;
+    if (filtro === "todos" && !pagoEnHorizonteCompromiso(p, limiteHorizonte)) return false;
+    return true;
+  });
   const tot = totales(ap, filas);
   const falta = faltantes(ap);
   const correlacionAnomaliasIncompleta =
@@ -201,110 +224,36 @@ export function PagarV05View({
     );
   }
 
-  const coberturaTexto =
-    critico.cobertura === true
-      ? "Alcanza para los pagos críticos."
-      : critico.cobertura === false
-        ? "No alcanza para los pagos críticos."
-        : "Cobertura sin dato.";
-  // #907: con cuarentena de conciliación el monto crítico es desconocido, no "sin dato" ni $0.
-  const contextoCritico =
-    critico.total == null
-      ? `${critico.n} ${concordar(critico.n, "pago crítico", "pagos críticos")} · monto en revisión`
-      : critico.completo
-        ? `${formatClp(critico.total)} críticos · ${critico.n} ${concordar(critico.n, "pago", "pagos")}`
-        : critico.total > 0
-          ? `Al menos ${formatClp(critico.total)} críticos · ${critico.n} ${concordar(critico.n, "pago", "pagos")}`
-          : `${critico.n} ${concordar(critico.n, "pago crítico", "pagos críticos")} · monto sin dato`;
-  const detalleCaja = `${coberturaTexto} ${contextoCritico}`;
+  const dueCalculado90 =
+    horizonte === 90 ? dueTramoTotalFromPagos(filas, limiteHorizonte) : undefined;
+  const porPagarRecuadro = recuadroPorPagar(ap, horizonte, dueCalculado90, filas);
+  const vencidoRecuadro = recuadroVencidoPagar(ap, filas);
+  const pagadoRecuadro = pagadoMetric(horizonte);
+  const proximoPago = proximoPagoDesdePagos(filas, limiteHorizonte);
+  const sinFechasConfirmadas =
+    parseAmountOrNull(ap.undated_amount) != null &&
+    parseAmountOrNull(ap.total) != null &&
+    parseAmountOrNull(ap.undated_amount)! >= parseAmountOrNull(ap.total)!;
 
   return (
     <div className="space-y-5">
-      {/* (1) Tríada: Vencido / Por pagar · período / Caja proyectada + críticos separados. */}
-      <section
-        aria-label="Vencido, por pagar y caja proyectada"
-        className="grid gap-3 sm:grid-cols-3"
-      >
-        <KpiCard
-          label="Vencido"
-          {...(vencido.enRevision
-            ? { sinDato: { reason: MONTO_EN_REVISION_MOTIVO } }
-            : vencido.total == null
-              ? { sinDato: { reason: "La cobertura de fechas o monedas está incompleta." } }
-              : { value: formatClp(vencido.total) })}
-          detail={
-            <>
-              {vencido.n > 0 ? (
-                <>
-                  {formatCount(vencido.n)} {concordar(vencido.n, "pago", "pagos")} en todo el
-                  registro
-                  {!vencido.completo &&
-                    vencido.conocido != null &&
-                    ` · al menos ${formatClp(vencido.conocido)} conocidos`}
-                  {vencido.monedasExcluidas > 0 &&
-                    ` · ${vencido.monedasExcluidas} monedas sin conversión`}
-                  {vencido.sinFecha > 0 && ` · ${vencido.sinFecha} sin fecha clasificable`}
-                </>
-              ) : (
-                "ningún pago vencido conocido"
-              )}
-            </>
-          }
+      {canonicalProjection}
+
+      <section className="grid gap-4 md:grid-cols-3" aria-label="Resumen de pagos">
+        <PorPagarMetricCard
+          horizonte={horizonte}
+          porPagar={porPagarRecuadro}
+          vencido={vencidoRecuadro}
         />
-        {porPagar.total != null ? (
-          <KpiCard
-            label="Por pagar"
-            period={`${periodo} días`}
-            value={formatClp(porPagar.total)}
-            detail={
-              <>
-                <span>
-                  incluye lo vencido
-                  {porPagar.sinFecha &&
-                    ` · ${porPagar.sinFecha.n} ${porPagar.sinFecha.n === 1 ? "documento" : "documentos"} ${porPagar.sinFecha.monto == null ? "con monto no disponible" : `por ${formatClp(porPagar.sinFecha.monto)}`} sin fecha, en ningún tramo`}
-                  {/* `estimated_due_date_count` del servidor: fechas estimadas que no entran en
-                      los tramos. Con 0 no se dice nada; sin el campo tampoco (no se asume 0). */}
-                  {porPagar.estimadas != null &&
-                    porPagar.estimadas > 0 &&
-                    ` · ${formatCount(porPagar.estimadas)} ${concordar(porPagar.estimadas, "pago", "pagos")} con fecha aproximada`}
-                </span>
-                <SelectorPeriodo periodo={periodo} onChange={setPeriodo} />
-              </>
-            }
-          />
-        ) : (
-          <KpiCard
-            label="Por pagar"
-            period={`${periodo} días`}
-            sinDato={{
-              reason: porPagar.enRevision
-                ? MONTO_EN_REVISION_MOTIVO
-                : "La fuente no informó este tramo.",
-            }}
-            detail={<SelectorPeriodo periodo={periodo} onChange={setPeriodo} />}
+        <PagadoMetricCard {...pagadoRecuadro} />
+        {isLocalDevAppEnv() && (
+          <ProximoPagoMetricCard
+            fecha={proximoPago}
+            sinFechasConfirmadas={sinFechasConfirmadas}
+            documentosParciales={ap.has_more}
           />
         )}
-        {!canonicalProjection &&
-          /* `formatMoney` completa con CLP una moneda nula: por eso la cifra sólo se pinta con
-             moneda verificada (#370). Sin ella, el motivo explícito del modelo. */
-          (critico.cajaFinal != null && critico.monedaCaja != null ? (
-            <KpiCard
-              label="Caja proyectada"
-              period={`${VENTANA_DIAS} días`}
-              value={formatMoney(critico.cajaFinal, critico.monedaCaja)}
-              detail={detalleCaja}
-            />
-          ) : (
-            <KpiCard
-              label="Caja proyectada"
-              period={`${VENTANA_DIAS} días`}
-              sinDato={{ reason: critico.motivoSinCaja ?? "El saldo proyectado no llegó." }}
-              detail={detalleCaja}
-            />
-          ))}
       </section>
-
-      {canonicalProjection}
 
       <EstadoNomina ap={ap} />
 
@@ -349,6 +298,30 @@ export function PagarV05View({
               className="w-full rounded-full border border-rediseno-hairline bg-rediseno-superficie py-[7px] pr-3 pl-9 text-xs text-rediseno-tinta placeholder:text-rediseno-tinta-3-light focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
             />
           </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold text-rediseno-tinta-3">Ver compromisos hasta</p>
+            <div
+              className="flex flex-wrap rounded-full border border-rediseno-hairline bg-rediseno-superficie"
+              role="group"
+              aria-label="Horizonte de compromisos de pago"
+            >
+              {PAGAR_HORIZONTES.map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  aria-pressed={horizonte === days}
+                  onClick={() => setHorizonte(days)}
+                  className={cn(
+                    "flex min-h-9 items-center border-r border-rediseno-hairline px-2.5 text-xs font-medium text-rediseno-tinta-2 last:border-r-0 hover:bg-rediseno-neutro-bg sm:px-3",
+                    horizonte === days &&
+                      "bg-rediseno-azul font-semibold text-white hover:bg-rediseno-azul",
+                  )}
+                >
+                  {days} días
+                </button>
+              ))}
+            </div>
+          </div>
           <FilterChips
             aria-label="Filtrar pagos"
             className="mt-0 mb-0"
@@ -443,47 +416,120 @@ export function PagarV05View({
   );
 }
 
-/* ── Selector de período (los tres tramos que publica el backend) ────────────── */
+const PROXIMO_PAGO_API_PENDIENTE =
+  "No existe un campo «próximo pago» en el API. Hoy la fecha sale del vencimiento confirmado más cercano (≥ hoy) entre los pagos fechados ya traídos con GET /api/treasury/accounts-payable. Si faltan páginas, la fecha puede cambiar al traer más pagos.\n\nPara una cifra de cartera completa sin paginar: agregar en backend un agregado MIN(due_date) sobre payables vivos con fecha confirmada, o ordenar por due_date ASC con limit=1.\n\nSin vencimientos del SII: sincronizar el XML del DTE (enriquecimiento de fechas) desde Conexiones; hasta entonces no hay próximo pago nominal confiable.";
 
-function SelectorPeriodo({
-  periodo,
-  onChange,
+function PorPagarMetricCard({
+  horizonte,
+  porPagar,
+  vencido,
 }: {
-  periodo: PeriodoV05;
-  onChange: (p: PeriodoV05) => void;
+  horizonte: PagarHorizonte;
+  porPagar: RecuadroPagar;
+  vencido: RecuadroPagar;
 }) {
-  const refs = React.useRef<Array<HTMLButtonElement | null>>([]);
-  function onKeyDown(e: React.KeyboardEvent, idx: number) {
-    const next = rovingIndex(idx, e.key, PERIODOS.length);
-    if (next === null) return;
-    e.preventDefault();
-    onChange(PERIODOS[next]!);
-    refs.current[next]?.focus();
-  }
+  const label = `Por pagar · ${horizonte} días`;
   return (
-    <span className="mt-1 block" role="radiogroup" aria-label="Período de Por pagar">
-      {PERIODOS.map((p, idx) => (
-        <button
-          key={p}
-          ref={(el) => {
-            refs.current[idx] = el;
-          }}
-          type="button"
-          role="radio"
-          aria-checked={periodo === p}
-          tabIndex={periodo === p ? 0 : -1}
-          onKeyDown={(e) => onKeyDown(e, idx)}
-          onClick={() => onChange(p)}
-          className={cn(
-            "mr-1 rounded-full border border-rediseno-hairline bg-rediseno-superficie px-2 py-0.5 text-[12px] font-semibold text-rediseno-tinta-2",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul",
-            periodo === p && "border-rediseno-tinta bg-rediseno-tinta text-white",
+    <div
+      data-metric={label}
+      className="relative overflow-hidden rounded-xl border border-red-100 bg-gradient-to-br from-red-50/80 via-rediseno-superficie to-rediseno-superficie p-5 shadow-sm"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-rediseno-tinta-2">{label}</p>
+        <span className="rounded-lg bg-red-50 p-2 text-red-700">
+          <Clock3 className="size-4 shrink-0" aria-hidden="true" />
+        </span>
+      </div>
+      {porPagar.detail && <p className="mt-1 text-xs text-rediseno-tinta-3">{porPagar.detail}</p>}
+      <p
+        data-metric-valor=""
+        className="mt-3 text-3xl font-bold tabular-nums tracking-tight text-red-700"
+      >
+        {porPagar.value}
+      </p>
+      {porPagar.note && (
+        <p className="mt-2 text-xs leading-relaxed text-rediseno-tinta-3">{porPagar.note}</p>
+      )}
+      <details className="group/vencido mt-4 border-t border-rediseno-hairline pt-3">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-rediseno-tinta [&::-webkit-details-marker]:hidden">
+          <AlertCircle className="size-4 shrink-0 text-rediseno-tinta-3" aria-hidden="true" />
+          Vencido
+          {vencido.detail && (
+            <span className="ml-auto font-normal text-rediseno-tinta-3">{vencido.detail}</span>
           )}
-        >
-          {p} días
-        </button>
-      ))}
-    </span>
+          <ChevronDown
+            className="size-4 shrink-0 text-rediseno-tinta-3 transition-transform group-open/vencido:rotate-180 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        </summary>
+        <div className="mt-2 space-y-2">
+          <p className="text-xl font-bold tabular-nums text-rediseno-tinta">{vencido.value}</p>
+          {vencido.note && (
+            <p className="text-xs leading-relaxed text-rediseno-tinta-3">{vencido.note}</p>
+          )}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function PagadoMetricCard({ value, detail, note }: RecuadroPagar) {
+  return (
+    <div
+      data-metric="Pagado"
+      className="rounded-xl border border-rediseno-hairline bg-rediseno-superficie p-5"
+    >
+      <div className="flex items-center gap-2 text-sm font-semibold text-rediseno-tinta">
+        <CircleDollarSign className="size-4 shrink-0" aria-hidden="true" />
+        Pagado
+        {detail && <span className="ml-auto font-normal text-rediseno-tinta-3">{detail}</span>}
+      </div>
+      <p data-metric-valor="" className="mt-3 text-2xl font-bold tabular-nums text-rediseno-tinta">
+        {value}
+      </p>
+      {note && <p className="mt-2 text-xs leading-relaxed text-rediseno-tinta-3">{note}</p>}
+    </div>
+  );
+}
+
+function ProximoPagoMetricCard({
+  fecha,
+  sinFechasConfirmadas,
+  documentosParciales,
+}: {
+  fecha: string | null;
+  sinFechasConfirmadas: boolean;
+  documentosParciales: boolean;
+}) {
+  const valor = fecha
+    ? formatDateLike(fecha)
+    : sinFechasConfirmadas
+      ? "Sin fecha confirmada"
+      : "Estira el horizonte";
+  const nota = documentosParciales
+    ? "Calculado con los pagos traídos hasta acá; trae más páginas para cerrar la fecha."
+    : fecha
+      ? "Vencimiento confirmado más cercano dentro del horizonte elegido."
+      : undefined;
+  const apiMsg = documentosParciales
+    ? `${PROXIMO_PAGO_API_PENDIENTE}\n\nAhora mismo faltan páginas por traer en la lista de pagos.`
+    : PROXIMO_PAGO_API_PENDIENTE;
+
+  return (
+    <div
+      data-metric="Próximo pago"
+      className="rounded-xl border border-rediseno-hairline bg-rediseno-superficie p-5"
+    >
+      <div className="flex items-center gap-2 text-sm font-semibold text-rediseno-tinta">
+        <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
+        Próximo pago
+        <InicioApiPendienteButton mensaje={apiMsg} className="ml-1" />
+      </div>
+      <p data-metric-valor="" className="mt-3 text-2xl font-bold tabular-nums text-rediseno-tinta">
+        {valor}
+      </p>
+      {nota && <p className="mt-2 text-xs leading-relaxed text-rediseno-tinta-3">{nota}</p>}
+    </div>
   );
 }
 

@@ -110,9 +110,12 @@ test.describe("Decision Brief canónico en las cuatro superficies financieras", 
         await expect(brief.getByRole("link", { name: "Abrir auditoría" })).toHaveCount(0);
 
         if (surface.name === "inicio") {
-          // El resumen sigue montado como evidencia; su lista local de prioridades no.
+          /* El resumen (y su bloque de cobertura "Requiere atención") sigue como evidencia.
+             Lo que el Brief reemplaza es la lista local de priority_actions / maqueta. */
           await expect(page.getByTestId("inicio-resumen")).toBeVisible();
-          await expect(page.getByRole("heading", { name: "Requiere atención" })).toHaveCount(0);
+          await expect(page.getByRole("heading", { name: "Requiere atención" })).toBeVisible();
+          await expect(page.getByRole("link", { name: "Ver cobro" })).toHaveCount(0);
+          await expect(page.getByRole("link", { name: "Ver pago" })).toHaveCount(0);
         }
 
         if (surface.name === "caja") {
@@ -189,4 +192,3 @@ test.describe("Decision Brief canónico en las cuatro superficies financieras", 
     });
   }
 });
-

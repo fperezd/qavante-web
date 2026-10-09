@@ -12,6 +12,7 @@ export const MULTI_BANK_ACCOUNTS: BankAccountItem[] = [
     active: true,
     balance: "10000000",
     balance_as_of: "2026-09-11T12:00:00Z",
+    account_number_display: "**** **** **** 5678",
   },
   {
     id: "bice-usd",
@@ -22,6 +23,7 @@ export const MULTI_BANK_ACCOUNTS: BankAccountItem[] = [
     active: true,
     balance: "5000",
     balance_as_of: "2026-09-11T12:00:00Z",
+    account_number_display: "**** **** **** 4321",
   },
   {
     id: "chile-clp",

@@ -32,12 +32,12 @@ describe("requireAuth", () => {
   it("redirige a /login con redirect param cuando no hay sesión", async () => {
     authMock.mockResolvedValue(null);
     await expect(requireAuth("/caja")).rejects.toThrow("REDIRECT");
-    expect(redirectMock).toHaveBeenCalledWith("/login?redirect=%2Fcaja");
+    expect(redirectMock).toHaveBeenCalledWith("/login-correo?redirect=%2Fcaja");
   });
 
   it("redirige a /login sin param cuando no se pasa redirectTo", async () => {
     authMock.mockResolvedValue(null);
     await expect(requireAuth()).rejects.toThrow("REDIRECT");
-    expect(redirectMock).toHaveBeenCalledWith("/login");
+    expect(redirectMock).toHaveBeenCalledWith("/login-correo");
   });
 });

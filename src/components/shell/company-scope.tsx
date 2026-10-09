@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -67,7 +68,9 @@ export function CompanyScopeProvider({ children }: { children: ReactNode }) {
     return companies.find((company) => company.is_default)?.id ?? companies[0]!.id;
   }, [companies, requestedCompanyId]);
 
-  useEffect(() => {
+  /* Sincronizar antes del paint evita que el primer guardado del onboarding
+     mande mutaciones sin `X-Qavante-Company-Id` (el client lee localStorage). */
+  useLayoutEffect(() => {
     if (activeCompanyId) window.localStorage.setItem(ACTIVE_COMPANY_STORAGE_KEY, activeCompanyId);
   }, [activeCompanyId]);
 

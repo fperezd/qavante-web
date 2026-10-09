@@ -53,16 +53,29 @@ export type CargaV12<T> = { tipo: "cargando" } | { tipo: "error" } | { tipo: "li
 /** Credenciales: Ley 1, misma fuente que V11. `cargando`/`error` traen su PROPIO estado (nunca
  *  `null`, que es el hueco declarado de las otras filas). `[]` (cero fuentes visibles) tampoco
  *  afirma nada: no hay ninguna fuente que pueda requerir acción, así que es "Al día" de verdad. */
-export function estadoCredenciales(carga: CargaV12<SourceStatus[]>): EstadoFilaV12 | null {
-  if (carga.tipo === "cargando") return { tono: "neutral", texto: "Cargando credenciales…" };
+function estadoFuentesEmpresa(
+  carga: CargaV12<SourceStatus[]>,
+  cargando: string,
+  accionSuffix: string,
+): EstadoFilaV12 | null {
+  if (carga.tipo === "cargando") return { tono: "neutral", texto: cargando };
   if (carga.tipo === "error") return { tono: "bad", texto: "No se pudo cargar" };
   const visibles = visibleSources(carga.valor);
   const conAccion = visibles.filter((s) => sourceToConnectionCopy(s).requiresOwnerAction).length;
   if (conAccion === 0) return { tono: "ok", texto: "Al día" };
   return {
     tono: "warn",
-    texto: `${formatCount(conAccion)} ${concordar(conAccion, "requiere", "requieren")} tu acción → Renovar`,
+    texto: `${formatCount(conAccion)} ${concordar(conAccion, "requiere", "requieren")} tu acción${accionSuffix}`,
   };
+}
+
+export function estadoCredenciales(carga: CargaV12<SourceStatus[]>): EstadoFilaV12 | null {
+  return estadoFuentesEmpresa(carga, "Cargando credenciales…", " → Renovar");
+}
+
+/** Ley 1: misma fuente que el hub Conexiones (`/administracion/conexiones`). */
+export function estadoConexiones(carga: CargaV12<SourceStatus[]>): EstadoFilaV12 | null {
+  return estadoFuentesEmpresa(carga, "Revisando conexiones…", "");
 }
 
 export function estadoEmpresas(carga: CargaV12<number>): EstadoFilaV12 | null {
@@ -177,9 +190,18 @@ export function filasHubV12(inputs: HubInputsV12): FilaHubV12[] {
     {
       id: "credenciales",
       titulo: "Credenciales",
-      descripcion: "Claves del SII, certificado digital y conexión con tu banco.",
+      descripcion:
+        "Claves del SII, certificado digital y conexión con tu banco · por empresa activa.",
       href: "/administracion/credenciales",
       estado: estadoCredenciales(inputs.sources),
+    },
+    {
+      id: "conexiones",
+      titulo: "Conexiones",
+      descripcion:
+        "Estado de banco, SII y otras fuentes: qué está al día y qué requiere tu acción en esta empresa.",
+      href: "/administracion/conexiones",
+      estado: estadoConexiones(inputs.sources),
     },
     {
       id: "estructura-gestion",

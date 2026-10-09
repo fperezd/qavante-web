@@ -93,5 +93,5 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS --retry 12 --retry-all-errors --retry-delay 5 \
-            "https://ca-qavante-web-prod.nicedesert-33644b01.chilecentral.azurecontainerapps.io/login" >/dev/null
-          echo "web login 200"
+            "https://ca-qavante-web-prod.nicedesert-33644b01.chilecentral.azurecontainerapps.io/login-correo" >/dev/null
+          echo "web login-correo 200"

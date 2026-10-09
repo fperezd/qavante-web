@@ -19,6 +19,8 @@ export interface OnboardingStepActionsProps {
   skipLabel?: string;
   /** Si se pasa, muestra "Atrás". */
   onBack?: () => void;
+  /** Oculta el botón principal (p. ej. cuando la acción vive en un widget embebido). */
+  hideContinue?: boolean;
 }
 
 export function OnboardingStepActions({
@@ -30,6 +32,7 @@ export function OnboardingStepActions({
   onSkip,
   skipLabel = "Omitir por ahora",
   onBack,
+  hideContinue = false,
 }: OnboardingStepActionsProps) {
   return (
     <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -46,14 +49,16 @@ export function OnboardingStepActions({
             {skipLabel}
           </QavanteButton>
         )}
-        <QavanteButton
-          type={continueType}
-          onClick={continueType === "button" ? onContinue : undefined}
-          loading={continueLoading}
-          disabled={continueDisabled}
-        >
-          {continueLabel}
-        </QavanteButton>
+        {!hideContinue && (
+          <QavanteButton
+            type={continueType}
+            onClick={continueType === "button" ? onContinue : undefined}
+            loading={continueLoading}
+            disabled={continueDisabled}
+          >
+            {continueLabel}
+          </QavanteButton>
+        )}
       </div>
     </div>
   );

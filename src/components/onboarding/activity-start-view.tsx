@@ -13,6 +13,7 @@ import {
 import { OnboardingShell } from "./onboarding-shell";
 import { OnboardingStepActions } from "./onboarding-step-actions";
 import { routeAfter } from "./onboarding-steps";
+import { useOnboardingBack } from "./use-onboarding-back";
 import {
   DISTINCION_COPY,
   activityStartErrorCopy,
@@ -68,6 +69,7 @@ export interface ActivityStartStepViewProps {
   saveError: unknown;
   onContinue: () => void;
   onSkip: () => void;
+  onBack?: () => void;
 }
 
 export function ActivityStartStepView({
@@ -83,6 +85,7 @@ export function ActivityStartStepView({
   saveError,
   onContinue,
   onSkip,
+  onBack,
 }: ActivityStartStepViewProps) {
   return (
     <OnboardingShell
@@ -247,6 +250,7 @@ export function ActivityStartStepView({
           onContinue={onContinue}
           onSkip={onSkip}
           skipLabel="Declararlas después"
+          onBack={onBack}
         />
       </div>
     </OnboardingShell>
@@ -256,6 +260,7 @@ export function ActivityStartStepView({
 /** Contenedor: cablea el censo y la declaración. Nada de copy vive acá. */
 export function ActivityStartOnboardingView() {
   const router = useRouter();
+  const onBack = useOnboardingBack("activity-start");
   const census = useActivityStartCensus();
   const declare = useDeclareActivityStart();
   const [drafts, setDrafts] = React.useState<Record<string, string>>({});
@@ -292,6 +297,7 @@ export function ActivityStartOnboardingView() {
       saveError={declare.error}
       onContinue={() => router.push(NEXT)}
       onSkip={() => router.push(NEXT)}
+      onBack={onBack}
     />
   );
 }

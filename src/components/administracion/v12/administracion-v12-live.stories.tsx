@@ -134,7 +134,8 @@ export const Normal: Story = {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText("2 empresas")).toBeInTheDocument();
     await expect(await canvas.findByText("5 usuarios")).toBeInTheDocument();
-    await expect(await canvas.findByText("Al día")).toBeInTheDocument();
+    /* Credenciales y Monedas (u otras filas ok) pueden decir "Al día" a la vez. */
+    await expect((await canvas.findAllByText("Al día")).length).toBeGreaterThanOrEqual(1);
     await expect(
       await canvas.findByText("1 regla activa · 7 aplicaciones y 1 corrección en 1 regla medida"),
     ).toBeInTheDocument();
@@ -173,7 +174,9 @@ export const UnaFuenteCaida: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // La fuente caída lo DICE — nunca se pinta como "sin dato" (blanco).
-    await expect(await canvas.findByText("No se pudo cargar")).toBeInTheDocument();
+    await expect((await canvas.findAllByText("No se pudo cargar")).length).toBeGreaterThanOrEqual(
+      1,
+    );
     // Las otras dos igual muestran su estado real: una consulta caída no tumba a las demás.
     await expect(await canvas.findByText("2 empresas")).toBeInTheDocument();
     await expect(await canvas.findByText("5 usuarios")).toBeInTheDocument();

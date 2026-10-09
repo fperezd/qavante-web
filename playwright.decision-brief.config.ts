@@ -33,7 +33,7 @@ export default defineConfig({
     /* Webpack + mock de fuentes. Turbopack 16.3 no resuelve next/font/google
        cuando la descarga falla, y ese fallo no se reintenta. */
     command: "npx next build --webpack && npm start -- -p 3101",
-    url: "http://localhost:3101/login",
+    url: "http://localhost:3101/login-correo",
     reuseExistingServer: false,
     timeout: 600_000,
     stdout: "ignore",

@@ -29,7 +29,8 @@ const STATIC_DIR = ".next";
  *  Keys son rutas como aparecen en los manifests de Next (con grupos
  *  Next.js entre paréntesis y sufijo /page). */
 const BUDGETS_KB = {
-  "/(auth)/login/page": 200,
+  "/(auth)/login-correo/page": 200,
+  "/(auth)/login-rut/page": 200,
   "/(auth)/aceptar-invitacion/page": 200,
   "/(app)/inicio/page": 400,
   "/(app)/administracion/usuarios/page": 250,

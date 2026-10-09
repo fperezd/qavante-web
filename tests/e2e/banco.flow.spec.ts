@@ -9,9 +9,8 @@ test.describe("Flujo: Banco (/banco)", () => {
     await loginAs(context, "owner");
     await page.goto("/banco");
 
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Tus cuentas y tarjetas" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Banco" })).toBeVisible();
+    await expect(page.getByText("Tus saldos y movimientos, en un solo lugar")).toBeVisible();
     await expect(page.getByRole("region", { name: "Cuentas" })).toBeVisible();
     await expect(page.getByText(/Cuenta Corriente/).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "cartola" }).first()).toBeVisible();
@@ -22,7 +21,7 @@ test.describe("Flujo: Banco (/banco)", () => {
   test("el ítem 'Banco' aparece en el menú lateral", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/inicio");
-    await expect(page.getByRole("link", { name: "Banco" })).toBeVisible();
+    await expect(page.getByRole("navigation").getByRole("link", { name: "Banco" })).toBeVisible();
   });
 
   test("clic en la cuenta → detalle de movimientos con filtro de mes", async ({

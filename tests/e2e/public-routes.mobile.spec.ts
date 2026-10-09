@@ -10,15 +10,17 @@ import { test, expect } from "@playwright/test";
    exista PR que integre MSW con Playwright. */
 
 test.describe("Mobile (Pixel 5) — rutas públicas", () => {
-  test("/login renderea sin overflow horizontal + form visible", async ({ page }) => {
-    await page.goto("/login");
+  test("/login-correo renderea sin overflow horizontal + form visible", async ({ page }) => {
+    await page.goto("/login-correo");
 
     /* Form principal visible (no escondido bajo header / overflow).
        getByLabel("Clave") es ambiguo (el botón "Mostrar clave" del eye
        icon también tiene aria-label) — usamos role específico. */
-    await expect(page.getByLabel("RUT")).toBeVisible();
+    await expect(page.getByLabel("Correo")).toBeVisible();
     await expect(page.getByRole("textbox", { name: "Clave" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Iniciar sesión" })).toBeVisible();
+    await expect(
+      page.locator("form").getByRole("button", { name: "Iniciar sesión" }),
+    ).toBeVisible();
 
     /* No overflow horizontal: documentElement.scrollWidth no debe exceder
        el viewport width. */

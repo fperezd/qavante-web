@@ -19,18 +19,22 @@ test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Pagar" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Pagos y obligaciones" })).toBeVisible();
 
-    const resumen = page.getByRole("region", { name: "Vencido, por pagar y caja proyectada" });
+    const resumen = page.getByRole("region", { name: "Resumen de pagos" });
     await expect(resumen).toBeVisible();
-    /* D02 — "Vencido" es `overdue_summary`, no la suma de las filas. El mock publica el corte al
+    /* D02 — "Vencido" vive dentro de la tarjeta Por pagar (details). El mock publica el corte al
        2026-06-02, antes del primer vencimiento: cero vencido, dicho como cero conocido. */
     await expect(resumen).toContainText("Vencido");
     await expect(page.getByText("ningún pago vencido conocido")).toBeVisible();
-    // "Por pagar · 14 días" es `due_14d` del contrato (arriendo 05-jun + F29 12-jun).
     await expect(resumen).toContainText("Por pagar");
-    await expect(resumen).toContainText("14 días");
+    /* Default = 7 días → `due_7d` ($1.300.000). El de 14 ($3.700.000) aparece al estirar. */
+    await expect(resumen).toContainText("$1.300.000");
+    const horizonte = page.getByRole("group", { name: "Horizonte de compromisos de pago" });
+    await horizonte.getByRole("button", { name: "14 días" }).click();
+    await expect(horizonte.getByRole("button", { name: "14 días" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     await expect(resumen).toContainText("$3.700.000");
-    await expect(page.getByText("incluye lo vencido")).toBeVisible();
-    await expect(page.getByRole("radio", { name: "14 días" })).toBeChecked();
 
     /* Los conteos de los chips los publica `filter_metadata` sobre TODO el registro: filtrar o
        paginar no los mueve. */
@@ -121,7 +125,7 @@ test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
 
     /* El conteo de estimados es `estimated_due_date_count` del servidor, en la tarjeta "Por
        pagar", fuera de los tramos: no se recuenta desde la tabla. */
-    const resumen = page.getByRole("region", { name: "Vencido, por pagar y caja proyectada" });
+    const resumen = page.getByRole("region", { name: "Resumen de pagos" });
     await expect(resumen).toContainText("1 pago con fecha aproximada");
     // Y sigue sin haber vencidos: la fecha estimada del 18-jun no se convierte en mora.
     await expect(page.getByText("ningún pago vencido conocido")).toBeVisible();

@@ -12,6 +12,15 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** El panel ⓘ sale por portal (body); Base UI Popover lo publica como `dialog`. */
+function pageOf(canvasElement: HTMLElement) {
+  return within(canvasElement.ownerDocument.body);
+}
+
+async function findInfoPanel(page: ReturnType<typeof within>) {
+  return page.findByRole("dialog");
+}
+
 export const Default: Story = {
   args: {
     label: "el monto vencido",
@@ -49,23 +58,21 @@ export const ElInfoRevelaElMotivo: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const page = pageOf(canvasElement);
     const info = canvas.getByRole("button", { name: "Por qué no sabemos el monto vencido" });
 
-    await expect(info).toHaveAttribute("aria-expanded", "false");
-    await expect(canvas.queryByRole("tooltip")).toBeNull();
+    await expect(page.queryByRole("dialog")).toBeNull();
 
     await userEvent.click(info);
-    const panel = await canvas.findByRole("tooltip");
-    await expect(info).toHaveAttribute("aria-expanded", "true");
+    const panel = await findInfoPanel(page);
     await expect(
       within(panel).getByText(/no trae fechas de vencimiento/i, { exact: false }),
     ).toBeVisible();
-    // Las dos fuentes del backend se muestran tal cual, no se resumen.
     await expect(within(panel).getByText(/Vencimientos del RCV · Cartola BICE/)).toBeVisible();
     await expect(within(panel).getByText(/Fuentes que faltan/)).toBeVisible();
 
     await userEvent.click(info);
-    await expect(canvas.queryByRole("tooltip")).toBeNull();
+    await expect(page.queryByRole("dialog")).toBeNull();
   },
 };
 
@@ -86,18 +93,18 @@ export const EscapeCierraYDevuelveElFoco: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const page = pageOf(canvasElement);
     const info = canvas.getByRole("button", { name: "Por qué no sabemos el monto vencido" });
     const otro = canvas.getByRole("button", { name: "Otro control" });
 
     await userEvent.click(info);
-    await expect(await canvas.findByRole("tooltip")).toBeVisible();
+    await expect(await findInfoPanel(page)).toBeVisible();
 
-    // El foco se va a otro lado, como cuando el usuario sigue tabulando.
     otro.focus();
     await expect(otro).toHaveFocus();
 
     await userEvent.keyboard("{Escape}");
-    await expect(canvas.queryByRole("tooltip")).toBeNull();
+    await expect(page.queryByRole("dialog")).toBeNull();
     await expect(info).toHaveFocus();
   },
 };
@@ -111,10 +118,11 @@ export const MotivoVacioNoQuedaMudo: Story = {
   args: { label: "el monto vencido", reason: "   ", missingSources: [] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const page = pageOf(canvasElement);
     await userEvent.click(
       canvas.getByRole("button", { name: "Por qué no sabemos el monto vencido" }),
     );
-    const panel = await canvas.findByRole("tooltip");
+    const panel = await findInfoPanel(page);
     await expect(within(panel).getByText(/No tenemos registrado el motivo/)).toBeVisible();
     await expect(within(panel).queryByText(/Fuente/)).toBeNull();
   },
@@ -125,10 +133,11 @@ export const UnaSolaFuente: Story = {
   args: { label: "el saldo del banco", missingSources: ["Cartola BICE"] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const page = pageOf(canvasElement);
     await userEvent.click(
       canvas.getByRole("button", { name: "Por qué no sabemos el saldo del banco" }),
     );
-    const panel = await canvas.findByRole("tooltip");
+    const panel = await findInfoPanel(page);
     await expect(within(panel).getByText(/Fuente que falta/)).toBeVisible();
     await expect(within(panel).queryByText(/Fuentes que faltan/)).toBeNull();
   },

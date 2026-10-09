@@ -55,10 +55,12 @@ import type {
 } from "@/lib/api/pagos";
 import {
   MONTO_EN_REVISION,
+  formatClpODesconocido,
   importeDesconocido,
   parseAmount,
   parseAmountOrNull,
 } from "@/lib/formatters/amount";
+import { concordar, formatCount } from "@/lib/formatters/count";
 import { csv, csvCell } from "@/lib/export/csv";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { formatDateLong, formatDateShort, formatRelative } from "@/lib/formatters/date";
@@ -81,6 +83,17 @@ export const VENTANA_DIAS = 14;
 /** Los tres tramos que el backend publica (`due_7d`, `due_14d`, `due_30d`). */
 export const PERIODOS = [7, 14, 30] as const;
 export type PeriodoV05 = (typeof PERIODOS)[number];
+/** Horizonte de «Ver compromisos hasta» (7/14/30 usan `due_*`; 90 se aproxima desde filas traídas). */
+export type PagarHorizonte = 7 | 14 | 30 | 90;
+export const PAGAR_HORIZONTES: readonly PagarHorizonte[] = [7, 14, 30, 90];
+
+export function limiteHorizontePagar(today: string, horizonte: number): string {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(today);
+  if (!parts) return today;
+  const dt = new Date(Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])));
+  dt.setUTCDate(dt.getUTCDate() + horizonte);
+  return dt.toISOString().slice(0, 10);
+}
 /** Tope de `items` del endpoint (`_ITEMS_CAP` en `payables_repo.py`). */
 export const TOPE_ITEMS = 100;
 /** Texto FIJO de la Ley 9 (spec §2 y §5.10): se muestra literal donde la spec lo indica. */
@@ -528,6 +541,261 @@ export function kpiPorPagar(
     sinFecha: undatedN > 0 ? { monto: undated, n: undatedN } : null,
     estimadas: estimadasDe(ap),
   };
+}
+
+export type RecuadroPagar = {
+  value: string;
+  detail?: string;
+  note?: string;
+};
+
+function documentosPagar(n: number) {
+  return `${n} ${n === 1 ? "documento" : "documentos"}`;
+}
+
+/** Suma CLP del tramo `due_*` desde filas visibles (confirmadas, vencimiento ≤ límite). */
+export function dueTramoTotalFromPagos(
+  pagos: ReadonlyArray<PagoV05>,
+  limite: string,
+): number | null {
+  for (const p of pagos) {
+    if (!esConfirmada(p.certeza) || !p.dueDate || p.dueDate > limite) continue;
+    if (p.enRevision) return null;
+  }
+  let sum = 0;
+  for (const p of pagos) {
+    if (!esConfirmada(p.certeza) || !p.dueDate || p.dueDate > limite) continue;
+    if (p.montoClp == null) continue;
+    sum += p.montoClp;
+  }
+  return sum;
+}
+
+/** Suma CLP de filas vivas. `null` si alguna está en revisión de conciliación. */
+export function sumaClpPagos(
+  pagos: ReadonlyArray<PagoV05>,
+  pred?: (p: PagoV05) => boolean,
+): number | null {
+  for (const p of pagos) {
+    if (pred && !pred(p)) continue;
+    if (p.enRevision) return null;
+  }
+  let sum = 0;
+  for (const p of pagos) {
+    if (pred && !pred(p)) continue;
+    if (p.montoClp == null) continue;
+    sum += p.montoClp;
+  }
+  return sum;
+}
+
+/** Cuando el tramo `due_*` viene en 0 pero sí hay deuda viva (sin fecha, o agregado desacoplado de las filas). */
+function respaldoTramoCero(
+  ap: AccountsPayableResponse,
+  pagos?: ReadonlyArray<PagoV05>,
+): { monto: number; n: number; sufijo: "por agendar" | "por pagar"; nota?: string } | null {
+  const total = parseAmountOrNull(ap.total);
+  const undated = parseAmountOrNull(ap.undated_amount);
+  const undatedN = ap.undated_count ?? 0;
+  const nRegistro = ap.filter_metadata.unfiltered_items_total;
+
+  if (undatedN > 0) {
+    const m = undated ?? total;
+    if (m != null && m > 0) {
+      return {
+        monto: m,
+        n: undatedN,
+        sufijo: "por agendar",
+        nota: "Nada entra en este tramo hasta tener fecha de vencimiento.",
+      };
+    }
+  }
+
+  if (total != null && total > 0 && nRegistro > 0) {
+    return {
+      monto: total,
+      n: nRegistro,
+      sufijo: "por pagar",
+      nota: "El registro publicó $0 en este tramo; mostramos el total vivo convertido a pesos.",
+    };
+  }
+
+  if (pagos?.length) {
+    const sum = sumaClpPagos(pagos);
+    if (sum != null && sum > 0) {
+      return {
+        monto: sum,
+        n: pagos.length,
+        sufijo: "por pagar",
+        nota: "El tramo del registro vino en cero; mostramos la suma de los pagos de esta página.",
+      };
+    }
+  }
+
+  return null;
+}
+
+export function recuadroPorPagar(
+  ap: AccountsPayableResponse,
+  horizonte: PagarHorizonte,
+  dueCalculado?: number | null,
+  pagos?: ReadonlyArray<PagoV05>,
+): RecuadroPagar {
+  const total = parseAmountOrNull(ap.total);
+  const undated = parseAmountOrNull(ap.undated_amount);
+  const undatedN = ap.undated_count ?? 0;
+
+  const agendable = total != null && undated != null ? total - undated : null;
+
+  if (undatedN > 0 && agendable != null && agendable <= 0 && undated != null && undated > 0) {
+    return {
+      value: `${formatClp(undated)} por agendar`,
+      detail: documentosPagar(undatedN),
+    };
+  }
+
+  const detalleVentana = `Próximos ${horizonte} días`;
+  const tramoBackend = horizonte === 90 ? null : kpiPorPagar(ap, horizonte as PeriodoV05);
+  const sinFecha =
+    tramoBackend?.sinFecha ?? (undatedN > 0 ? { monto: undated, n: undatedN } : null);
+  const estimadas = tramoBackend?.estimadas ?? estimadasDe(ap);
+
+  if (horizonte === 90) {
+    if (importeDesconocido(ap)) {
+      return { value: MONTO_EN_REVISION, detail: detalleVentana };
+    }
+    if (dueCalculado == null) {
+      return {
+        value: "Sin información",
+        detail: detalleVentana,
+        note: "El registro no publica un tramo a 90 días; el monto se calcula desde los pagos fechados ya traídos.",
+      };
+    }
+  } else if (tramoBackend!.enRevision) {
+    return { value: MONTO_EN_REVISION, detail: detalleVentana };
+  }
+
+  const monto = horizonte === 90 ? dueCalculado! : tramoBackend!.total;
+
+  if (monto == null) {
+    return {
+      value: "Sin información",
+      detail: detalleVentana,
+    };
+  }
+
+  if (monto === 0) {
+    const respaldo = respaldoTramoCero(ap, pagos);
+    if (respaldo) {
+      return {
+        value: `${formatClp(respaldo.monto)} ${respaldo.sufijo}`,
+        detail: documentosPagar(respaldo.n),
+        note: respaldo.nota,
+      };
+    }
+  }
+
+  const notas: string[] = [];
+  if (sinFecha && sinFecha.n > 0) {
+    const montoTxt = sinFecha.monto == null ? "monto no disponible" : formatClp(sinFecha.monto);
+    notas.push(`${documentosPagar(sinFecha.n)} por ${montoTxt} sin fecha, en ningún tramo`);
+  }
+  if (estimadas != null && estimadas > 0) {
+    notas.push(
+      `${formatCount(estimadas)} ${concordar(estimadas, "pago", "pagos")} con fecha aproximada`,
+    );
+  }
+  if (undated != null && undated > 0 && total != null && total - undated > 0) {
+    notas.push(
+      `${formatClp(undated)} quedan fuera de esta ventana hasta que tengan fecha de vencimiento.`,
+    );
+  }
+  if (horizonte === 90 && ap.has_more) {
+    notas.push(
+      "Calculado con los pagos fechados de esta página; trae más páginas para cerrar el tramo.",
+    );
+  }
+
+  return {
+    value: formatClp(monto),
+    detail: detalleVentana,
+    note: notas.length ? notas.join(" · ") : undefined,
+  };
+}
+
+export function recuadroVencidoPagar(
+  ap: AccountsPayableResponse,
+  pagos?: ReadonlyArray<PagoV05>,
+): RecuadroPagar {
+  const v = kpiVencidoGlobal(ap);
+  const undated = parseAmountOrNull(ap.undated_amount);
+
+  if (v.enRevision) {
+    return {
+      value: MONTO_EN_REVISION,
+      detail: v.n > 0 ? `${formatCount(v.n)} ${concordar(v.n, "pago", "pagos")}` : undefined,
+    };
+  }
+
+  if (v.total == null) {
+    const vencidos = pagos?.filter((p) => p.vencido) ?? [];
+    const sumVencido = vencidos.length ? sumaClpPagos(vencidos) : null;
+    if (vencidos.length > 0 && sumVencido != null && sumVencido > 0) {
+      return {
+        value: formatClp(sumVencido),
+        detail: `${formatCount(vencidos.length)} ${concordar(vencidos.length, "pago", "pagos")}`,
+        note: "Calculado con los pagos fechados de esta página; el agregado global del registro no publicó el vencido.",
+      };
+    }
+    return {
+      value: formatClp(0),
+      detail: v.n === 0 ? "ningún pago vencido conocido" : undefined,
+      note: "Lo vencido se separa con la fecha de vencimiento de cada documento. El SII la entrega en el XML del DTE y el RCV no la trae, así que entra con la sincronización.",
+    };
+  }
+
+  const faltan = undated != null && undated > 0;
+  return {
+    value: formatClp(v.total),
+    detail:
+      v.n > 0
+        ? `${formatCount(v.n)} ${concordar(v.n, "pago", "pagos")}`
+        : "ningún pago vencido conocido",
+    note: faltan
+      ? `${formatClp(undated)} se suman a esta cifra en cuanto el SII entregue sus fechas de vencimiento.`
+      : undefined,
+  };
+}
+
+export function pagadoMetric(horizonte: PagarHorizonte): RecuadroPagar {
+  const ventana = `Últimos ${horizonte} días`;
+  return {
+    value: "Conciliación por cerrar",
+    detail: ventana,
+    note: `Los pagos de estos ${horizonte} días se suman acá en cuanto queden conciliados con sus movimientos de banco.`,
+  };
+}
+
+export function proximoPagoDesdePagos(
+  pagos: ReadonlyArray<PagoV05>,
+  limite: string,
+): string | null {
+  let best: string | null = null;
+  for (const p of pagos) {
+    if (!esConfirmada(p.certeza) || !p.dueDate) continue;
+    if (p.dias != null && p.dias < 0) continue;
+    if (p.dueDate > limite) continue;
+    if (!best || p.dueDate < best) best = p.dueDate;
+  }
+  return best;
+}
+
+/** ¿Entra en «compromisos hasta N días»? Incluye sin fecha y lo vencido; recorta sólo futuros. */
+export function pagoEnHorizonteCompromiso(p: PagoV05, limite: string): boolean {
+  if (!esConfirmada(p.certeza) || !p.dueDate) return true;
+  /* Vencido: siempre entra. El horizonte sólo recorta lo que todavía no vence. */
+  if (p.dias != null && p.dias < 0) return true;
+  return p.dueDate <= limite;
 }
 
 export interface CriticoV05 {

@@ -11,15 +11,17 @@ import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import {
   useUpdateCompanyCurrencySettings,
+  useUpsertLegalEntityFunctionalCurrency,
   type CompanyCurrencySettings,
   type Currency,
 } from "@/lib/api/currencies";
+import { useCompanyScope } from "@/components/shell/company-scope";
 import { CurrencyCodeSelect } from "./currency-code-select";
 import {
   FX_SOURCES,
   settingsSchema,
   settingsToForm,
-  formToRequest,
+  formToCompanySettingsPatch,
   type SettingsFormValues,
 } from "./currency-settings-form";
 
@@ -48,6 +50,8 @@ export function CurrencySettingsDialog({
   currencies,
 }: CurrencySettingsDialogProps) {
   const update = useUpdateCompanyCurrencySettings();
+  const upsertFunctional = useUpsertLegalEntityFunctionalCurrency();
+  const { activeCompanyId, activeCompany } = useCompanyScope();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const {
@@ -108,8 +112,18 @@ export function CurrencySettingsDialog({
 
   async function onSubmit(values: SettingsFormValues) {
     setSubmitError(null);
+    if (!activeCompanyId) {
+      setSubmitError(
+        "Elige una empresa en el encabezado para guardar la moneda funcional de esa sociedad.",
+      );
+      return;
+    }
     try {
-      await update.mutateAsync(formToRequest(values));
+      await upsertFunctional.mutateAsync({
+        legalEntityId: activeCompanyId,
+        functional_currency_code: values.functional_currency_code,
+      });
+      await update.mutateAsync(formToCompanySettingsPatch(values));
       onOpenChange(false);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -137,9 +151,14 @@ export function CurrencySettingsDialog({
             </Dialog.Close>
           </div>
           <Dialog.Description className="mb-4 text-sm text-neutral-mid">
-            La moneda funcional es la principal de tu empresa. Las monedas de reporte se usan para
-            ver los mismos números en otras monedas. Puedes activar la unidad indexada (UF / UTM) si
-            la usas en Chile.
+            La moneda funcional es la principal de{" "}
+            {activeCompany?.legal_name ? (
+              <span className="font-medium text-neutral-dark">{activeCompany.legal_name}</span>
+            ) : (
+              "la empresa activa en el encabezado"
+            )}
+            . Las monedas de reporte aplican a toda la cuenta. Puedes activar la unidad indexada (UF
+            / UTM) si la usas en Chile.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">

@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import Script from "next/script";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, LoaderCircle, Lock, Shield, X } from "lucide-react";
+import { Eye, Link2, LoaderCircle, Lock, Shield, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -50,14 +51,20 @@ export function notifyFintocCompletion(
   );
 }
 
+const DEFAULT_TRIGGER = "rounded-full bg-neutral-dark px-4 py-2 text-sm font-semibold text-white";
+
 export function QavanteBankConnectWidget({
   variant = "button",
   onConnected,
   buttonLabel = "Conectar banco",
+  triggerClassName,
+  withLinkIcon = false,
 }: {
   variant?: "button" | "embedded";
   onConnected?: () => void;
   buttonLabel?: string;
+  triggerClassName?: string;
+  withLinkIcon?: boolean;
 } = {}) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -284,8 +291,13 @@ export function QavanteBankConnectWidget({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="rounded-full bg-neutral-dark px-4 py-2 text-sm font-semibold text-white"
+            className={cn(
+              DEFAULT_TRIGGER,
+              withLinkIcon && "inline-flex items-center gap-2",
+              triggerClassName,
+            )}
           >
+            {withLinkIcon ? <Link2 className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
             {buttonLabel}
           </button>
           {open ? (

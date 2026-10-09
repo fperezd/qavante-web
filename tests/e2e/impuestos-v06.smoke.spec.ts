@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("V06 sin sesión conserva la frontera de autenticación", async ({ request }) => {
   const response = await request.get("/impuestos", { maxRedirects: 0 });
   expect(response.status()).toBe(307);
-  expect(response.headers().location).toContain("/login");
+  expect(response.headers().location).toContain("/login-correo");
   expect(response.headers().location).toContain("redirect=%2Fimpuestos");
 });
 

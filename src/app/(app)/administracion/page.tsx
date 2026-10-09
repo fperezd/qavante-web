@@ -11,6 +11,7 @@ import {
   Bot,
   Wallet,
   ArrowRight,
+  PlugZap,
 } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
@@ -62,7 +63,10 @@ export default function AdministracionPage() {
       <div className="space-y-6">
         <header>
           <h1 className="text-2xl font-bold text-neutral-dark">Administración</h1>
-          <p className="mt-1 text-sm text-neutral-mid">¿Cómo configuro mi equipo y mis fuentes?</p>
+          <p className="mt-1 text-sm text-neutral-mid">
+            ¿Cómo configuro mi equipo y mis fuentes? Usa el selector de empresa del encabezado:
+            desde credenciales hasta plantillas, la configuración aplica a la sociedad activa.
+          </p>
         </header>
         <AdministracionV12Live mcp={mcp} />
       </div>
@@ -73,7 +77,10 @@ export default function AdministracionPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Administración</h1>
-        <p className="mt-1 text-sm text-neutral-mid">¿Cómo configuro mi equipo y mis fuentes?</p>
+        <p className="mt-1 text-sm text-neutral-mid">
+          ¿Cómo configuro mi equipo y mis fuentes? Usa el selector de empresa del encabezado: desde
+          credenciales hasta plantillas, la configuración aplica a la sociedad activa.
+        </p>
       </header>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -93,7 +100,13 @@ export default function AdministracionPage() {
           href="/administracion/credenciales"
           icon={KeyRound}
           title="Credenciales"
-          description="Claves del SII, certificado digital y conexión con tu banco."
+          description="Claves del SII, certificado digital y conexión con tu banco · por empresa."
+        />
+        <SubModuleCard
+          href="/administracion/conexiones"
+          icon={PlugZap}
+          title="Conexiones"
+          description="Estado de banco, SII y otras fuentes: qué está al día y qué requiere tu acción."
         />
         <SubModuleCard
           href="/administracion/estructura-gestion"

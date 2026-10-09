@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AppProviders } from "@/components/providers/app-providers";
 import { QavanteLogo } from "@/components/qavante";
+import { LOGIN_PATH } from "@/lib/auth/routes";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
 /* Layout del wizard de onboarding (registro, verificar, y los pasos post-auth).
@@ -10,7 +11,7 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
    (resuelve el flag en runtime del Worker). */
 export default function OnboardingLayout({ children }: { children: ReactNode }) {
   const { onboarding } = resolveFeatureFlags();
-  if (!onboarding) redirect("/login");
+  if (!onboarding) redirect(LOGIN_PATH);
 
   return (
     <AppProviders>
@@ -18,7 +19,7 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
         <header className="flex items-center justify-center border-b border-border/40 bg-surface/70 px-4 py-4 backdrop-blur">
           <QavanteLogo variant="hero" alt="Qavante" />
         </header>
-        <main className="flex flex-1 flex-col">{children}</main>
+        <main className="flex w-full flex-1 flex-col items-center">{children}</main>
       </div>
     </AppProviders>
   );

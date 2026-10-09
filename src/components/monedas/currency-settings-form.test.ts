@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   settingsSchema,
   settingsToForm,
-  formToRequest,
+  formToCompanySettingsPatch,
   type SettingsFormValues,
 } from "./currency-settings-form";
 import type { CompanyCurrencySettings } from "@/lib/api/currencies";
@@ -153,16 +153,20 @@ describe("settingsToForm — snapshot → defaults", () => {
   });
 });
 
-describe("formToRequest — form → PATCH body", () => {
+describe("formToCompanySettingsPatch — form → PATCH body (sin moneda funcional)", () => {
+  it("no incluye functional_currency_code (va por legal-entity-financial-settings)", () => {
+    const body = formToCompanySettingsPatch(validForm({ functional_currency_code: "USD" }));
+    expect(body).not.toHaveProperty("functional_currency_code");
+  });
+
   it("mapea '' → null en campos opcionales (semántica de limpiar)", () => {
-    const body = formToRequest(validForm());
-    expect(body.functional_currency_code).toBe("CLP");
+    const body = formToCompanySettingsPatch(validForm());
     expect(body.default_reporting_currency_code).toBeNull();
     expect(body.default_exchange_rate_source).toBeNull();
   });
 
   it("indexed_unit_enabled=false → fuerza indexed_unit_currency_code=null (reset)", () => {
-    const body = formToRequest(
+    const body = formToCompanySettingsPatch(
       validForm({
         indexed_unit_enabled: false,
         indexed_unit_currency_code: "UF",
@@ -173,7 +177,7 @@ describe("formToRequest — form → PATCH body", () => {
   });
 
   it("indexed_unit_enabled=true con code → manda el code", () => {
-    const body = formToRequest(
+    const body = formToCompanySettingsPatch(
       validForm({
         indexed_unit_enabled: true,
         indexed_unit_currency_code: "UF",
@@ -184,10 +188,12 @@ describe("formToRequest — form → PATCH body", () => {
   });
 
   it("reporting_currency_codes se mantiene como array (incluso vacío)", () => {
-    const empty = formToRequest(validForm({ reporting_currency_codes: [] }));
+    const empty = formToCompanySettingsPatch(validForm({ reporting_currency_codes: [] }));
     expect(empty.reporting_currency_codes).toEqual([]);
 
-    const filled = formToRequest(validForm({ reporting_currency_codes: ["USD", "EUR"] }));
+    const filled = formToCompanySettingsPatch(
+      validForm({ reporting_currency_codes: ["USD", "EUR"] }),
+    );
     expect(filled.reporting_currency_codes).toEqual(["USD", "EUR"]);
   });
 });

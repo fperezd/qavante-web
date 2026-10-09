@@ -9,6 +9,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { OnboardingShell } from "./onboarding-shell";
 import { OnboardingStepActions } from "./onboarding-step-actions";
 import { routeAfter } from "./onboarding-steps";
+import { useOnboardingBack } from "./use-onboarding-back";
 
 /* Paso 6 — Saldo de apertura. Punto de partida de la caja. Monto manual opcional
    (string-decimal CLP) a nivel tenant. FE-first (endpoint manual aún no existe).
@@ -18,6 +19,7 @@ const NEXT = routeAfter("opening-balance");
 
 export function OpeningBalanceView() {
   const router = useRouter();
+  const onBack = useOnboardingBack("opening-balance");
   const save = useSetOpeningBalance();
   const [raw, setRaw] = React.useState("");
 
@@ -81,6 +83,7 @@ export function OpeningBalanceView() {
           continueLoading={save.isPending}
           onContinue={handleContinue}
           onSkip={() => router.push(NEXT)}
+          onBack={onBack}
         />
       </div>
     </OnboardingShell>

@@ -114,7 +114,7 @@ test.describe("Las doce invariantes contra producción", () => {
     const pCobrar = await abrirPantalla(page, "cobrar");
     const mCobrar = await leerMetricCard(pCobrar, {
       region: "Resumen de cobranza",
-      etiqueta: "Por cobrar",
+      etiqueta: "Por recibir · 7 días",
     });
 
     const r = await api.get<{ total?: string }>("/api/treasury/accounts-receivable");
@@ -137,9 +137,9 @@ test.describe("Las doce invariantes contra producción", () => {
     const mCaja = await leerKpi(pCaja, { region: "Hoy, entra y sale", etiqueta: "Sale · 14 días" });
 
     const pPagar = await abrirPantalla(page, "pagar");
-    const mPagarKpi = await leerKpi(pPagar, {
-      region: "Vencido, por pagar y caja proyectada",
-      etiqueta: "Por pagar",
+    const mPagarKpi = await leerMetricCard(pPagar, {
+      region: "Resumen de pagos",
+      etiqueta: "Por pagar · 7 días",
     });
 
     const ap = await porPagar(api);

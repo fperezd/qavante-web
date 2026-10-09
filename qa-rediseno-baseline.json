@@ -3,7 +3,6 @@
   "src/components/administracion/users-table.tsx :: §5.8 :: fecha a mano (date-fns)": 1,
   "src/components/banco/banco-view.tsx :: §5.8 :: hora a mano (toLocaleTimeString)": 1,
   "src/components/banco/cuenta-detalle-live.tsx :: §5.8 :: hora a mano (toLocaleTimeString)": 1,
-  "src/components/banco/tarjeta-detalle-live.tsx :: §5.8 :: hora a mano (toLocaleTimeString)": 1,
   "src/components/conexiones/conexiones-copy.ts :: §5.8 :: fecha a mano (Intl.DateTimeFormat)": 1,
   "src/components/credenciales/format.ts :: §5.8 :: fecha a mano (date-fns)": 1,
   "src/components/gestion/v2/tendencia-resultado.tsx :: §5.8 :: porcentaje interpolado a mano": 1,

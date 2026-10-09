@@ -20,6 +20,7 @@ import {
   sourceActionLabel,
   sourceStateDescription,
 } from "./onboarding-source-meta";
+import { useOnboardingImportWindow } from "@/lib/api/onboarding-import-window";
 import { ONBOARDING_DONE_ROUTE, onboardingResumeRoute, routeForSource } from "./onboarding-steps";
 
 const SOURCE_ICON: Record<OnboardingSourceId, typeof Landmark> = {
@@ -69,6 +70,8 @@ export function ConnectionsView() {
   const router = useRouter();
   const { states, isUnknown, isLoading, isError, error, refetch, completed } =
     useOnboardingSources(true);
+  const importWindow = useOnboardingImportWindow();
+  const importStartSelected = importWindow.data?.selected_start_date != null;
 
   function handleConnect(id: OnboardingSourceId) {
     undeferSource(id);
@@ -138,7 +141,11 @@ export function ConnectionsView() {
           <QavanteButton
             variant="ghost"
             onClick={() =>
-              router.push(completed ? ONBOARDING_DONE_ROUTE : onboardingResumeRoute(states))
+              router.push(
+                completed
+                  ? ONBOARDING_DONE_ROUTE
+                  : onboardingResumeRoute(states, { importStartSelected }),
+              )
             }
           >
             {completed ? "Volver a mi panel" : "Seguir con el registro"}

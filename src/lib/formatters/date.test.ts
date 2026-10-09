@@ -8,6 +8,7 @@ import {
   formatDateTimeLike,
   formatDateShort,
   formatDateLong,
+  formatDateHeading,
   formatRelative,
   formatHoraCorta,
 } from "./date";
@@ -124,6 +125,13 @@ describe("formatDateLong", () => {
   it("null / no reconocido → 's/d'", () => {
     expect(formatDateLong(undefined)).toBe("s/d");
     expect(formatDateLong("2026-00-10")).toBe("s/d");
+  });
+});
+
+describe("formatDateHeading", () => {
+  it("día civil en Chile con mes largo", () => {
+    expect(formatDateHeading("2026-10-09")).toBe("9 de octubre de 2026");
+    expect(formatDateHeading(new Date(2026, 9, 9, 12))).toBe("9 de octubre de 2026");
   });
 });
 

@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { AccountsReceivableResponse, ReceivableDocumentItem } from "@/lib/api/cobranza";
 import {
   collectedMetric,
+  documentoEnHorizonteCobros,
+  dueSoonTotalsFromDocuments,
+  proximoCobroDesdeDocumentos,
   formatCollectionMoney,
   hasAmbiguousReminderFailure,
   isReminderEligible,
+  limiteHorizonteCobros,
   matchesCollectionStatus,
   recuadroPorCobrar,
   recuadroVencido,
@@ -78,7 +82,8 @@ describe("totales monetarios", () => {
       value: "Conciliación por cerrar",
       detail: "Últimos 7 días",
       note: "Los cobros históricos se suman acá en cuanto cada uno quede conciliado con su movimiento de banco.",
-      accion: { texto: "Ir a Banco y conciliar", href: "/banco" },
+      linkHref: "/banco",
+      linkLabel: "Ir a Banco",
     });
   });
 
@@ -98,7 +103,8 @@ describe("totales monetarios", () => {
       value: "Conciliación por cerrar",
       detail: "Últimos 7 días",
       note: "Los cobros de estos 7 días se suman acá en cuanto queden conciliados con sus movimientos de banco.",
-      accion: { texto: "Ir a Banco y conciliar", href: "/banco" },
+      linkHref: "/banco",
+      linkLabel: "Ir a Banco",
     });
   });
 
@@ -112,6 +118,15 @@ describe("totales monetarios", () => {
     expect(metric).toEqual({ value: "$1.500.000", detail: "Últimos 7 días" });
   });
 
+  it("la etiqueta de ventana sigue el horizonte de la pantalla", () => {
+    const metric = collectedMetric(
+      { collected: [], collected_coverage: "not_applicable", collected_reason: null },
+      30,
+    );
+    expect(metric.detail).toBe("Últimos 30 días");
+    expect(metric.note).toContain("30 días");
+  });
+
   it("el recuadro Cobrado no usa ninguna de las palabras prohibidas con la forma de producción", () => {
     const metric = collectedMetric({
       collected: [],
@@ -119,9 +134,7 @@ describe("totales monetarios", () => {
       collected_reason: null,
     });
 
-    expect(
-      sinPalabrasProhibidas([metric.value, metric.detail, metric.note, metric.accion?.texto]),
-    ).toEqual([]);
+    expect(sinPalabrasProhibidas([metric.value, metric.detail, metric.note])).toEqual([]);
   });
 });
 
@@ -177,14 +190,12 @@ describe("recuadro Vencido · nunca un cero fabricado", () => {
     // La cifra que se conoce y de qué está hecha.
     expect(r.value).toBe("$9.000.000 por cobrar");
     expect(r.detail).toBe("7 documentos");
-    // Y la acción concreta, con el camino para hacerlo.
-    expect(r.accion).toEqual({ texto: "Revisar la conexión con el SII", href: "/conexiones" });
     expect(r.note).toContain("fecha de vencimiento");
   });
 
   it("no usa ninguna de las palabras prohibidas", () => {
     const r = recuadroVencido(arSinFechas());
-    expect(sinPalabrasProhibidas([r.value, r.detail, r.note, r.accion?.texto])).toEqual([]);
+    expect(sinPalabrasProhibidas([r.value, r.detail, r.note])).toEqual([]);
   });
 
   it("un vencido conocido se muestra tal cual, y lo sin fechar queda declarado como lo que falta", () => {
@@ -195,7 +206,6 @@ describe("recuadro Vencido · nunca un cero fabricado", () => {
     expect(r.value).toBe("$4.000.000");
     expect(r.detail).toBe("44,4% de la cartera");
     expect(r.note).toContain("$1.000.000");
-    expect(r.accion).toBeDefined();
   });
 
   it("con toda la cartera fechada no inventa un pendiente ni ofrece una acción de más", () => {
@@ -205,14 +215,80 @@ describe("recuadro Vencido · nunca un cero fabricado", () => {
 
     expect(r.value).toBe("$4.000.000");
     expect(r.note).toBeUndefined();
-    expect(r.accion).toBeUndefined();
   });
 
   it("un cero MEDIDO sigue siendo cero: nada vencido con todo fechado no se disfraza", () => {
     const r = recuadroVencido(arSinFechas({ overdue: "0", overdue_pct: "0", undated_amount: "0" }));
 
     expect(r.value).toBe("$0");
-    expect(r.accion).toBeUndefined();
+  });
+});
+
+describe("horizonte Ver cobros hasta", () => {
+  it("calcula el límite civil sumando días al hoy", () => {
+    expect(limiteHorizonteCobros("2026-09-01", 7)).toBe("2026-09-08");
+    expect(limiteHorizonteCobros("2026-09-01", 14)).toBe("2026-09-15");
+  });
+
+  it("incluye sin fecha confirmada, lo vencido y lo que vence dentro de la ventana", () => {
+    const limite = limiteHorizonteCobros("2026-09-10", 7);
+    expect(
+      documentoEnHorizonteCobros(
+        { ...BASE, due_date: "2026-09-12", due_date_certainty: "confirmed" },
+        "2026-09-10",
+        limite,
+      ),
+    ).toBe(true);
+    expect(
+      documentoEnHorizonteCobros(
+        { ...BASE, due_date: "2026-09-05", due_date_certainty: "confirmed", days_overdue: 5 },
+        "2026-09-10",
+        limite,
+      ),
+    ).toBe(true);
+    expect(
+      documentoEnHorizonteCobros(
+        { ...BASE, due_date: "2026-09-20", due_date_certainty: "confirmed" },
+        "2026-09-10",
+        limite,
+      ),
+    ).toBe(false);
+    expect(
+      documentoEnHorizonteCobros(
+        { ...BASE, due_date: null, due_date_certainty: "unconfirmed" },
+        "2026-09-10",
+        limite,
+      ),
+    ).toBe(true);
+  });
+
+  it("elige el vencimiento confirmado más cercano dentro del horizonte", () => {
+    const limite = limiteHorizonteCobros("2026-09-10", 7);
+    expect(
+      proximoCobroDesdeDocumentos(
+        [
+          { ...BASE, due_date: "2026-09-20" },
+          { ...BASE, id: "2", due_date: "2026-09-12" },
+          { ...BASE, id: "3", due_date: "2026-09-05", days_overdue: 5 },
+        ],
+        "2026-09-10",
+        limite,
+      ),
+    ).toBe("2026-09-12");
+  });
+
+  it("suma montos por moneda dentro del horizonte", () => {
+    const limite = limiteHorizonteCobros("2026-09-10", 14);
+    const totals = dueSoonTotalsFromDocuments(
+      [
+        { ...BASE, outstanding_amount: "100000", due_date: "2026-09-20" },
+        { ...BASE, id: "2", outstanding_amount: "50000", due_date: "2026-09-24" },
+        { ...BASE, id: "3", outstanding_amount: "999", due_date: "2026-10-01" },
+      ],
+      "2026-09-10",
+      limite,
+    );
+    expect(totals).toEqual([{ currency: "CLP", amount: "150000" }]);
   });
 });
 
@@ -222,8 +298,7 @@ describe("recuadro Por cobrar · próximos 7 días", () => {
 
     expect(r.value).toBe("$9.000.000 por agendar");
     expect(r.value).not.toContain("$0");
-    expect(r.accion).toEqual({ texto: "Revisar la conexión con el SII", href: "/conexiones" });
-    expect(sinPalabrasProhibidas([r.value, r.detail, r.note, r.accion?.texto])).toEqual([]);
+    expect(sinPalabrasProhibidas([r.value, r.detail, r.note])).toEqual([]);
   });
 
   it("con la cartera fechada muestra la ventana real, incluido un cero medido", () => {
@@ -231,7 +306,6 @@ describe("recuadro Por cobrar · próximos 7 días", () => {
 
     expect(r.value).toBe("$0");
     expect(r.detail).toBe("Próximos 7 días");
-    expect(r.accion).toBeUndefined();
   });
 
   it("con fechas parciales suma la ventana y declara lo que queda afuera", () => {
@@ -242,6 +316,18 @@ describe("recuadro Por cobrar · próximos 7 días", () => {
 
     expect(r.value).toBe("$2.000.000");
     expect(r.note).toContain("$1.000.000");
+  });
+
+  it("con horizonte 30 usa el total calculado en documentos", () => {
+    const r = recuadroPorCobrar(
+      { due_soon: [{ currency: "CLP", amount: "100" }] },
+      arSinFechas({ undated_amount: "0" }),
+      30,
+      [{ currency: "CLP", amount: "5000000" }],
+    );
+
+    expect(r.value).toBe("$5.000.000");
+    expect(r.detail).toBe("Próximos 30 días");
   });
 });
 

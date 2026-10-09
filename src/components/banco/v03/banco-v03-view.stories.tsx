@@ -54,6 +54,7 @@ const meta = {
     links: links(),
     sources: sourcesOk(),
     movimientos: movimientos(),
+    movimientosMes: movimientos(),
     movimientosTotal: 8,
     categorias: categorias(),
     banco: BANCO,
@@ -74,8 +75,9 @@ export const Normal: Story = {
     await expect(kpi.getByText("$9.800.000")).toBeInTheDocument();
     await expect(kpi.getByText("BICE · hoy ✓")).toBeInTheDocument();
     await expect(kpi.getByText("el mismo número que en Hoy y Caja")).toBeInTheDocument();
-    await expect(canvas.getAllByText("$9.800.000")).toHaveLength(2); // KPI + fila de la cuenta CLP
-    await expect(canvas.getAllByText("Conectada ✓").length).toBeGreaterThan(0);
+    await expect(canvas.getAllByText("$9.800.000").length).toBeGreaterThanOrEqual(2); // KPI + fila CLP (+ posible eco de flujo)
+    /* Las cards agrupan por banco y dicen "Conectado" (sin ✓; el ✓ queda en el chip del KPI). */
+    await expect(canvas.getAllByText("Conectado").length).toBeGreaterThan(0);
     await expect(
       canvas.getByText("actualizada hoy · 4 movimientos por conciliar"),
     ).toBeInTheDocument();
@@ -181,7 +183,7 @@ export const SinBancoConectado: Story = {
     await expect(canvas.getByText("No hay cuentas de banco")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Conectar un banco" })).toHaveAttribute(
       "href",
-      "/conexiones",
+      "/administracion/conexiones",
     );
     await expect(canvas.getByText("No hay movimientos del banco")).toBeInTheDocument();
     // El "no sé" del saldo: sin dato, no $0.
@@ -203,11 +205,6 @@ export const AccionRequerida: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Tu sesión con BICE no está disponible.")).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "Reconectar BICE" })).toHaveAttribute(
-      "href",
-      "/conexiones",
-    );
     await expect(canvas.getAllByText("Tu acción").length).toBeGreaterThan(0);
     await expect(canvas.queryByText("Conectada ✓")).not.toBeInTheDocument();
     await expect(

@@ -54,7 +54,7 @@ export function LoginForm() {
       /* Navegación DURA (no `router.push`): tras setear la cookie de sesión, el
          middleware que gatea /inicio necesita re-evaluarse con la cookie fresca.
          Una navegación soft de Next no la toma de forma confiable (queda pensando
-         o rebota a /login). Un full-load garantiza que middleware + Server
+         o rebota al login). Un full-load garantiza que middleware + Server
          Components lean la sesión nueva (mismo patrón que el selector de empresa). */
       window.location.assign(redirect);
       return; // dejamos el botón en "cargando" hasta que la página se recargue

@@ -21,6 +21,7 @@ export const COBERTURA_SIN_EXCLUSIONES = {
   moneda_distinta_cuotas_excluidas: "0",
   f29_legacy_unattributed: false,
   f29_omitido_por_moneda: false,
+  ingreso_recurrente_multi_sociedad_excluido: false,
   moneda_distinta_excluidos: "0",
   payables_fecha_asumida_excluidos: "0",
   payables_fecha_asumida_excluidos_count: "0",

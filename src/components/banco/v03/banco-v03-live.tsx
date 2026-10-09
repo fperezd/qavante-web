@@ -183,10 +183,16 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
       setSelectedAccountId(firstAccountId);
     }
   }, [cuentas.data, selectedAccountId, selectedMovementId]);
+  const mesActual = periodo(hoy);
   const movs = useBankMovements({
     period_from: desde,
     period_to: hasta,
     bank_account_id: selectedAccountId || undefined,
+    limit: LIMITE_MOVIMIENTOS,
+  });
+  const movsMes = useBankMovements({
+    period_from: mesActual,
+    period_to: mesActual,
     limit: LIMITE_MOVIMIENTOS,
   });
   const cats = useCanonicalCategories();
@@ -239,6 +245,7 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
 
   function refreshResolution() {
     void movs.refetch();
+    void movsMes.refetch();
     void resolution.refetch();
   }
 
@@ -258,6 +265,9 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
       movimientos={movs.data?.items ?? null}
       movimientosTotal={movs.data?.total ?? null}
       movimientosMotivo={movs.isError ? motivoSinMovimientos(movs.error) : null}
+      movimientosMes={movsMes.data?.items ?? null}
+      movimientosMesMotivo={movsMes.isError ? motivoSinMovimientos(movsMes.error) : null}
+      movimientosMesCargando={movsMes.isLoading}
       categorias={categorias}
       resolutionDetails={resolutionDetails}
       deepLinkedMovement={deepLinkedMovement}

@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/cookies";
+import { LOGIN_PATH } from "@/lib/auth/routes";
 
 /* Middleware Qavante. Protege las rutas del route group (app) — solo
    permite continuar si hay cookie de sesión (no valida vs backend; la
    validez real la chequea cada request al backend cuando envía la
-   cookie). Sin cookie redirige a /login con query ?redirect= para
+   cookie). Sin cookie redirige al login principal con query ?redirect= para
    volver post-login.
 
    Patrón compatible con Auth.js v5 (Anexo A.5.1). Cuando migremos a
@@ -17,7 +18,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const loginUrl = new URL("/login", request.url);
+  const loginUrl = new URL(LOGIN_PATH, request.url);
   loginUrl.searchParams.set("redirect", request.nextUrl.pathname + request.nextUrl.search);
   return NextResponse.redirect(loginUrl);
 }

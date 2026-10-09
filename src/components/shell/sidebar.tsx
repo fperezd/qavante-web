@@ -15,7 +15,6 @@ import {
   FlaskConical,
   CircleGauge,
   Settings,
-  PlugZap,
   Inbox,
   ChevronDown,
   X,
@@ -125,7 +124,6 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
   {
     label: "Configuración",
     items: [
-      { href: "/conexiones", label: "Conexiones", Icon: PlugZap },
       {
         href: "/administracion",
         label: "Administración",

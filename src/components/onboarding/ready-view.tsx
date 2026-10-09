@@ -7,6 +7,8 @@ import { QavanteButton, QavanteCard } from "@/components/qavante";
 import { useOnboardingReadiness } from "@/lib/api/onboarding-readiness";
 import { OnboardingShell } from "./onboarding-shell";
 import { ONBOARDING_DONE_ROUTE } from "./onboarding-steps";
+import { useOnboardingBack } from "./use-onboarding-back";
+import { OnboardingStepActions } from "./onboarding-step-actions";
 import { readinessHeadline, readinessStep } from "./readiness-copy";
 
 /* Paso 9 (final) — Tu primera decisión.
@@ -37,6 +39,7 @@ import { readinessHeadline, readinessStep } from "./readiness-copy";
 
 export function ReadyView() {
   const router = useRouter();
+  const onBack = useOnboardingBack("ready");
   const { data, isError } = useOnboardingReadiness(true);
   const fin = data?.financial;
 
@@ -111,9 +114,12 @@ export function ReadyView() {
           </QavanteCard>
         )}
 
-        <QavanteButton size="lg" onClick={() => router.push(ONBOARDING_DONE_ROUTE)}>
-          Ir a mi panel
-        </QavanteButton>
+        <OnboardingStepActions
+          continueType="button"
+          continueLabel="Ir a mi panel"
+          onContinue={() => router.push(ONBOARDING_DONE_ROUTE)}
+          onBack={onBack}
+        />
       </div>
     </OnboardingShell>
   );

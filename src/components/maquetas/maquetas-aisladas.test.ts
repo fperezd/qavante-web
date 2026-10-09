@@ -43,9 +43,12 @@ describe("maquetas: el aviso de cifras de ejemplo", () => {
   }
 });
 
+/** Secciones de Inicio sólo visibles con `isLocalDevAppEnv()`; no son rutas `/maquetas/*`. */
+const INICIO_MAQUETA_LOCAL = path.join(RAIZ, "src", "components", "inicio", "resumen");
+
 describe("maquetas: no se mezclan con pantallas de datos reales", () => {
   it("ningún archivo fuera de las maquetas importa un componente de maquetas ni datos de ejemplo", () => {
-    const permitidos = [RUTAS_MAQUETAS, COMPONENTES_MAQUETAS];
+    const permitidos = [RUTAS_MAQUETAS, COMPONENTES_MAQUETAS, INICIO_MAQUETA_LOCAL];
     const infractores = archivosFuente(path.join(RAIZ, "src"))
       .filter((archivo) => !permitidos.some((dir) => archivo.startsWith(dir)))
       .filter((archivo) => !archivo.endsWith(".test.ts") && !archivo.endsWith(".test.tsx"))
@@ -54,7 +57,7 @@ describe("maquetas: no se mezclan con pantallas de datos reales", () => {
         return (
           fuente.includes("@/components/maquetas/") ||
           fuente.includes("@/lib/demo/") ||
-          /from "\.\.?\/.*maqueta/.test(fuente)
+          /from ["']@\/components\/maquetas\//.test(fuente)
         );
       })
       .map((archivo) => path.relative(RAIZ, archivo));

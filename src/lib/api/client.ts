@@ -1,3 +1,4 @@
+import { isLoginPath, loginPathWithRedirect } from "@/lib/auth/routes";
 import { companyRequestHeaders } from "@/lib/company/active-company";
 import { ApiError } from "./errors";
 import { fallbackUserMessage, parseUserMessage, renderUserMessage } from "./user-message";
@@ -48,12 +49,12 @@ function tryRefresh(): Promise<boolean> {
   return refreshInFlight;
 }
 
-/* Redirige a /login preservando el destino. Guard: solo en browser y si no
-   estamos ya en /login (evita loop de redirect, p.ej. el 401 del propio login). */
+/* Redirige al login principal preservando el destino. Guard: solo en browser y si no
+   estamos ya en una ruta de login (evita loop, p.ej. el 401 del propio login). */
 function redirectToLogin(): void {
-  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+  if (typeof window !== "undefined" && !isLoginPath(window.location.pathname)) {
     const redirect = window.location.pathname + window.location.search;
-    window.location.href = `/login?redirect=${encodeURIComponent(redirect)}`;
+    window.location.href = loginPathWithRedirect(redirect);
   }
 }
 

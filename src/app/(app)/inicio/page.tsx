@@ -20,6 +20,7 @@ const FinancialPositionCard = dynamic(() =>
   ),
 );
 import { HoyLive } from "@/components/inicio/v01/hoy-live";
+import { InicioHoyPageHeader } from "@/components/inicio/v01/inicio-hoy-page-header";
 import { DecisionBriefSlot } from "@/components/decision-brief/decision-brief-slot";
 
 /* Inicio Ejecutivo (Sprint C8). **Server Component** (como gestion/cobrar/pagar):
@@ -53,9 +54,7 @@ export default function InicioPage() {
   if (hoyV01) {
     return (
       <div className="space-y-6">
-        <header>
-          <h1 className="text-2xl font-semibold text-neutral-dark">Inicio</h1>
-        </header>
+        <InicioHoyPageHeader />
         {decisionBrief && <DecisionBriefSlot surface="inicio" />}
         <HoyLive bankBalancesEnabled={bankBalances} suppressRecommendations={decisionBrief} />
       </div>

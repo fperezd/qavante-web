@@ -3,17 +3,18 @@
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { QavanteBankConnectWidget } from "@/components/banco/qavante-bank-connect-widget";
-import { QavanteButton } from "@/components/qavante";
 import { useOnboardingSources } from "@/lib/api/onboarding-sources";
 import { deferSource, undeferSource } from "@/lib/onboarding/deferred-sources";
 import { OnboardingShell } from "./onboarding-shell";
 import { OnboardingStepActions } from "./onboarding-step-actions";
 import { routeAfter } from "./onboarding-steps";
+import { useOnboardingBack } from "./use-onboarding-back";
 
 const NEXT = routeAfter("connect-bank");
 
 export function ConnectBankView() {
   const router = useRouter();
+  const onBack = useOnboardingBack("connect-bank");
   const { states } = useOnboardingSources(true);
   const connected = states.bank === "connected";
 
@@ -45,6 +46,7 @@ export function ConnectBankView() {
               continueType="button"
               continueLabel="Continuar"
               onContinue={() => router.push(NEXT)}
+              onBack={onBack}
             />
           </>
         ) : (
@@ -56,9 +58,12 @@ export function ConnectBankView() {
                 router.push(NEXT);
               }}
             />
-            <QavanteButton type="button" variant="ghost" onClick={handleDefer}>
-              Conectar después
-            </QavanteButton>
+            <OnboardingStepActions
+              hideContinue
+              onSkip={handleDefer}
+              skipLabel="Conectar después"
+              onBack={onBack}
+            />
           </>
         )}
       </div>

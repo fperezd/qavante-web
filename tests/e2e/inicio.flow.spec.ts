@@ -33,10 +33,14 @@ test.describe("Flujo: Inicio (/inicio)", () => {
     await expect(panel.getByText("Brecha contra cero")).toBeVisible();
     await expect(page.getByText(/Te faltan \$1\.200\.000/)).toHaveCount(0);
 
-    const projection = page.getByRole("region", { name: "Faltante proyectado" });
+    const projection = page.getByRole("region", {
+      name: /Requiere atención|Proyección por confirmar|Pagos cubiertos/,
+    });
     await expect(projection.getByText("Sin dato", { exact: true })).toBeVisible();
     await expect(projection.getByText("Proyección pendiente de actualizar.")).toBeVisible();
-    await projection.getByRole("link", { name: "Ver flujo de caja" }).click();
+    await projection
+      .getByRole("link", { name: /Ver proyección de caja|Ver flujo de caja/ })
+      .click();
     await expect(page).toHaveURL(/\/caja$/);
   });
 });

@@ -38,8 +38,9 @@ async function medirLey7SinDesborde(canvasElement: HTMLElement, ancho: number): 
   try {
     await waitFor(() => expect(document.documentElement.clientWidth).toBe(ancho));
 
-    const tabla = canvasElement.querySelector<HTMLElement>("table")!;
-    const scroller = tabla.parentElement!;
+    const scroller = canvasElement.querySelector<HTMLElement>(
+      'section[aria-label="Empresas y usuarios de la cuenta"] > div',
+    )!;
 
     const sonda = document.createElement("div");
     sonda.setAttribute("data-sonda-ley7", "");
@@ -96,10 +97,10 @@ export const Normal: Story = {
     // Filas sin estado calculado (hueco declarado): título presente, sin una pill fantasma al lado.
     await expect(canvas.getByText("Monedas")).toBeInTheDocument();
     await expect(canvas.getByText("Plantillas por rubro")).toBeInTheDocument();
-    // Los 8 links "Ver" a cada módulo.
+    // Solo Empresas y Usuarios llevan el link explícito "Ver"; el resto son tarjetas clicables.
     const links = canvas.getAllByRole("link", { name: "Ver" });
-    await expect(links).toHaveLength(8);
-    await expect(canvas.getByText("8 módulos")).toBeInTheDocument();
+    await expect(links).toHaveLength(2);
+    await expect(canvas.queryByText(/módulos?/)).not.toBeInTheDocument();
   },
 };
 
@@ -135,9 +136,7 @@ export const NueveConMcp: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Conectar un asistente (MCP)")).toBeInTheDocument();
-    await expect(canvas.getByText("9 módulos")).toBeInTheDocument();
-    const filas = canvasElement.querySelectorAll("tbody tr");
-    await expect(filas[filas.length - 1]!).toHaveTextContent("Conectar un asistente (MCP)");
+    await expect(canvas.queryByText(/módulos?/)).not.toBeInTheDocument();
   },
 };
 
@@ -146,7 +145,7 @@ export const NueveConMcp: Story = {
 /** El mínimo que pide la spec (§5.2): sin scroll horizontal de página en ≥ 360 px. */
 export const Ley7Angosto360: Story = {
   parameters: SOLO_TEST_STORYBOOK,
-  name: "Ley 7 · 360 px · la tabla entra completa, sin scroll horizontal",
+  name: "Ley 7 · 360 px · la lista de cuenta entra completa, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 360);
   },
@@ -165,9 +164,8 @@ export const Ley7Angosto346: Story = {
   },
 };
 
-/** Ancho que la vuelta anterior NO midió: a 320 px (el más angosto habitual de un teléfono) la
- *  misma tabla desbordaba 21 px incluso en Windows, sin necesitar las fuentes de Linux para
- *  romperse. Con la columna Estado colapsada (`hideBelowTable`) entra con margen real. */
+/** Ancho que la vuelta anterior NO midió: a 320 px (teléfono) la lista de cuenta debe entrar sin
+ *  scroll horizontal. */
 export const Ley7Angosto320: Story = {
   parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 320 px · ancho de teléfono, sin scroll horizontal",

@@ -3,6 +3,7 @@
    aceptan cookie (verificado 2026-07-17): GET/POST /api/users, PATCH /api/users/{id},
    GET /api/me, GET /api/users/me/permissions. */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { LOGIN_PATH } from "@/lib/auth/routes";
 import { api } from "./client";
 import { ApiError } from "./errors";
 import type { UserRole } from "@/lib/auth/types";
@@ -143,7 +144,7 @@ export function useLogout() {
       api.post<void>("/api/auth/logout", { skipAuthRetry: true }).catch(handleLogoutError),
     onSuccess: () => {
       if (typeof window !== "undefined") {
-        window.location.href = "/login";
+        window.location.href = LOGIN_PATH;
       }
     },
   });

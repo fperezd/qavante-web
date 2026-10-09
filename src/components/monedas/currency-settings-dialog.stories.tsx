@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { fn } from "storybook/test";
+import { CompanyScopeProvider } from "@/components/shell/company-scope";
 import { CurrencySettingsDialog } from "./currency-settings-dialog";
 import type { CompanyCurrencySettings, Currency } from "@/lib/api/currencies";
 
@@ -82,6 +83,13 @@ const SEED_SETTINGS: CompanyCurrencySettings = {
 const meta = {
   title: "Capa 2 / Monedas / CurrencySettingsDialog",
   component: CurrencySettingsDialog,
+  decorators: [
+    (Story) => (
+      <CompanyScopeProvider>
+        <Story />
+      </CompanyScopeProvider>
+    ),
+  ],
   parameters: {
     docs: {
       description: {

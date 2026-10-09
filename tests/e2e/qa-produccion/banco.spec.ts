@@ -83,16 +83,13 @@ test.describe("QA producción · Banco", () => {
     ).toBe(true);
   });
 
-  test('B18 — "Bancos conectados" es una pestaña de Banco, no un salto a Administración', async ({
+  test("B18 — el encabezado V03 muestra título y subtítulo (conectar banco vive en Administración)", async ({
     page,
   }) => {
     await page.goto("/banco");
-    const enlace = page
-      .getByRole("navigation", { name: "Secciones de banco" })
-      .getByRole("link", { name: "Bancos conectados" });
-    await expect(enlace).toBeVisible();
-    const href = (await enlace.getAttribute("href")) ?? "";
-    expect(href, `"Bancos conectados" lleva a ${href}`).toMatch(/^\/banco(\/|\?|#|$)/);
+    await expect(page.getByRole("heading", { level: 1, name: "Banco" })).toBeVisible();
+    await expect(page.getByText("Tus saldos y movimientos, en un solo lugar")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Conectar banco" })).toHaveCount(0);
   });
 
   test("B24 — los mensajes llegan en español de Chile, sin voseo ni jerga interna", async ({

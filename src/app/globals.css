@@ -275,3 +275,18 @@ html {
     animation: none;
   }
 }
+
+/* `<input type="month">`: texto a la izquierda, icono del picker a la derecha. */
+.qv-month-input {
+  position: relative;
+  text-align: left;
+}
+
+.qv-month-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  opacity: 1;
+}

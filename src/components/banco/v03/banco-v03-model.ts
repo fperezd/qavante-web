@@ -34,6 +34,8 @@ import type {
 } from "@/lib/api/treasury";
 import type { SourceStatus } from "@/lib/api/sources-status";
 import type { CajaHoy } from "@/lib/finanzas/caja-hoy";
+import { canonicalBankId } from "@/lib/banco/bank-assets";
+import { bankAccountNumberDisplay } from "@/lib/formatters/bank-account-number";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateShort, formatRelative } from "@/lib/formatters/date";
@@ -246,6 +248,8 @@ export function frescuraCuenta(conexion: ConexionBanco, hoy: Date): string {
 export interface CuentaV03 {
   /** Clave estable de la fila. */
   key: string;
+  /** Institución (p. ej. "BICE", "Banco de Chile") para agrupar tarjetas y logo. */
+  bankName: string;
   /** "BICE · Cuenta Corriente CLP ···4567" — el nombre nunca trunca. */
   nombre: string;
   /** Frescura + pendientes, para el `.sub`. */
@@ -262,6 +266,8 @@ export interface CuentaV03 {
   accion: string;
   /** Movimientos por conciliar de esta cuenta (progreso, no alarma). `null` = no se pudo cruzar. */
   porConciliar: number | null;
+  /** Número censurado (`**** **** **** 1234`) para distinguir productos del mismo banco. */
+  accountNumberDisplay: string | null;
   tipo: "cuenta" | "tarjeta";
 }
 
@@ -358,7 +364,8 @@ export function cuentasV03(input: CuentasInput): CuentaV03[] {
       const monto = parseAmountOrNull(c.saldoContable);
       return {
         key: `cuenta:${c.numeroCuenta}`,
-        nombre: `${banco} · ${tipoCuenta(c)} ${parcial(c.numeroFormateado)}`.trim(),
+        bankName: banco,
+        nombre: `${banco} · ${tipoCuenta(c)}`.trim(),
         sub: conPendientes(frescura, porConciliar),
         moneda,
         saldo: monto,
@@ -366,6 +373,7 @@ export function cuentasV03(input: CuentasInput): CuentaV03[] {
         href: `/banco/cuenta/${encodeURIComponent(c.numeroCuenta)}`,
         accion: "cartola",
         porConciliar,
+        accountNumberDisplay: bankAccountNumberDisplay(c.numeroFormateado),
         tipo: "cuenta",
       };
     });
@@ -384,6 +392,7 @@ export function cuentasV03(input: CuentasInput): CuentaV03[] {
       const monto = parseAmountOrNull(a.balance);
       return {
         key: `qavante:${a.id}`,
+        bankName: a.bank_name?.trim() || banco,
         nombre: nombreProductoQavante(a),
         sub: conPendientes(frescura, porConciliar),
         moneda: monedaDeCuenta(a.currency_code),
@@ -392,9 +401,54 @@ export function cuentasV03(input: CuentasInput): CuentaV03[] {
         href: `/banco/cuenta/${encodeURIComponent(a.id)}`,
         accion: "cartola",
         porConciliar,
+        accountNumberDisplay: a.account_number_display ?? null,
         tipo: "cuenta",
       };
     });
+}
+
+export interface GrupoCuentasBancoV03 {
+  bankName: string;
+  bankId: string;
+  filas: CuentaV03[];
+}
+
+/** Agrupa cuentas y tarjetas por institución, orden estable de primera aparición. PURO. */
+export function gruposCuentasPorBanco(filas: readonly CuentaV03[]): GrupoCuentasBancoV03[] {
+  const order: string[] = [];
+  const map = new Map<string, CuentaV03[]>();
+  for (const f of filas) {
+    const name = f.bankName.trim() || "Banco";
+    if (!map.has(name)) {
+      map.set(name, []);
+      order.push(name);
+    }
+    map.get(name)!.push(f);
+  }
+  return order.map((bankName) => ({
+    bankName,
+    bankId: canonicalBankId("", bankName),
+    filas: map.get(bankName)!,
+  }));
+}
+
+/** Texto del producto sin el prefijo de banco ("Cuenta Corriente CLP"). PURO. */
+export function etiquetaProductoCuenta(fila: CuentaV03): string {
+  const partes = fila.nombre.split("·").map((p) => p.trim());
+  if (partes.length <= 1) return fila.nombre;
+  return partes.slice(1).join(" · ");
+}
+
+/** Suma saldos de cuentas corrientes CLP del grupo; `null` si ninguna trae saldo. PURO. */
+export function saldoDisponibleClpGrupo(filas: readonly CuentaV03[]): number | null {
+  let sum = 0;
+  let alguno = false;
+  for (const f of filas) {
+    if (f.tipo !== "cuenta" || f.moneda !== "CLP" || f.saldo == null) continue;
+    sum += f.saldo;
+    alguno = true;
+  }
+  return alguno ? sum : null;
 }
 
 /** Las filas de TARJETAS DE CRÉDITO: una por moneda con cupo (CLP national / USD international).
@@ -423,7 +477,8 @@ export function tarjetasV03(
     if (conDato.length === 0) {
       out.push({
         key: `tarjeta:${t.operationNumber}`,
-        nombre: `${base} ${parcial(t.operationNumber)}`,
+        bankName: banco,
+        nombre: base,
         sub: frescura,
         moneda: "CLP",
         saldo: null,
@@ -434,6 +489,7 @@ export function tarjetasV03(
         href,
         accion: "ver",
         porConciliar: null,
+        accountNumberDisplay: bankAccountNumberDisplay(t.operationNumber),
         tipo: "tarjeta",
       });
       continue;
@@ -441,7 +497,8 @@ export function tarjetasV03(
     for (const [moneda, c] of conDato) {
       out.push({
         key: `tarjeta:${t.operationNumber}:${moneda}`,
-        nombre: `${base} ${moneda} ${parcial(t.operationNumber)}`,
+        bankName: banco,
+        nombre: `${base} ${moneda}`.trim(),
         sub: `${frescura} · usado del cupo`,
         moneda,
         saldo: -(c!.spentQuota as number),
@@ -449,6 +506,7 @@ export function tarjetasV03(
         href,
         accion: "ver",
         porConciliar: null,
+        accountNumberDisplay: bankAccountNumberDisplay(t.operationNumber),
         tipo: "tarjeta",
       });
     }
@@ -460,6 +518,7 @@ export function tarjetasV03(
       const monto = parseAmountOrNull(a.balance);
       return {
         key: `qavante:${a.id}`,
+        bankName: a.bank_name?.trim() || banco,
         nombre: nombreProductoQavante(a),
         sub: monto == null ? frescura : `${frescura} · saldo informado`,
         moneda: monedaDeCuenta(a.currency_code),
@@ -468,6 +527,7 @@ export function tarjetasV03(
         href: `/banco/cuenta/${encodeURIComponent(a.id)}`,
         accion: "ver",
         porConciliar: null,
+        accountNumberDisplay: a.account_number_display ?? null,
         tipo: "tarjeta",
       };
     });
@@ -543,11 +603,47 @@ export function chipCajaHoy(caja: CajaHoy, banco: string, hoy: Date): string {
   return caja.estado === "available" ? `${banco} · ${cuando} ✓` : `${banco} · ${cuando}`;
 }
 
+/** Totales de entradas y salidas del mes en CLP (INV-FX-001: otras monedas no entran). */
+export interface FlujoMesCLP {
+  entradas: number;
+  salidas: number;
+}
+
+function monedaDeMovimiento(mv: BankMovement, currencies: Map<string, string>): string | null {
+  const fromMovement = mv.currency_code?.trim().toUpperCase();
+  if (fromMovement) return fromMovement;
+  const fromAccount = currencies.get(mv.bank_account_id)?.trim().toUpperCase();
+  return fromAccount || null;
+}
+
+/** Suma magnitudes de `credit` → entradas y `debit` → salidas, solo movimientos CLP. PURO. */
+export function entradasSalidasMesCLP(
+  items: BankMovement[],
+  currencies: Map<string, string>,
+): FlujoMesCLP {
+  let entradas = 0;
+  let salidas = 0;
+  for (const mv of items) {
+    if (monedaDeMovimiento(mv, currencies) !== "CLP") continue;
+    const amount = Number(mv.amount);
+    const magnitud = Number.isFinite(amount) ? Math.abs(amount) : 0;
+    if (magnitud === 0) continue;
+    const esEntrada = mv.direction ? mv.direction === "credit" : amount > 0;
+    if (esEntrada) entradas += magnitud;
+    else salidas += magnitud;
+  }
+  return { entradas, salidas };
+}
+
 /* ── Movimientos ─────────────────────────────────────────────────────────────── */
 
 /** Conciliación y clasificación son ejes independientes. Nunca colapsarlos en un único estado. */
 export type EstadoConciliacionV03 =
-  "conciliado" | "parcial" | "pendiente" | "excluido" | "no_requerido";
+  | "conciliado"
+  | "parcial"
+  | "pendiente"
+  | "excluido"
+  | "no_requerido";
 export type EstadoClasificacionV03 = "clasificado" | "por_clasificar" | "revision";
 /** Compatibilidad para consumidores antiguos; la UI nueva no usa este estado colapsado. */
 export type CicloMovimiento = "conciliado" | "clasificado" | "por_clasificar";
@@ -567,7 +663,10 @@ export type CicloMovimiento = "conciliado" | "clasificado" | "por_clasificar";
  *    explícito del "no sé": no se mapea a `carga_no_la_mira`, porque eso afirmaría que se revisó
  *    el camino de ingesta de este movimiento. */
 export type ProcedenciaContraparte =
-  "banco_informo" | "banco_no_la_publica" | "carga_no_la_mira" | "procedencia_no_publicada";
+  | "banco_informo"
+  | "banco_no_la_publica"
+  | "carga_no_la_mira"
+  | "procedencia_no_publicada";
 
 const PROCEDENCIA_API: Record<string, ProcedenciaContraparte> = {
   bank_transfer_party: "banco_informo",

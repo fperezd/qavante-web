@@ -2,16 +2,18 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, Loader2, Sparkles } from "lucide-react";
 import { QavanteButton } from "@/components/qavante";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useTriggerOnboardingSync, useCompleteOnboarding } from "@/lib/api/onboarding-status";
 import { ONBOARDING_SOURCE_IDS, useOnboardingSources } from "@/lib/api/onboarding-sources";
 import { OnboardingShell } from "./onboarding-shell";
+import { OnboardingStepActions } from "./onboarding-step-actions";
 import { ONBOARDING_CONNECTIONS_ROUTE, routeAfter } from "./onboarding-steps";
 import { ONBOARDING_SOURCE_META } from "./onboarding-source-meta";
 import { syncStatusText } from "./sync-status-text";
+import { useOnboardingBack } from "./use-onboarding-back";
 
 /* Paso 8 — Traer datos. Dispara la sincronización inicial (SII + banco) y, al
    finalizar, marca el onboarding completado y pasa al paso que SÍ cierra el wizard:
@@ -26,49 +28,69 @@ import { syncStatusText } from "./sync-status-text";
 
 const SOURCE_LABEL = { sii: "SII", bank: "Banco" } as const;
 
-/* Nunca una ruta literal: el modelo de pasos es el que sabe qué viene después. */
 const NEXT = routeAfter("import");
 
 export function ImportView() {
   const router = useRouter();
-  const sync = useTriggerOnboardingSync();
+  const onBack = useOnboardingBack("import");
+  const { mutate: triggerSync, isPending, isSuccess, isError, data } = useTriggerOnboardingSync();
   const complete = useCompleteOnboarding();
   const triggered = React.useRef(false);
 
-  React.useEffect(() => {
-    if (!triggered.current) {
-      triggered.current = true;
-      sync.mutate();
-    }
-  }, [sync]);
-
-  function finish() {
-    /* Navegamos SOLO si el backend confirmó el cierre. Antes se navegaba en
-       `onSettled` (pasara lo que pasara) "para no atrapar al usuario", pero el
-       efecto era el contrario: si el complete falla, el onboarding sigue
-       incompleto y el guard lo rebota de vuelta al wizard, sin decirle nada.
-       Con el complete OK, `useCompleteOnboarding` deja el status nuevo en la
-       cache compartida → el guard ya lo lee completado y no redirige. */
-    complete.mutate(undefined, { onSuccess: () => router.push(NEXT) });
-  }
-
-  const synced = sync.isSuccess;
-  const syncFailed = sync.isError;
-
-  /* Fuentes que quedan sin conectar al cerrar el wizard. Se listan explícitamente
-     con su acceso al hub: completar el onboarding no significa "todo listo". */
-  const { states, isUnknown } = useOnboardingSources(true);
+  const { states, isLoading: sourcesLoading, isUnknown } = useOnboardingSources(true);
+  const connectedIds = isUnknown
+    ? []
+    : ONBOARDING_SOURCE_IDS.filter((id) => states[id] === "connected");
   const unconnected = isUnknown
     ? []
     : ONBOARDING_SOURCE_IDS.filter((id) => states[id] !== "connected");
+  const sourcesReady = !sourcesLoading && !isUnknown;
+  const skipSync = sourcesReady && connectedIds.length === 0;
+
+  React.useEffect(() => {
+    if (!sourcesReady || skipSync) return;
+    if (triggered.current) return;
+    triggered.current = true;
+    triggerSync();
+  }, [sourcesReady, skipSync, triggerSync]);
+
+  function finish() {
+    complete.mutate(undefined, { onSuccess: () => router.push(NEXT) });
+  }
+
+  const synced = skipSync || isSuccess;
+  const syncFailed = !skipSync && isError;
+  const waitingOnSync = sourcesReady && !skipSync && isPending;
+
+  const description = skipSync
+    ? "No hay SII ni banco conectados todavía. Cuando los conectes, traeremos tus datos automáticamente."
+    : connectedIds.length === 1
+      ? `Iniciamos la importación desde tu ${SOURCE_LABEL[connectedIds[0]!]}.`
+      : "Estamos trayendo tus datos del SII y tu banco para dejar tu panel listo.";
 
   return (
-    <OnboardingShell
-      step="import"
-      description="Estamos trayendo tus datos del SII y tu banco para dejar tu panel listo."
-    >
+    <OnboardingShell step="import" description={description}>
       <div className="flex max-w-md flex-col items-center gap-5 py-6 text-center">
-        {!synced && !syncFailed && (
+        {sourcesLoading && (
+          <>
+            <Loader2 className="h-12 w-12 animate-spin text-brand-primary" aria-hidden="true" />
+            <p className="text-sm text-neutral-mid" role="status">
+              Revisando tus conexiones…
+            </p>
+          </>
+        )}
+
+        {sourcesReady && skipSync && (
+          <>
+            <Info className="h-12 w-12 text-brand-primary" aria-hidden="true" />
+            <p className="text-sm text-neutral-dark">
+              No hay nada que importar ahora. Conecta el SII o tu banco cuando quieras; la primera
+              conexión dispara la traída de datos.
+            </p>
+          </>
+        )}
+
+        {waitingOnSync && (
           <>
             <Loader2 className="h-12 w-12 animate-spin text-brand-primary" aria-hidden="true" />
             <p className="text-sm text-neutral-mid" role="status">
@@ -77,7 +99,7 @@ export function ImportView() {
           </>
         )}
 
-        {synced && (
+        {sourcesReady && synced && !skipSync && (
           <>
             <CheckCircle2 className="h-12 w-12 text-success-600" aria-hidden="true" />
             <p className="text-sm text-neutral-dark">La importación fue iniciada.</p>
@@ -85,12 +107,10 @@ export function ImportView() {
               Al entrar a tu panel, Qavante actualizará las cifras con la información que termine de
               procesar. No mostraremos una evaluación anterior como si estuviera al día.
             </p>
-            {sync.data?.sources && (
+            {data?.sources && (
               <ul className="space-y-1 text-xs text-neutral-mid">
                 {(["sii", "bank"] as const).map((src) => {
-                  // Guard: el sync puede volver con solo una fuente (ej. banco no conectado) →
-                  // no derefear un `sources[src]` ausente (crashearía la última pantalla).
-                  const s = sync.data!.sources[src];
+                  const s = data.sources[src];
                   if (!s) return null;
                   return (
                     <li key={src}>
@@ -113,8 +133,7 @@ export function ImportView() {
           </>
         )}
 
-        {/* Conexiones que quedaron para después: se dicen, no se esconden. */}
-        {unconnected.length > 0 && (
+        {sourcesReady && unconnected.length > 0 && (
           <div className="w-full rounded-xl border border-border bg-surface-muted p-4 text-left">
             <p className="text-sm font-medium text-neutral-dark">
               Te queda{" "}
@@ -155,9 +174,15 @@ export function ImportView() {
           </div>
         )}
 
-        <QavanteButton size="lg" loading={complete.isPending} onClick={finish}>
-          {complete.isError ? "Reintentar" : "Ver mi primera decisión"}
-        </QavanteButton>
+        {sourcesReady && (
+          <OnboardingStepActions
+            continueType="button"
+            continueLabel={complete.isError ? "Reintentar" : "Ver mi primera decisión"}
+            continueLoading={complete.isPending}
+            onContinue={finish}
+            onBack={onBack}
+          />
+        )}
       </div>
     </OnboardingShell>
   );

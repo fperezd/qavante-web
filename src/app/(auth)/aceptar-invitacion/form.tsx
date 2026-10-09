@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { QavanteButton } from "@/components/qavante";
+import { LOGIN_PATH } from "@/lib/auth/routes";
 import { useAcceptInvitation } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -51,7 +52,7 @@ export function AceptarInvitacionForm() {
           Solicita a un administrador que te envíe una nueva invitación.
         </p>
         <Link
-          href="/login"
+          href={LOGIN_PATH}
           className="mt-4 inline-block text-sm text-brand-primary hover:underline"
         >
           Volver al login

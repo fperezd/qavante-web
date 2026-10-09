@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Mail } from "lucide-react";
+import { LOGIN_PATH } from "@/lib/auth/routes";
 import { QavanteEmpty, QavanteButton } from "@/components/qavante";
 
 export default function RecuperarClavePage() {
@@ -11,7 +12,7 @@ export default function RecuperarClavePage() {
       title="Recuperación de clave no disponible"
       description="Para recuperar el acceso, contacta al administrador de tu empresa."
       cta={
-        <Link href="/login">
+        <Link href={LOGIN_PATH}>
           <QavanteButton size="sm" variant="ghost">
             Volver al login
           </QavanteButton>

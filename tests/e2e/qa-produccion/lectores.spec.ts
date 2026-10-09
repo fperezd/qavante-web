@@ -133,27 +133,28 @@ test.describe("Los lectores del gate encuentran la cifra en las pantallas montad
        con el mismo nombre en la pantalla es exactamente cómo un lector escrito de memoria falla. */
     const porCobrar = await leerMetricCard(cobrar, {
       region: "Resumen de cobranza",
-      etiqueta: "Por cobrar",
+      etiqueta: "Por recibir · 7 días",
     });
-    /* Esta tarjeta publica la ventana de los próximos 7 días, o una acción cuando la conciliación
-       está por cerrar (`recuadroPorCobrar` / `collectedMetric` en `gestion-cobros-live.tsx`). Lo que
-       CI exige es que el selector la encuentre; si lo que trae es una cifra o un rótulo lo decide el
-       dato, y es el invariante contra producción el que juzga si eso alcanza. */
-    exigirLectorFunciona(porCobrar, 'INV-02: la tarjeta "Por cobrar" de Cobrar');
+    /* Esta tarjeta publica la ventana de los próximos N días (`Por recibir · N días`). */
+    exigirLectorFunciona(porCobrar, 'INV-02: la tarjeta "Por recibir" de Cobrar');
     await expect(
-      cobrar.page.locator('[data-metric="Por cobrar"]'),
-      'INV-02: /cobrar debe montar la tarjeta "Por cobrar"; sin ella el invariante no tiene qué leer',
+      cobrar.page.locator('[data-metric="Por recibir · 7 días"]'),
+      'INV-02: /cobrar debe montar la tarjeta "Por recibir"; sin ella el invariante no tiene qué leer',
     ).toHaveCount(1);
   });
 
   test("Pagar publica el total por pagar que compara el invariante 3", async ({ page }) => {
     const pagar = await abrirPantalla(page, "pagar");
     expect(pagar.fallo, `no se pudo abrir /pagar: ${pagar.fallo}`).toBeNull();
-    const porPagar = await leerKpi(pagar, {
-      region: "Vencido, por pagar y caja proyectada",
-      etiqueta: "Por pagar",
+    const porPagar = await leerMetricCard(pagar, {
+      region: "Resumen de pagos",
+      etiqueta: "Por pagar · 7 días",
     });
-    exigirMedido(porPagar, 'INV-03: el KPI "Por pagar" de Pagar');
+    exigirLectorFunciona(porPagar, 'INV-03: la tarjeta "Por pagar" de Pagar');
+    await expect(
+      pagar.page.locator('[data-metric="Por pagar · 7 días"]'),
+      'INV-03: /pagar debe montar la tarjeta "Por pagar"; sin ella el invariante no tiene qué leer',
+    ).toHaveCount(1);
   });
 
   test("Bandeja publica el contador de pendientes que compara el invariante 4", async ({

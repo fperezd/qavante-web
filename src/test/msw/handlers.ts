@@ -1644,14 +1644,56 @@ const currenciesHandlers = [
     HttpResponse.json(companyCurrencySettingsState, { status: 200 }),
   ),
 
+  http.put("*/api/core/legal-entity-financial-settings", async ({ request }) => {
+    const url = new URL(request.url);
+    const legalEntityId = url.searchParams.get("legal_entity_id");
+    if (!legalEntityId) {
+      return HttpResponse.json(errorBody("validation_error", "legal_entity_id requerido."), {
+        status: 422,
+      });
+    }
+    const body = (await request.json()) as { functional_currency_code?: string };
+    if (!body.functional_currency_code) {
+      return HttpResponse.json(
+        errorBody("validation_error", "functional_currency_code requerido."),
+        {
+          status: 422,
+        },
+      );
+    }
+    companyCurrencySettingsState = {
+      ...companyCurrencySettingsState,
+      functional_currency_code: body.functional_currency_code,
+    };
+    return HttpResponse.json(
+      {
+        tenant_id: companyCurrencySettingsState.tenant_id,
+        legal_entity_id: legalEntityId,
+        functional_currency_code: body.functional_currency_code,
+        provenance: "declared",
+        created_at: "2026-05-21T00:00:00Z",
+        updated_at: new Date().toISOString(),
+      },
+      { status: 200 },
+    );
+  }),
+
   http.patch("*/api/core/company-currency-settings", async ({ request }) => {
     const body = (await request.json()) as Partial<typeof companyCurrencySettingsState>;
+    if (body.functional_currency_code !== undefined && body.functional_currency_code !== null) {
+      return HttpResponse.json(
+        {
+          detail: {
+            code: "functional_currency_requires_legal_entity",
+            message: "Declare la moneda funcional mediante legal_entity_financial_settings.",
+          },
+        },
+        { status: 409 },
+      );
+    }
     /* Update parcial — solo campos presentes; el resto preserva el estado. */
     companyCurrencySettingsState = {
       ...companyCurrencySettingsState,
-      ...(body.functional_currency_code !== undefined && body.functional_currency_code !== null
-        ? { functional_currency_code: body.functional_currency_code }
-        : {}),
       ...(body.default_reporting_currency_code !== undefined
         ? { default_reporting_currency_code: body.default_reporting_currency_code }
         : {}),

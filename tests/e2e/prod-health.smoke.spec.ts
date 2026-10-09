@@ -22,35 +22,30 @@ test.describe("prod smoke — FE alive (HTTP-only)", () => {
     }
   });
 
-  test("GET /login → 200 + LoginForm referenciado", async ({ request }) => {
-    const res = await request.get("/login");
+  test("GET /login-correo → 200 + LoginCorreoForm referenciado", async ({ request }) => {
+    const res = await request.get("/login-correo");
     expect(res.status()).toBe(200);
     const body = await res.text();
-    // LoginForm es client component (CSR); el HTML del form se hidrata después.
-    // Verifico el componente referenciado y el title; el nombre de chunks no es un contrato
-    // estable entre versiones/bundlers. "LoginForm" aparece JSON-escapado en self.__next_f.
+    // LoginCorreoForm es client component (CSR); el HTML del form se hidrata después.
     expect(body).toMatch(/<title>Qavante[^<]*<\/title>/);
-    expect(body).toMatch(/\\"LoginForm\\"/);
+    expect(body).toMatch(/\\"LoginCorreoForm\\"/);
   });
 
-  test("ruta protegida sin sesión → 307 a /login (middleware vivo en prod)", async ({
+  test("ruta protegida sin sesión → 307 a /login-correo (middleware vivo en prod)", async ({
     request,
   }) => {
     const res = await request.get("/inicio", { maxRedirects: 0 });
     expect(res.status()).toBe(307);
     const location = res.headers()["location"];
-    expect(location).toContain("/login");
+    expect(location).toContain("/login-correo");
     expect(location).toContain("redirect=%2Finicio");
   });
 });
 
 test.describe("prod smoke — FE alive (browser)", () => {
-  test("LoginForm hidrata: inputs RUT/clave + submit visibles", async ({ page }) => {
-    await page.goto("/login", { waitUntil: "domcontentloaded" });
-    // Selectores semánticos (labels + role) — independientes de la implementación
-    // del wrapper QavanteInput o de si react-hook-form expone `name` al DOM.
-    // exact:true en "Clave" evita match con el aria-label "Mostrar clave" del botón ojo.
-    await expect(page.getByLabel("RUT", { exact: true })).toBeVisible({ timeout: 10_000 });
+  test("LoginCorreoForm hidrata: correo/clave + submit visibles", async ({ page }) => {
+    await page.goto("/login-correo", { waitUntil: "domcontentloaded" });
+    await expect(page.getByLabel("Correo", { exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByLabel("Clave", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Iniciar sesión", exact: true })).toBeVisible();
   });

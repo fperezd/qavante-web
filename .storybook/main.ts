@@ -53,6 +53,10 @@ const config: StorybookConfig = {
       "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(
         process.env.NEXT_PUBLIC_API_URL || "https://api.storybook.invalid",
       ),
+      /* Igual que E2E: sin maquetas ni CTAs locales que no existen en prod. */
+      "process.env.NEXT_PUBLIC_APP_ENV": JSON.stringify(
+        process.env.NEXT_PUBLIC_APP_ENV || "storybook",
+      ),
     },
   }),
 };

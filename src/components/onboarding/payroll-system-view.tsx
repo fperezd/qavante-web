@@ -14,6 +14,7 @@ import {
 import { OnboardingShell } from "./onboarding-shell";
 import { OnboardingStepActions } from "./onboarding-step-actions";
 import { routeAfter } from "./onboarding-steps";
+import { useOnboardingBack } from "./use-onboarding-back";
 
 /* Paso — ¿con qué sistema pagas tus sueldos? (CC-API ADR-0122).
 
@@ -34,6 +35,7 @@ const NEXT = routeAfter("payroll-system");
 
 export function PayrollSystemOnboardingView() {
   const router = useRouter();
+  const onBack = useOnboardingBack("payroll-system");
   const current = usePayrollSystem();
   const declare = useDeclarePayrollSystem();
   const declared = isPayrollSystemId(current.data?.payroll_system)
@@ -111,6 +113,7 @@ export function PayrollSystemOnboardingView() {
           continueLoading={declare.isPending}
           onContinue={handleContinue}
           onSkip={() => router.push(NEXT)}
+          onBack={onBack}
         />
       </div>
     </OnboardingShell>

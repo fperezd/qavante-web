@@ -1,9 +1,8 @@
 "use client";
 
-import * as React from "react";
-import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { estaVacio, type ContenidoVisible } from "./contenido-visible";
+import { RedisenoInfoPopover } from "./info-popover";
 
 /* «Sin dato» — el primitivo para decir NO SÉ. Rediseño §1.4 y Ley 8.
  *
@@ -63,10 +62,6 @@ export function SinDato({
   label,
   className,
 }: SinDatoProps) {
-  const [open, setOpen] = React.useState(false);
-  const panelId = React.useId();
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
-
   const fuentes = missingSources?.filter((s) => s.trim().length > 0) ?? [];
   const queNoSabemos = label ? `${label}` : "este dato";
   /* El tipo no puede prohibir `reason=""` ni `missingSources={[]}` (ver el
@@ -74,58 +69,28 @@ export function SinDato({
      un "no sé por qué no sé" honesto es mejor que un recuadro vacío. */
   const sinMotivo = estaVacio(reason) && fuentes.length === 0;
 
-  /* Escape cierra y devuelve el foco al ⓘ: sin esto, el usuario de teclado
-     queda con el foco en un panel que ya no está. */
-  React.useEffect(() => {
-    if (!open) return undefined;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      setOpen(false);
-      triggerRef.current?.focus();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
-
   return (
-    <span className={cn("relative inline-flex items-baseline gap-1", className)}>
+    <span className={cn("inline-flex items-baseline gap-1", className)}>
       <span className="font-rediseno-sans text-rediseno-tinta-3-light italic">
         {variant === "compact" ? "Sin información" : "sin dato"}
       </span>
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={open ? panelId : undefined}
-        aria-label={`Por qué no sabemos ${queNoSabemos}`}
-        className="inline-flex shrink-0 self-center text-rediseno-tinta-3-light hover:text-rediseno-tinta-2 focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
-      >
-        <Info className="size-3.5" aria-hidden />
-      </button>
-      {open && (
-        <span
-          id={panelId}
-          role="tooltip"
-          className="absolute top-full left-0 z-40 mt-1.5 block w-[min(19rem,80vw)] rounded-xl border border-rediseno-hairline bg-rediseno-superficie p-3 text-left font-rediseno-sans text-[12.5px] leading-relaxed font-normal tracking-normal text-rediseno-tinta-2 normal-case shadow-lg"
-        >
-          <span className="block font-semibold text-rediseno-tinta">
-            No lo sabemos todavía · y preferimos decirlo antes que mostrarte un cero.
-          </span>
-          {!estaVacio(reason) && <span className="mt-1 block">{reason}</span>}
-          {sinMotivo && (
-            <span className="mt-1 block">
-              No tenemos registrado el motivo. Es una falla nuestra, no algo que hayas hecho mal.
-            </span>
-          )}
-          {fuentes.length > 0 && (
-            <span className="mt-1 block text-rediseno-tinta-3">
-              {fuentes.length === 1 ? "Fuente que falta: " : "Fuentes que faltan: "}
-              <span className="text-rediseno-tinta-2">{fuentes.join(" · ")}</span>
-            </span>
-          )}
+      <RedisenoInfoPopover ariaLabel={`Por qué no sabemos ${queNoSabemos}`}>
+        <span className="block font-semibold text-rediseno-tinta">
+          No lo sabemos todavía · y preferimos decirlo antes que mostrarte un cero.
         </span>
-      )}
+        {!estaVacio(reason) && <span className="mt-1 block">{reason}</span>}
+        {sinMotivo && (
+          <span className="mt-1 block">
+            No tenemos registrado el motivo. Es una falla nuestra, no algo que hayas hecho mal.
+          </span>
+        )}
+        {fuentes.length > 0 && (
+          <span className="mt-1 block text-rediseno-tinta-3">
+            {fuentes.length === 1 ? "Fuente que falta: " : "Fuentes que faltan: "}
+            <span className="text-rediseno-tinta-2">{fuentes.join(" · ")}</span>
+          </span>
+        )}
+      </RedisenoInfoPopover>
     </span>
   );
 }

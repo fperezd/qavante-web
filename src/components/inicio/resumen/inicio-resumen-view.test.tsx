@@ -25,7 +25,7 @@ describe("InicioResumenView · acciones prioritarias server-owned", () => {
     );
 
     expect(html).toContain("Revisa el pago que evita que tu caja quede bajo cero");
-    expect(html).toContain("Ver propuesta");
+    expect(html).toContain("Decisión del día");
     expect(html).toContain('href="/caja/conciliacion?decision_id=evitar-caja-negativa"');
   });
 });

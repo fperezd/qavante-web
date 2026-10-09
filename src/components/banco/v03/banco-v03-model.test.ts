@@ -5,6 +5,7 @@ import {
   CONTRAPARTE_EXPLICACION,
   CONTRAPARTE_LEYENDA,
   chipCajaHoy,
+  entradasSalidasMesCLP,
   cicloDe,
   coincideBusqueda,
   contraparteDe,
@@ -28,6 +29,8 @@ import {
   quedaPorConciliar,
   subMovimiento,
   sumaPorMoneda,
+  saldoDisponibleClpGrupo,
+  gruposCuentasPorBanco,
   textoActualizando,
   tarjetasV03,
   totalesPorMoneda,
@@ -208,7 +211,8 @@ describe("cuentasV03 — la tabla de cuentas", () => {
       hoy: HOY,
     });
     expect(filas).toHaveLength(2);
-    expect(filas[0]!.nombre).toBe("BICE · Cuenta Corriente CLP ···67-8");
+    expect(filas[0]!.nombre).toBe("BICE · Cuenta Corriente CLP");
+    expect(filas[0]!.accountNumberDisplay).toBe("**** **** **** 5678");
     expect(filas[0]!.saldo).toBe(9_800_000);
     expect(filas[0]!.moneda).toBe("CLP");
     expect(filas[0]!.sub).toBe("actualizada hoy · 4 movimientos por conciliar");
@@ -216,6 +220,22 @@ describe("cuentasV03 — la tabla de cuentas", () => {
     expect(filas[1]!.moneda).toBe("USD");
     expect(filas[1]!.saldo).toBe(1240);
     expect(filas[1]!.sub).toBe("actualizada hoy · 1 movimiento por conciliar");
+  });
+
+  it("gruposCuentasPorBanco agrupa por bankName y suma CLP para el encabezado de tarjeta", () => {
+    const filas = cuentasV03({
+      banco: BANCO,
+      saldo: saldoOk(),
+      cuentasQavante: cuentasQavante(),
+      links: links(),
+      conexion: conexionOk,
+      pendientes: pendientesPorCuenta(movs()),
+      hoy: HOY,
+    });
+    const grupos = gruposCuentasPorBanco(filas);
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0]!.bankName).toBe("BICE");
+    expect(saldoDisponibleClpGrupo(grupos[0]!.filas)).toBe(9_800_000);
   });
 
   it("con la sesión vencida: las cuentas Qavante como filas, SIN saldo (null, no $0) y con motivo", () => {
@@ -339,7 +359,8 @@ describe("tarjetasV03 — una fila por moneda con cupo, en negativo (es deuda)",
       ["CLP", -250_000],
       ["USD", -184],
     ]);
-    expect(filas[0]!.nombre).toBe("BICE · Tarjeta de Crédito CLP ···3210");
+    expect(filas[0]!.nombre).toBe("BICE · Tarjeta de Crédito CLP");
+    expect(filas[0]!.accountNumberDisplay).toBe("**** **** **** 3210");
     expect(filas[0]!.href).toBe("/banco/tarjeta/9876543210");
 
     const sinSaldo = tarjetasV03(BANCO, tarjetasOk(), new Map(), conexion, HOY);
@@ -443,6 +464,17 @@ describe("cuadreCajaHoy — Ley 1: Caja hoy es cajaHoy(); el banco es OTRO núme
     expect(cuadreCajaHoy(cajaHoy(null), filas()).coincide).toBeNull();
     expect(cuadreCajaHoy(cajaHoy(summary()), filas(saldoSesionVencida())).coincide).toBeNull();
     expect(cuadreCajaHoy(cajaHoy(summary()), filas(saldoSesionVencida())).cajaHoy).toBe(9_800_000);
+  });
+});
+
+describe("entradasSalidasMesCLP — flujo del mes solo en CLP", () => {
+  it("suma abonos y cargos CLP; excluye USD", () => {
+    const currencies = new Map(
+      cuentasQavante().map((a) => [a.id, (a.currency_code ?? "").trim().toUpperCase()]),
+    );
+    const flujo = entradasSalidasMesCLP(movimientos(), currencies);
+    expect(flujo.entradas).toBe(7_120_000);
+    expect(flujo.salidas).toBe(7_966_983);
   });
 });
 

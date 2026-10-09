@@ -4,13 +4,17 @@ import * as React from "react";
 import {
   AlertCircle,
   Archive,
+  CalendarClock,
   CheckCircle2,
+  ChevronDown,
   CircleDollarSign,
-  HandCoins,
+  Clock3,
   Mail,
   Search,
   SlidersHorizontal,
 } from "lucide-react";
+import { InicioApiPendienteButton } from "@/components/inicio/resumen/inicio-api-pendiente-button";
+import { isLocalDevAppEnv } from "@/lib/app-env";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -19,6 +23,7 @@ import {
   type CollectionReminderItemResult,
   type ReceivableDocumentItem,
   type ReceivableDocumentsResponse,
+  type ReceivableMoneyTotal,
   cobranzaKeys,
   esCorteVencido,
   useAccountsReceivable,
@@ -40,6 +45,69 @@ import { cn } from "@/lib/utils";
 
 type StatusFilter = "collectable" | "today" | "overdue" | "undated" | "paid" | "archived";
 type AttributeFilter = "credit_note" | "ceded" | "claimed";
+
+export type CobrosHorizonte = 7 | 14 | 30 | 90;
+export const COBROS_HORIZONTES: CobrosHorizonte[] = [7, 14, 30, 90];
+
+/** Último día civil (YYYY-MM-DD) incluido en «Ver cobros hasta N días». */
+export function limiteHorizonteCobros(today: string, horizonte: number): string {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(today);
+  if (!parts) return today;
+  const dt = new Date(Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])));
+  dt.setUTCDate(dt.getUTCDate() + horizonte);
+  return dt.toISOString().slice(0, 10);
+}
+
+/** ¿El documento entra en la vista «cobros hasta N días»?
+ *  Incluye sin fecha confirmada y lo ya vencido; el horizonte sólo recorta vencimientos futuros. */
+export function documentoEnHorizonteCobros(
+  item: ReceivableDocumentItem,
+  today: string,
+  limite: string,
+): boolean {
+  if (!["open", "partially_paid"].includes(item.status) || item.ceded) return false;
+  if (item.due_date_certainty !== "confirmed" || !item.due_date) return true;
+  if (item.due_date < today) return true;
+  return item.due_date <= limite;
+}
+
+/** Suma por moneda de lo que vence dentro del horizonte (misma regla que `/documents` · `due_soon`). */
+/** Vencimiento confirmado más cercano dentro del horizonte (≥ hoy). */
+export function proximoCobroDesdeDocumentos(
+  items: readonly ReceivableDocumentItem[],
+  today: string,
+  limite: string,
+): string | null {
+  let best: string | null = null;
+  for (const item of items) {
+    if (!["open", "partially_paid"].includes(item.status) || item.ceded) continue;
+    if (item.due_date_certainty !== "confirmed" || !item.due_date) continue;
+    if (item.due_date < today || item.due_date > limite) continue;
+    if (!best || item.due_date < best) best = item.due_date;
+  }
+  return best;
+}
+
+export function dueSoonTotalsFromDocuments(
+  items: readonly ReceivableDocumentItem[],
+  today: string,
+  limite: string,
+): ReceivableMoneyTotal[] {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    if (!["open", "partially_paid"].includes(item.status) || item.ceded) continue;
+    if (item.due_date_certainty !== "confirmed" || !item.due_date) continue;
+    if (item.due_date < today || item.due_date > limite) continue;
+    if (item.outstanding_amount == null) continue;
+    const amount = parseAmountOrNull(item.outstanding_amount);
+    if (amount == null) continue;
+    const currency = item.currency_code.trim() || "CLP";
+    totals.set(currency, (totals.get(currency) ?? 0) + amount);
+  }
+  return [...totals.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, amount]) => ({ currency, amount: String(amount) }));
+}
 
 const STATUS_FILTERS: { id: StatusFilter; label: string; icon?: React.ElementType }[] = [
   { id: "collectable", label: "Todo en por cobrar" },
@@ -96,17 +164,12 @@ export function formatCollectionMoney(
  * traer las fechas del SII, porque no existe —hoy— pantalla para escribirlas a mano: el
  * vencimiento viaja en el XML del DTE y el RCV no lo trae. */
 
-/** La única acción que de verdad cierra el hueco: las fechas llegan del SII, no del teclado. */
-const ACCION_TRAER_FECHAS = {
-  texto: "Revisar la conexión con el SII",
-  href: "/conexiones",
-} as const;
-
 export type RecuadroCobranza = {
   value: string;
   detail?: string;
   note?: string;
-  accion?: { texto: string; href: string };
+  linkHref?: string;
+  linkLabel?: string;
 };
 
 /** `undated_amount` en pesos, o `null`. Es la plata viva SIN vencimiento confirmado: la que
@@ -132,7 +195,6 @@ export function recuadroVencido(ar: AccountsReceivableResponse): RecuadroCobranz
       value: `${formatClpODesconocido(ar.total, ar.amount_unknown_reason)} por cobrar`,
       detail: documentos(ar.document_count),
       note: "Lo vencido se separa con la fecha de vencimiento de cada factura. El SII la entrega en el XML del DTE y el RCV no la trae, así que entra con la sincronización.",
-      accion: ACCION_TRAER_FECHAS,
     };
   }
 
@@ -144,44 +206,45 @@ export function recuadroVencido(ar: AccountsReceivableResponse): RecuadroCobranz
     note: faltan
       ? `${formatClp(sinFecha)} se suman a esta cifra en cuanto el SII entregue sus fechas de vencimiento.`
       : undefined,
-    accion: faltan ? ACCION_TRAER_FECHAS : undefined,
   };
 }
 
 export function recuadroPorCobrar(
   docs: Pick<ReceivableDocumentsResponse, "due_soon">,
   ar: AccountsReceivableResponse,
+  horizonte: CobrosHorizonte = 7,
+  dueSoonCalculado?: ReceivableMoneyTotal[] | null,
 ): RecuadroCobranza {
   const sinFecha = sinFechaDe(ar);
   const total = parseAmountOrNull(ar.total);
-  // Lo que ya tiene fecha y por lo tanto PUEDE caer en una ventana de 7 días.
+  const detalleVentana = `Próximos ${horizonte} días`;
+  // Lo que ya tiene fecha y por lo tanto PUEDE caer en la ventana elegida.
   const agendable = total != null && sinFecha != null ? total - sinFecha : null;
 
   if (agendable != null && agendable <= 0 && sinFecha != null && sinFecha > 0) {
-    // Sin una sola fecha en la cartera, "próximos 7 días" no es un cero medido: es la cartera
-    // completa esperando fecha. Eso es lo que dice el recuadro.
     return {
       value: `${formatClp(sinFecha)} por agendar`,
       detail: documentos(ar.document_count),
-      note: "Con las fechas cargadas, acá aparece lo que entra en los próximos 7 días.",
-      accion: ACCION_TRAER_FECHAS,
     };
   }
 
+  const dueSoon = horizonte === 7 ? docs.due_soon : (dueSoonCalculado ?? docs.due_soon);
+
   return {
-    value: formatCollectionMoney(docs.due_soon),
-    detail: "Próximos 7 días",
+    value: formatCollectionMoney(dueSoon),
+    detail: detalleVentana,
     note:
       sinFecha != null && sinFecha > 0
         ? `${formatClp(sinFecha)} quedan fuera de esta ventana hasta que tengan fecha de vencimiento.`
         : undefined,
-    accion: sinFecha != null && sinFecha > 0 ? ACCION_TRAER_FECHAS : undefined,
   };
 }
 
 export function collectedMetric(
   data: Pick<ReceivableDocumentsResponse, "collected" | "collected_coverage" | "collected_reason">,
+  horizonte: CobrosHorizonte = 7,
 ): RecuadroCobranza {
+  const ventana = `Últimos ${horizonte} días`;
   /* UNA LISTA VACÍA NO ES UNA MEDICIÓN. `/documents` publica `collected: []` cuando no encuentra
    * NI UNA fila de cobro en la ventana de 7 días, y `collected: null` cuando sí las hay pero sin
    * linaje de conciliación. En ninguno de los dos casos midió una plata. El `!= null` de #371
@@ -196,17 +259,18 @@ export function collectedMetric(
    * La condición es `length > 0` y no la cobertura a propósito: el día que el contrato publique
    * montos de verdad, se muestran sin tocar esto. Lo que no pasa es un arreglo vacío. */
   if (data.collected != null && data.collected.length > 0) {
-    return { value: formatCollectionMoney(data.collected), detail: "Últimos 7 días" };
+    return { value: formatCollectionMoney(data.collected), detail: ventana };
   }
 
   // Sin medición: o la trazabilidad de conciliación no alcanza para afirmar un monto
   // (`collected: null`), o no hay una sola fila de cobro conciliada en la ventana
   // (`collected: []`). Antes acá se leía "Sin información", que no dice qué hacer ni qué se sabe.
   // La cifra existe del otro lado de la conciliación, así que el recuadro lleva a cerrarla.
-  const comun = {
-    detail: "Últimos 7 días",
-    accion: { texto: "Ir a Banco y conciliar", href: "/banco" },
-  };
+  const enlaceBanco = {
+    linkHref: "/banco",
+    linkLabel: "Ir a Banco",
+  } as const;
+  const comun = { detail: ventana, ...enlaceBanco };
   if (
     data.collected_coverage === "unverified_legacy_collections" &&
     data.collected_reason === "legacy_collection_lineage_unavailable"
@@ -221,7 +285,7 @@ export function collectedMetric(
   return {
     ...comun,
     value: "Conciliación por cerrar",
-    note: "Los cobros de estos 7 días se suman acá en cuanto queden conciliados con sus movimientos de banco.",
+    note: `Los cobros de estos ${horizonte} días se suman acá en cuanto queden conciliados con sus movimientos de banco.`,
   };
 }
 
@@ -360,9 +424,14 @@ export function GestionCobrosLive({
   const send = useSendCollectionReminders();
   const [status, setStatus] = React.useState<StatusFilter>("collectable");
   const [attribute, setAttribute] = React.useState<AttributeFilter | null>(null);
+  const [horizonte, setHorizonte] = React.useState<CobrosHorizonte>(7);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const idempotencyKeys = React.useRef(new Map<string, string>());
   const today = todayIso();
+  const limiteHorizonte = React.useMemo(
+    () => limiteHorizonteCobros(today, horizonte),
+    [today, horizonte],
+  );
 
   /* Volver a la primera página y soltar la selección. El 409 dice "el corte que estabas
      leyendo cambió" y el 422 "el `offset` que pediste ya no calza con esta consulta": los dos
@@ -383,6 +452,10 @@ export function GestionCobrosLive({
   );
   /* `total` del servidor: documentos que calzan con `q`, SIN paginar. Nunca un `.length`. */
   const totalServidor = query.data?.pages[0]?.total ?? 0;
+  const dueSoonCalculado = React.useMemo(
+    () => dueSoonTotalsFromDocuments(filasTraidas, today, limiteHorizonte),
+    [filasTraidas, today, limiteHorizonte],
+  );
 
   /* Estado y atributo NO existen como parámetros de este endpoint (el contrato publica `q`,
      `limit` y `offset`, nada más), así que siguen resolviéndose en memoria SOBRE LAS FILAS
@@ -403,9 +476,19 @@ export function GestionCobrosLive({
           ? ["open", "partially_paid"].includes(item.status)
           : matchesCollectionStatus(item, status, today);
       if (!statusMatches) return false;
-      return !attribute || Boolean(item[attribute]);
+      if (attribute && !item[attribute]) return false;
+      /* Cedidas/atributos: el horizonte no aplica — `documentoEnHorizonteCobros` excluye
+         cedidas a propósito y vaciaría el filtro "Cedidas". */
+      if (
+        status === "collectable" &&
+        attribute !== "ceded" &&
+        !documentoEnHorizonteCobros(item, today, limiteHorizonte)
+      ) {
+        return false;
+      }
+      return true;
     });
-  }, [attribute, filasTraidas, status, today]);
+  }, [attribute, filasTraidas, limiteHorizonte, status, today]);
 
   /* Medido, no supuesto: el filtro está recortando si dejó filas traídas afuera. */
   const hayFiltroEnMemoria = items.length < filasTraidas.length;
@@ -504,34 +587,44 @@ export function GestionCobrosLive({
     >
       <section className="grid gap-4 md:grid-cols-3" aria-label="Resumen de cobranza">
         {resumen.data ? (
-          <>
-            <MetricCard
-              icon={AlertCircle}
-              label="Vencido"
-              danger
-              {...recuadroVencido(resumen.data)}
-            />
-            <MetricCard
-              icon={HandCoins}
-              label="Por cobrar"
-              {...recuadroPorCobrar(corte, resumen.data)}
-            />
-          </>
+          <PorRecibirMetricCard
+            horizonte={horizonte}
+            porCobrar={recuadroPorCobrar(
+              corte,
+              resumen.data,
+              horizonte,
+              horizonte === 7 ? undefined : dueSoonCalculado,
+            )}
+            vencido={recuadroVencido(resumen.data)}
+          />
         ) : (
-          // El resumen agregado no llegó. NO se cae de vuelta a `/documents`: ahí `overdue: []`
-          // volvería a pintar "$0" sobre una cartera sin fechar, que es justo el cero que este
-          // componente dejó de fabricar. Se ofrece reintentar y la lista de abajo sigue entera.
-          <MetricCard
-            icon={AlertCircle}
-            label="Vencido"
-            detail="Por cobrar"
-            value="Volver a calcular"
-            note="La lista de documentos de abajo está completa; el resumen de la cartera se recalcula al reintentar."
+          <PorRecibirMetricCard
+            horizonte={horizonte}
+            porCobrar={{
+              value: "Volver a calcular",
+              note: "La lista de documentos de abajo está completa; el resumen de la cartera se recalcula al reintentar.",
+            }}
+            vencido={{
+              value: "Sin calcular",
+              note: "El vencido se recalcula junto con el resumen de la cartera.",
+            }}
             onRetry={() => void resumen.refetch()}
-            danger
           />
         )}
-        <CollectedMetricCard data={corte} />
+        <CollectedMetricCard data={corte} horizonte={horizonte} />
+        {isLocalDevAppEnv() && (
+          <ProximoCobroMetricCard
+            fecha={proximoCobroDesdeDocumentos(filasTraidas, today, limiteHorizonte)}
+            sinFechasConfirmadas={
+              resumen.data != null &&
+              parseAmountOrNull(resumen.data.undated_amount) != null &&
+              parseAmountOrNull(resumen.data.total) != null &&
+              parseAmountOrNull(resumen.data.undated_amount)! >=
+                parseAmountOrNull(resumen.data.total)!
+            }
+            documentosParciales={Boolean(query.hasNextPage)}
+          />
+        )}
       </section>
 
       <section className="space-y-3">
@@ -575,6 +668,33 @@ export function GestionCobrosLive({
                 </button>
               );
             })}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold text-neutral-mid">Ver cobros hasta</p>
+            <div
+              className="flex flex-wrap rounded-lg border border-border bg-surface"
+              role="group"
+              aria-label="Horizonte de cobros futuros"
+            >
+              {COBROS_HORIZONTES.map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  aria-pressed={horizonte === days}
+                  onClick={() => {
+                    setHorizonte(days);
+                    setSelected(new Set());
+                  }}
+                  className={cn(
+                    "flex min-h-10 items-center border-r border-border px-2.5 text-xs font-medium text-neutral-mid last:border-r-0 hover:bg-neutral-50 sm:px-3",
+                    horizonte === days &&
+                      "bg-brand-primary font-semibold text-white hover:bg-brand-primary",
+                  )}
+                >
+                  {days} días
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -714,7 +834,7 @@ export function GestionCobrosLive({
                         {item.credit_note && <Attribute label="Nota de crédito" />}
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-right font-semibold tabular-nums text-neutral-dark">
+                    <td className="px-3 py-3 text-right font-semibold tabular-nums text-emerald-700">
                       {formatCollectionMoney([
                         { currency: item.currency_code, amount: item.outstanding_amount },
                       ])}
@@ -776,12 +896,122 @@ export function GestionCobrosLive({
  * abstención de `collected`; el resto de Cobrar sigue mostrando sus datos propios. */
 export function CollectedMetricCard({
   data,
+  horizonte = 7,
 }: {
   data: Pick<ReceivableDocumentsResponse, "collected" | "collected_coverage" | "collected_reason">;
+  horizonte?: CobrosHorizonte;
 }) {
   // Se esparce el modelo completo: enumerar los campos a mano fue lo que dejó la acción del
   // recuadro sin renderizar, o sea el camino concreto perdido justo donde más hace falta.
-  return <MetricCard icon={CircleDollarSign} label="Cobrado" {...collectedMetric(data)} />;
+  return (
+    <MetricCard icon={CircleDollarSign} label="Cobrado" {...collectedMetric(data, horizonte)} />
+  );
+}
+
+const PROXIMO_COBRO_API_PENDIENTE =
+  "No existe un campo «próximo cobro» en el API. Hoy la fecha sale del vencimiento confirmado más cercano (≥ hoy) entre los documentos ya traídos con GET /api/treasury/accounts-receivable/documents. Si faltan páginas, la fecha puede cambiar al traer más documentos.\n\nPara una cifra de cartera completa sin paginar: agregar en backend un agregado MIN(due_date) sobre receivables vivos con fecha confirmada, o ordenar por due_date ASC con limit=1.\n\nAlternativas complementarias: GET /api/treasury/collection-forecast (montos por ventana 0-7 / 8-14 días, no una fecha única) y GET /api/treasury/collection-projection (fecha por comportamiento del pagador).\n\nSin vencimientos del SII: sincronizar el XML del DTE (enriquecimiento de fechas) desde Conexiones; hasta entonces no hay próximo cobro nominal confiable.";
+
+function PorRecibirMetricCard({
+  horizonte,
+  porCobrar,
+  vencido,
+  onRetry,
+}: {
+  horizonte: CobrosHorizonte;
+  porCobrar: RecuadroCobranza;
+  vencido: RecuadroCobranza;
+  onRetry?: () => void;
+}) {
+  const label = `Por recibir · ${horizonte} días`;
+  return (
+    <div
+      data-metric={label}
+      className="relative overflow-hidden rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-surface to-surface p-5 shadow-sm"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-neutral-mid">{label}</p>
+        <span className="rounded-lg bg-emerald-50 p-2 text-emerald-700">
+          <Clock3 className="size-4 shrink-0" aria-hidden="true" />
+        </span>
+      </div>
+      {porCobrar.detail && <p className="mt-1 text-xs text-neutral-mid">{porCobrar.detail}</p>}
+      <p
+        data-metric-valor=""
+        className="mt-3 text-3xl font-bold tabular-nums tracking-tight text-emerald-700"
+      >
+        {porCobrar.value}
+      </p>
+      {porCobrar.note && (
+        <p className="mt-2 text-xs leading-relaxed text-neutral-mid">{porCobrar.note}</p>
+      )}
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 text-xs font-semibold text-brand-primary hover:underline"
+        >
+          Reintentar
+        </button>
+      )}
+      <details className="group/vencido mt-4 border-t border-border pt-3">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-neutral-dark [&::-webkit-details-marker]:hidden">
+          <AlertCircle className="size-4 shrink-0 text-neutral-mid" aria-hidden="true" />
+          Vencido
+          {vencido.detail && (
+            <span className="ml-auto font-normal text-neutral-mid">{vencido.detail}</span>
+          )}
+          <ChevronDown
+            className="size-4 shrink-0 text-neutral-mid transition-transform group-open/vencido:rotate-180 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        </summary>
+        <div className="mt-2 space-y-2">
+          <p className="text-xl font-bold tabular-nums text-neutral-dark">{vencido.value}</p>
+          {vencido.note && (
+            <p className="text-xs leading-relaxed text-neutral-mid">{vencido.note}</p>
+          )}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function ProximoCobroMetricCard({
+  fecha,
+  sinFechasConfirmadas,
+  documentosParciales,
+}: {
+  fecha: string | null;
+  sinFechasConfirmadas: boolean;
+  documentosParciales: boolean;
+}) {
+  const valor = fecha
+    ? formatDateLike(fecha)
+    : sinFechasConfirmadas
+      ? "Sin fecha confirmada"
+      : "Estira el horizonte";
+  const nota = documentosParciales
+    ? "Calculado con los documentos traídos hasta acá; trae más páginas para cerrar la fecha."
+    : fecha
+      ? "Vencimiento confirmado más cercano dentro del horizonte elegido."
+      : undefined;
+  const apiMsg = documentosParciales
+    ? `${PROXIMO_COBRO_API_PENDIENTE}\n\nAhora mismo faltan páginas por traer en la lista de documentos.`
+    : PROXIMO_COBRO_API_PENDIENTE;
+
+  return (
+    <div data-metric="Próximo cobro" className="rounded-xl border border-border bg-surface p-5">
+      <div className="flex items-center gap-2 text-sm font-semibold text-neutral-dark">
+        <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
+        Próximo cobro
+        <InicioApiPendienteButton mensaje={apiMsg} className="ml-1" />
+      </div>
+      <p data-metric-valor="" className="mt-3 text-2xl font-bold tabular-nums text-neutral-dark">
+        {valor}
+      </p>
+      {nota && <p className="mt-2 text-xs leading-relaxed text-neutral-mid">{nota}</p>}
+    </div>
+  );
 }
 
 function MetricCard({
@@ -790,7 +1020,8 @@ function MetricCard({
   value,
   detail,
   note,
-  accion,
+  linkHref,
+  linkLabel,
   onRetry,
   danger = false,
 }: RecuadroCobranza & {
@@ -827,12 +1058,12 @@ function MetricCard({
         {value}
       </p>
       {note && <p className="mt-2 text-xs leading-relaxed text-neutral-mid">{note}</p>}
-      {accion && (
+      {linkHref && (
         <Link
-          href={accion.href}
-          className="mt-3 inline-block text-xs font-semibold text-brand-primary hover:underline"
+          href={linkHref}
+          className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-brand-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-primary"
         >
-          {accion.texto}
+          {linkLabel ?? "Ir a Banco"}
         </Link>
       )}
       {onRetry && (

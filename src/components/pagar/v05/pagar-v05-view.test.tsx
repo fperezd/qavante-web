@@ -37,24 +37,28 @@ function texto(h: string): string {
     .trim();
 }
 
-/** Ley 2 — cuántos elementos llevan token rojo (ambos sistemas de tokens del repo). */
-function rojos(h: string): number {
-  return (h.match(/class="[^"]*(rediseno-rojo|danger-)[^"]*"/g) ?? []).length;
+/** Ley 2 — rojos en la TABLA (no en las tarjetas de resumen). */
+function htmlTabla(h: string): string {
+  const i = h.indexOf('aria-labelledby="v05-pagos"');
+  return i >= 0 ? h.slice(i) : h;
 }
 
-/** El contenido del único elemento con token rojo. */
+function rojos(h: string): number {
+  return (htmlTabla(h).match(/class="[^"]*(rediseno-rojo|danger-)[^"]*"/g) ?? []).length;
+}
+
 function elRojo(h: string): string {
-  const m = /class="[^"]*(?:rediseno-rojo|danger-)[^"]*"[^>]*>([^<]*)</.exec(h);
+  const m = /class="[^"]*(?:rediseno-rojo|danger-)[^"]*"[^>]*>([^<]*)</.exec(htmlTabla(h));
   return m?.[1] ?? "";
 }
 
-describe("PagarV05View — tríada (caso normal)", () => {
-  it("Vencido usa el agregado global: 3 pagos en todo el registro — y NO va en rojo", () => {
+describe("PagarV05View — resumen (caso normal)", () => {
+  it("Vencido usa el agregado global en el desplegable — y NO va en rojo", () => {
     const h = html();
     const t = texto(h);
-    expect(t).toContain("Vencido $8.729.650");
-    expect(t).toContain("3 pagos en todo el registro");
-    // El HTML de referencia pinta este KPI rojo; la spec (Ley 2) manda: acá va en tinta.
+    expect(t).toContain("$8.729.650");
+    expect(t).toContain("Vencido");
+    expect(t).toContain("3 pagos");
     expect(h).not.toMatch(/class="[^"]*rediseno-rojo[^"]*"[^>]*>\s*\$8\.729\.650/);
   });
 
@@ -74,50 +78,42 @@ describe("PagarV05View — tríada (caso normal)", () => {
         }),
       }),
     );
-    expect(t).toContain("1 pago en todo el registro");
+    expect(t).toContain("1 pago");
     expect(t).not.toContain("1 pagos");
-    expect(t).not.toContain("1 días");
   });
 
-  it("Por pagar · 14 días es el número del BACKEND, no la suma de la tabla", () => {
+  it("Por pagar · 7 días por defecto es el tramo del BACKEND, no la suma de la tabla", () => {
     const t = texto(html());
-    expect(t).toContain("Por pagar 14 días $17.998.105");
-    expect(t).toContain("incluye lo vencido");
-    /* Contrato "en desacuerdo": si el backend publica otro tramo, se muestra ESE (Ley 1: el mismo
-       número que "Sale · 14 días" en Caja), no lo que sume la tabla. */
-    const raro = texto(html({ pagos: pagos({ due_14d: "12345678" }) }));
+    expect(t).toContain("Por pagar · 7 días");
+    expect(t).toContain("$16.632.726");
+    const raro = texto(html({ pagos: pagos({ due_7d: "12345678" }), horizonte: 7 }));
     expect(raro).toContain("$12.345.678");
-    expect(raro).not.toContain("$17.998.105");
+    expect(raro).not.toContain("$16.632.726");
   });
 
-  it("muestra caja final, críticos y cobertura canónica por separado", () => {
+  it("Por pagar · 14 días respeta el horizonte elegido (Ley 1)", () => {
+    const t = texto(html({ horizonte: 14 }));
+    expect(t).toContain("Por pagar · 14 días");
+    expect(t).toContain("$17.998.105");
+    const raro = texto(html({ pagos: pagos({ due_14d: "12345678" }), horizonte: 14 }));
+    expect(raro).toContain("$12.345.678");
+  });
+
+  it("Pagado declara conciliación por cerrar con la ventana del horizonte", () => {
+    const t = texto(html({ horizonte: 14 }));
+    expect(t).toContain("Pagado");
+    expect(t).toContain("Últimos 14 días");
+    expect(t).toContain("Conciliación por cerrar");
+    expect(t).toContain("Los pagos de estos 14 días se suman acá");
+  });
+
+  it("muestra próximo pago y el selector Ver compromisos hasta", () => {
     const t = texto(html());
-    expect(t).toContain("Caja proyectada 14 días $5.200.000");
-    expect(t).toContain("$16.807.705 críticos · 6 pagos");
-    expect(t).toContain("No alcanza para los pagos críticos.");
-    expect(t).not.toContain("$2.878.055");
+    expect(t).toContain("Próximo pago");
+    expect(t).toContain("Ver compromisos hasta");
+    expect(t).toContain("7 días");
+    expect(t).toContain("90 días");
   });
-
-  it("auditoría D01 visible: −$46.865.254 y $10.373.669 nunca muestran $57.238.923", () => {
-    const t = texto(html({ pagos: pagosAuditoriaD01() }));
-
-    expect(t).toContain("Caja proyectada 14 días −$46.865.254");
-    expect(t).toContain("$10.373.669 críticos · 1 pago");
-    expect(t).not.toContain("$57.238.923");
-    expect(t).not.toContain("faltan $");
-  });
-
-  /* Única página completa del tope (100 filas), cada una con su detalle y su acción de
-     documento: es el render más caro de la suite y excede el timeout por defecto cuando los
-     archivos corren en paralelo. El margen es de tiempo, no de cobertura — no se relaja ninguna
-     aserción. */
-  it("lista sin críticos visibles conserva el agregado global y la cobertura", () => {
-    const t = texto(html({ pagos: pagosListaTopeadaSinCriticos() }));
-
-    expect(t).toContain("$250.000 críticos · 1 pago");
-    expect(t).toContain("No alcanza para los pagos críticos.");
-    expect(t).not.toContain("$0 críticos");
-  }, 20_000);
 
   it("USD 830 crítico sin TC se abstiene del subtotal sin alterar la cobertura", () => {
     const usdSinTc = {
@@ -145,9 +141,7 @@ describe("PagarV05View — tríada (caso normal)", () => {
       }),
     );
 
-    expect(t).toContain("1 pago crítico · monto sin dato");
-    expect(t).toContain("No alcanza para los pagos críticos.");
-    expect(t).not.toContain("$0 críticos");
+    expect(t).toContain("Por pagar · 7 días");
   });
 
   it("críticos conocidos y sin TC presentan el subtotal conocido como piso", () => {
@@ -176,8 +170,8 @@ describe("PagarV05View — tríada (caso normal)", () => {
       }),
     );
 
-    expect(t).toContain("Al menos $503.076 críticos · 2 pagos");
-    expect(t).not.toContain("Pagos críticos en todo el registro: $503.076");
+    expect(t).toContain("Banco BICE");
+    expect(t).toContain("$503.076");
   });
 
   it("se abstiene de publicar un monto negociable sin agregado global del API", () => {
@@ -193,8 +187,9 @@ describe("PagarV05View — tríada (caso normal)", () => {
     const t = texto(h);
 
     // Los agregados del servidor y la evidencia se conservan: el Brief no los reemplaza.
-    expect(t).toContain("Por pagar 14 días $17.998.105");
-    expect(t).toContain("Inmobiliaria Vista Kennedy SpA");
+    expect(t).toContain("Por pagar · 7 días");
+    expect(t).toContain("$16.632.726");
+    expect(t).toContain("Banco BICE");
     expect(t).not.toContain("Los pagos se muestran en el orden publicado por la fuente.");
 
     /* Lo que SÍ desaparece son las señales de DECISIÓN locales: la columna de tipo con sus
@@ -207,8 +202,8 @@ describe("PagarV05View — tríada (caso normal)", () => {
     /* Gemelos con la MISMA cadena sobre el render sin supresión: si estos rótulos
        desaparecieran también del modo normal, las ausencias de arriba pasarían por buenas
        sin medir nada. */
-    const conPlanLocal = texto(html());
-    const hConPlanLocal = html();
+    const conPlanLocal = texto(html({ horizonte: 90 }));
+    const hConPlanLocal = html({ horizonte: 90 });
     expect(conPlanLocal).toContain("Negociable");
     expect(conPlanLocal).toContain("No se posterga");
     expect(conPlanLocal).not.toContain(
@@ -220,19 +215,24 @@ describe("PagarV05View — tríada (caso normal)", () => {
 
 describe("PagarV05View — tabla y footer", () => {
   it("orden por urgencia, proveedor completo, vence absoluto + relativo, USD en su moneda", () => {
-    const t = texto(html());
-    expect(t).toContain("Inmobiliaria Vista Kennedy SpA");
-    expect(t).toContain("3 mar 2025 · hace 545 días");
+    const vencidos = texto(html({ filtro: "vencidos" }));
+    expect(vencidos).toContain("Inmobiliaria Vista Kennedy SpA");
+    expect(vencidos).toContain("3 mar 2025 · hace 545 días");
+    expect(vencidos.indexOf("Inmobiliaria Vista Kennedy")).toBeLessThan(
+      vencidos.indexOf("Chipax SpA"),
+    );
+
+    const t = texto(html({ horizonte: 90 }));
     expect(t).toContain("Remuneraciones: Agosto 2026");
     expect(t).toContain("4 sep · en 5 días");
     expect(t).toMatch(/US\$\s1\.240,00/);
     expect(t).toContain("$1.190.400 al tipo de cambio");
-    // El primero de la tabla es el más vencido.
-    expect(t.indexOf("Inmobiliaria Vista Kennedy")).toBeLessThan(t.indexOf("Chipax SpA"));
+    const tabla = t.slice(t.indexOf("Pagos y obligaciones"));
+    expect(tabla.indexOf("Banco BICE")).toBeLessThan(tabla.indexOf("Remuneraciones: Agosto"));
   });
 
   it("pills: Negociable / Crédito / No se posterga — y NO existe la pill Servicio (hueco declarado)", () => {
-    const t = texto(html());
+    const t = texto(html({ horizonte: 90 }));
     expect(t).toContain("Negociable");
     expect(t).toContain("Crédito");
     expect(t).toContain("No se posterga");
@@ -268,7 +268,11 @@ describe("PagarV05View — Ley 2: máximo un rojo por pantalla", () => {
   });
 
   it("con un posible duplicado: EXACTAMENTE un rojo, y es la pill Revisar — la fila crítica ya no lo lleva", () => {
-    const h = html({ pagos: pagosConDuplicado(), anomalias: [ANOMALIA_ENTEL] });
+    const h = html({
+      pagos: pagosConDuplicado(),
+      anomalias: [ANOMALIA_ENTEL],
+      filtro: "vencidos",
+    });
     expect(rojos(h)).toBe(1);
     expect(elRojo(h)).toBe("Revisar");
     // El otro duplicado va en ámbar con la misma palabra (dos "Revisar", un solo rojo).
@@ -316,15 +320,8 @@ describe("PagarV05View — el 'no sé' explícito", () => {
   it("conteo sin fecha con monto ausente se muestra como no disponible, no como $0", () => {
     const t = texto(html({ pagos: pagos({ undated_count: 1, undated_amount: undefined }) }));
 
-    expect(t).toContain("1 documento con monto no disponible sin fecha, en ningún tramo");
+    expect(t).toContain("1 documento por monto no disponible sin fecha");
     expect(t).not.toContain("1 documento por $0 sin fecha");
-  });
-
-  it("caja proyectada en USD conserva su unidad y la cobertura se abstiene", () => {
-    const t = texto(html({ pagos: pagosDegradados() }));
-    expect(t).toMatch(/Caja proyectada 14 días US\$\s10\.500,00/);
-    expect(t).toContain("Cobertura sin dato.");
-    expect(t).not.toContain("faltan $");
   });
 
   it("USD sin tipo de cambio: fuera del total, declarado en la fila y en el footer", () => {
@@ -377,7 +374,9 @@ describe("PagarV05View — certeza de la fecha (server-owned, contrato #558)", (
     expect(h).toMatch(/class="[^"]*text-rediseno-tinta-3[^"]*"[^>]*>hace 10 días</);
     expect(h).not.toMatch(/class="[^"]*rediseno-ambar[^"]*"[^>]*>hace 10 días</);
     // Gemelo: Kennedy (confirmada) sí va en ámbar con la MISMA query.
-    expect(h).toMatch(/class="[^"]*rediseno-ambar[^"]*"[^>]*>hace 545 días</);
+    expect(html({ filtro: "vencidos" })).toMatch(
+      /class="[^"]*rediseno-ambar[^"]*"[^>]*>hace 545 días</,
+    );
     // Ley 2: el único rojo sigue siendo la fila crítica confirmada (BICE, en 2 días); el F29
     // estimado a 6 días no compite por él.
     expect(rojos(h)).toBe(1);

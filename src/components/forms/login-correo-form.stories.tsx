@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { LoginCorreoForm } from "./login-correo-form";
 
-/* LoginCorreoForm — ruta `/login-correo`. Conserva el login por correo
-   y los botones de Google/Microsoft mientras `/login` vuelve a RUT+clave. */
+/* LoginCorreoForm — ruta `/login-correo` (login principal). RUT en `/login-rut`. */
 const meta = {
   title: "Auth / LoginCorreoForm",
   component: LoginCorreoForm,

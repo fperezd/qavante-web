@@ -312,8 +312,8 @@ export const ANCLAS = {
   },
   pagar: {
     ruta: "/pagar",
-    ancla: (p: Page) => p.getByRole("region", { name: "Vencido, por pagar y caja proyectada" }),
-    anclaNombre: 'la tríada de KPI de Pagar (región "Vencido, por pagar y caja proyectada")',
+    ancla: (p: Page) => p.getByRole("region", { name: "Resumen de pagos" }),
+    anclaNombre: 'la tríada de KPI de Pagar (región "Resumen de pagos")',
   },
   /* El contador de pendientes vive en el `<h1>` de V07 ("27 pendientes") y también en el bloque
      `work-inbox`. El `<h1>` es el que ve el usuario; cuando no hay pendientes dice "Nada espera tu

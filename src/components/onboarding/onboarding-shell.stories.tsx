@@ -49,3 +49,12 @@ export const UltimoPaso: Story = {
     children: <Placeholder />,
   },
 };
+
+export const CierreOnboarding: Story = {
+  name: "Cierre · Tu primera decisión (sin barra de etapas)",
+  args: {
+    step: "ready",
+    description: "Con lo que ya conectaste, esto es lo que Qavante puede decidir contigo.",
+    children: <Placeholder />,
+  },
+};

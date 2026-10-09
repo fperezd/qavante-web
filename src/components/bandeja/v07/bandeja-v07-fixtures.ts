@@ -329,6 +329,7 @@ function movimiento(over: Partial<BankMovement> & Pick<BankMovement, "id">): Ban
     counterparty_source: "not_captured",
     imported_at: "2026-08-22T09:00:00Z",
     classification_status: "unclassified",
+    is_investment_or_extraordinary: false,
     ...over,
   };
 }

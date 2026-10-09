@@ -19,10 +19,13 @@ import {
 
 export type OnboardingStepId =
   | "signup"
+  | "register-companies"
   | "verify-email"
-  | "assign-rut"
+  | "choose-plan"
+  | "import-window"
   | "connect-sii"
   | "connect-bank"
+  | "currency"
   | "industry"
   | "payroll-system"
   | "opening-balance"
@@ -54,6 +57,13 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     phase: "pre-auth",
   },
   {
+    id: "register-companies",
+    label: "Empresas",
+    title: "Tus empresas",
+    route: "/registro/empresas",
+    phase: "pre-auth",
+  },
+  {
     id: "verify-email",
     label: "Verificar email",
     title: "Verifica tu correo",
@@ -61,10 +71,19 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     phase: "pre-auth",
   },
   {
-    id: "assign-rut",
-    label: "Tu RUT",
-    title: "Ingresa tu RUT",
-    route: "/onboarding/asignar-rut",
+    /* Primer paso post-auth (Opción A: plan temprano, pago tardío). Confirma el plan
+       elegido en la landing e inicia el trial; el checkout Fintoc va en un paso posterior. */
+    id: "choose-plan",
+    label: "Tu plan",
+    title: "Confirma tu plan",
+    route: "/onboarding/plan",
+    phase: "post-auth",
+  },
+  {
+    id: "import-window",
+    label: "Mes de inicio",
+    title: "¿Desde qué mes leemos?",
+    route: "/onboarding/mes-inicio",
     phase: "post-auth",
   },
   {
@@ -82,6 +101,13 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     route: "/onboarding/conectar-banco",
     phase: "post-auth",
     source: "bank",
+  },
+  {
+    id: "currency",
+    label: "Moneda",
+    title: "Configura tu moneda",
+    route: "/onboarding/monedas",
+    phase: "post-auth",
   },
   {
     id: "industry",
@@ -122,8 +148,9 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
        clasificación— salvo la deuda viva, que se exige hoy sin importar cuándo nació.
 
        NO es el paso de la ventana de importación, aunque se parezcan: ese dice desde
-       cuándo IMPORTAR, está acotado a seis meses antes del alta y se elige en el paso del
-       SII. Esta fecha es un hecho histórico por sociedad y no tiene tope.
+       cuándo IMPORTAR, está acotado a seis meses antes del alta y se elige en
+       `import-window` (SII y banco comparten ese mes). Esta fecha es un hecho histórico
+       por sociedad y no tiene tope.
 
        Va DESPUÉS de `import` por la misma razón que la previsualización de un corte: la
        cifra de lo que queda sin atribuir se mide sobre los documentos ya traídos, así que
@@ -152,23 +179,102 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   },
 ] as const;
 
+/** Etapas visibles del wizard (agrupan los {@link ONBOARDING_STEPS} en la UI). */
+export interface OnboardingStepGroup {
+  id: string;
+  label: string;
+  steps: readonly OnboardingStepId[];
+}
+
+export const ONBOARDING_STEP_GROUPS: readonly OnboardingStepGroup[] = [
+  {
+    id: "account",
+    label: "Cuenta",
+    steps: ["signup", "register-companies", "verify-email"],
+  },
+  {
+    id: "plan",
+    label: "Plan",
+    steps: ["choose-plan"],
+  },
+  {
+    id: "connections",
+    label: "Conexiones",
+    steps: ["import-window", "connect-sii", "connect-bank"],
+  },
+  {
+    id: "company-data",
+    label: "Datos",
+    steps: [
+      "currency",
+      "industry",
+      "payroll-system",
+      "opening-balance",
+      "import",
+      "activity-start",
+    ],
+  },
+] as const;
+
+/** Pasos que siguen el wizard pero no se muestran en la barra de etapas (p. ej. cierre). */
+export const ONBOARDING_CLOSURE_STEP_IDS: readonly OnboardingStepId[] = ["ready"] as const;
+
+export function isOnboardingClosureStep(id: OnboardingStepId): boolean {
+  return ONBOARDING_CLOSURE_STEP_IDS.includes(id);
+}
+
 /** Destino al completar el wizard (no es un paso). */
 export const ONBOARDING_DONE_ROUTE = "/inicio";
 
 export const TOTAL_ONBOARDING_STEPS = ONBOARDING_STEPS.length;
+export const TOTAL_ONBOARDING_GROUPS = ONBOARDING_STEP_GROUPS.length;
 
 /** Índice 0-based del paso; -1 si no existe. */
 export function stepIndex(id: OnboardingStepId): number {
   return ONBOARDING_STEPS.findIndex((s) => s.id === id);
 }
 
+export function groupIndexForStep(id: OnboardingStepId): number {
+  return ONBOARDING_STEP_GROUPS.findIndex((g) => g.steps.includes(id));
+}
+
+export function groupForStep(id: OnboardingStepId): OnboardingStepGroup | undefined {
+  const i = groupIndexForStep(id);
+  return i >= 0 ? ONBOARDING_STEP_GROUPS[i] : undefined;
+}
+
+/** Número humano de la etapa (1-based); 0 si no existe. */
+export function groupNumber(id: OnboardingStepId): number {
+  const i = groupIndexForStep(id);
+  return i < 0 ? 0 : i + 1;
+}
+
+export type OnboardingGroupStatus = "done" | "active" | "pending";
+
+export function groupStatus(
+  group: OnboardingStepGroup,
+  activeStepIndex: number,
+): OnboardingGroupStatus {
+  const first = stepIndex(group.steps[0]!);
+  const last = stepIndex(group.steps[group.steps.length - 1]!);
+  if (activeStepIndex > last) return "done";
+  if (activeStepIndex >= first && activeStepIndex <= last) return "active";
+  return "pending";
+}
+
 export function stepById(id: OnboardingStepId): OnboardingStep | undefined {
   return ONBOARDING_STEPS.find((s) => s.id === id);
 }
 
-/** Paso cuya ruta coincide con `route` (match por prefijo del pathname). */
+/** Paso cuya ruta coincide con `route` (match por prefijo; gana la ruta más específica). */
 export function stepByRoute(route: string): OnboardingStep | undefined {
-  return ONBOARDING_STEPS.find((s) => route === s.route || route.startsWith(`${s.route}/`));
+  let best: OnboardingStep | undefined;
+  for (const s of ONBOARDING_STEPS) {
+    if (route === s.route || route.startsWith(`${s.route}/`)) {
+      if (!best || s.route.length > best.route.length) best = s;
+    }
+  }
+  return best;
 }
 
 /** Progreso 1-based en porcentaje (paso 1 de 8 → 13, …, 8 de 8 → 100). 0 si no
@@ -205,6 +311,11 @@ export function routeAfter(id: OnboardingStepId): string {
   return nextStep(id)?.route ?? ONBOARDING_DONE_ROUTE;
 }
 
+/** Ruta del paso anterior, o null en el primero del wizard. */
+export function routeBefore(id: OnboardingStepId): string | null {
+  return prevStep(id)?.route ?? null;
+}
+
 /** Hub de conexiones del wizard: punto de retorno para conectar lo que se dejó
     para después. NO es un paso numerado — es la puerta de entrada de vuelta. */
 export const ONBOARDING_CONNECTIONS_ROUTE = "/onboarding/conexiones";
@@ -220,15 +331,26 @@ export function routeForSource(source: OnboardingSourceId): string {
 /** Ruta del wizard a la que reanudar a un usuario con onboarding INCOMPLETO.
     Va al primer paso de fuente que no esté ni conectada ni DIFERIDA; si el
     usuario ya resolvió (conectó o difirió) todas las fuentes, sigue con el rubro
-    (primer paso que el status no rastrea). Para el guard.
+    (monedas, primer paso de Datos que el status no rastrea). Para el guard.
 
     Clave del patrón: una fuente `deferred` NO devuelve al usuario a ese paso —
     "conectar después" sería mentira si el wizard lo empujara de vuelta ahí. */
-export function onboardingResumeRoute(states: OnboardingSourceStates): string {
+export interface OnboardingResumeOptions {
+  /** `true` cuando el tenant ya guardó el mes inicial (`selected_start_date` en import-window). */
+  importStartSelected: boolean;
+}
+
+export function onboardingResumeRoute(
+  states: OnboardingSourceStates,
+  options: OnboardingResumeOptions,
+): string {
+  if (!options.importStartSelected) {
+    return stepById("choose-plan")!.route;
+  }
   for (const source of ONBOARDING_SOURCE_IDS) {
     if (states[source] === "pending") return routeForSource(source);
   }
-  return stepById("industry")!.route;
+  return stepById("currency")!.route;
 }
 
 /** Lo que mira el guard antes de sacar al usuario de donde está. Puro →

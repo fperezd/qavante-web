@@ -19,7 +19,7 @@ function texto(h: string): string {
 }
 
 describe("AdministracionV12View", () => {
-  it("pinta las 8 filas del fixture, cada una con su título", () => {
+  it("pinta todas las filas del fixture, cada una con su título", () => {
     const h = html(FILAS_HUB_EJEMPLO);
     for (const fila of FILAS_HUB_EJEMPLO) {
       expect(h).toContain(fila.titulo);
@@ -67,10 +67,9 @@ describe("AdministracionV12View", () => {
     expect(t).not.toContain("2 requiere tu acción");
   });
 
-  it("una fila con estado=null (hueco declarado) NO pinta ninguna pill para esa fila", () => {
+  it("una tarjeta con estado=null (hueco declarado) NO pinta pill en esa tarjeta", () => {
     const filas = FILAS_HUB_EJEMPLO.filter((f) => f.id === "monedas");
     const h = html(filas);
-    // Sin pill: ninguna de las clases de `Pill` (`rounded-full`) aparece en esta tabla de 1 fila.
     expect(h).not.toContain("rounded-full");
   });
 
@@ -81,11 +80,12 @@ describe("AdministracionV12View", () => {
     expect(h).toContain("2 empresas");
   });
 
-  it("cada fila enlaza a su propio href con el link 'Ver'", () => {
+  it("cada módulo enlaza a su href (tabla: Ver; tarjetas: card entera)", () => {
     const h = html(FILAS_HUB_EJEMPLO);
     for (const fila of FILAS_HUB_EJEMPLO) {
       expect(h).toContain(`href="${fila.href}"`);
     }
+    expect(h).toContain(">Ver<");
   });
 
   it("tabla vacía: usa el emptyMessage declarado, no un 'Cargando' desnudo", () => {
@@ -94,14 +94,16 @@ describe("AdministracionV12View", () => {
     expect(h).not.toMatch(/Cargando\s*(\.{3}|…)?\s*(<|$)/);
   });
 
-  it("footer: sustantivo del conteo concuerda en singular con 1 fila", () => {
-    const h = texto(html([FILAS_HUB_EJEMPLO[0]!]));
-    expect(h).toContain("1 módulo");
-    expect(h).not.toContain("1 módulos");
+  it("lista de cuenta no muestra encabezados de tabla ni conteo de módulos", () => {
+    const t = texto(html(FILAS_HUB_EJEMPLO));
+    expect(t).not.toContain("Módulo");
+    expect(t).not.toContain("Estado");
+    expect(t).not.toMatch(/\d+\s+módulos?/);
   });
 
-  it("footer: sustantivo del conteo concuerda en plural con 8 filas", () => {
-    const h = texto(html(FILAS_HUB_EJEMPLO));
-    expect(h).toContain("8 módulos");
+  it("tarjetas incluyen sección Por empresa y credenciales con pill de estado", () => {
+    const h = html(FILAS_HUB_EJEMPLO);
+    expect(h).toContain("Por empresa");
+    expect(h).toContain("1 requiere tu acción");
   });
 });

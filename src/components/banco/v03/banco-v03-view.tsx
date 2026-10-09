@@ -4,7 +4,7 @@ import * as React from "react";
 import { downloadXlsx } from "@/lib/export/xlsx";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Info, RefreshCw, Search } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
 import type { SourceStatus } from "@/lib/api/sources-status";
@@ -16,12 +16,11 @@ import type {
   TarjetaSaldoData,
   TarjetasResponse,
 } from "@/lib/api/treasury";
-import { cajaHoy } from "@/lib/finanzas/caja-hoy";
+import { cajaHoy, type CajaHoy } from "@/lib/finanzas/caja-hoy";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
-import { Banner } from "@/components/rediseno/banner";
 import { DataState } from "@/components/rediseno/data-state";
 import { FilterChips } from "@/components/rediseno/filter-chip";
-import { KpiCard } from "@/components/rediseno/kpi-card";
+import { RedisenoInfoPopover } from "@/components/rediseno/info-popover";
 import { Pill } from "@/components/rediseno/pill";
 import { SinDato } from "@/components/rediseno/sin-dato";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
@@ -30,6 +29,7 @@ import {
   CONCILIACION_PILL,
   chipCajaHoy,
   conexionBanco,
+  entradasSalidasMesCLP,
   contarMovimientosV03,
   csvMovimientosTable,
   cuadreCajaHoy,
@@ -47,12 +47,14 @@ import {
   tarjetasV03,
   textoActualizando,
   totalesPorMoneda,
-  type CuentaV03,
   type FiltroClasificacion,
   type FiltroConciliacion,
+  type ConexionBanco,
   type FiltroMovimientos,
+  type FlujoMesCLP,
   type MovimientoV03,
 } from "./banco-v03-model";
+import { BancoV03CuentasCards } from "./banco-v03-cuentas-cards";
 import { BankResolutionDetailDrawer } from "./bank-resolution-detail-drawer";
 import {
   resolutionDetailFromMovement,
@@ -113,6 +115,10 @@ export interface BancoV03ViewProps {
   movimientosTotal?: number | null;
   /** Por qué no llegaron los movimientos, en lenguaje de dueño. */
   movimientosMotivo?: string | null;
+  /** Movimientos del mes calendario actual (todas las cuentas) para entradas/salidas del hero. */
+  movimientosMes?: BankMovement[] | null;
+  movimientosMesMotivo?: string | null;
+  movimientosMesCargando?: boolean;
   /** `code → label` de las categorías canónicas. */
   categorias?: ReadonlyMap<string, string>;
   /** Read model de #428. Ausente = detalle mínimo y honesto desde BankMovement. */
@@ -143,9 +149,6 @@ export interface BancoV03ViewProps {
 
 const LINK =
   "font-semibold text-rediseno-azul hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul rounded";
-const PILL_OSCURA =
-  "ml-auto inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-rediseno-tinta px-4 py-2 text-[12.5px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul";
-
 const FILTROS: ReadonlyArray<{ id: FiltroMovimientos; label: string }> = [
   { id: "todos", label: "Todos" },
   { id: "abonos", label: "Abonos" },
@@ -163,6 +166,9 @@ export function BancoV03View({
   movimientos,
   movimientosTotal,
   movimientosMotivo,
+  movimientosMes = null,
+  movimientosMesMotivo = null,
+  movimientosMesCargando = false,
   categorias = new Map(),
   resolutionDetails = new Map(),
   deepLinkedMovement = null,
@@ -234,6 +240,28 @@ export function BancoV03View({
   const suma = sumaPorMoneda(filasCuentas);
   const cuadre = cuadreCajaHoy(caja, filasCuentas);
 
+  const monedaPorCuenta = React.useMemo(
+    () =>
+      new Map(
+        (cuentasQavante ?? []).map((a) => [a.id, (a.currency_code ?? "").trim().toUpperCase()]),
+      ),
+    [cuentasQavante],
+  );
+  const flujoMes =
+    movimientosMes != null ? entradasSalidasMesCLP(movimientosMes, monedaPorCuenta) : null;
+  const resumenEtiquetas = (() => {
+    const bancos = new Set(
+      (cuentasQavante ?? []).map((a) => a.bank_name?.trim()).filter((n): n is string => !!n),
+    );
+    if (bancos.size === 0 && banco.trim()) bancos.add(banco.trim());
+    const tarjetasManuales = filasTarjetas.length;
+    return {
+      bancos: bancos.size,
+      cuentas: filasCuentas.length,
+      tarjetas: tarjetasManuales,
+    };
+  })();
+
   const opcionesCuenta = (() => {
     const options = (cuentasQavante ?? [])
       .filter((a) => a.active && a.account_type !== "credit_card")
@@ -295,49 +323,24 @@ export function BancoV03View({
 
   return (
     <div className="space-y-5">
-      {/* Estado de la conexión que requiere acción: un banner ámbar con la acción (Ley 6/8). */}
-      {conexion.estado === "accion_requerida" && (
-        <Banner variant="warn" role="status">
-          <b>Tu sesión con {banco} no está disponible.</b>{" "}
-          {conexion.ultimaSync
-            ? `Desde el ${fechaCorta(conexion.ultimaSync)} no llegan saldos ni movimientos nuevos; lo que ves abajo es lo último que importamos.`
-            : "No están llegando saldos ni movimientos nuevos; lo que ves abajo es lo último que importamos."}{" "}
-          Reconecta el banco para volver a verlos al día.
-          <Link href="/conexiones" className={cn(PILL_OSCURA, "mt-2 sm:mt-0 sm:ml-3")}>
-            Reconectar {banco}
-          </Link>
-        </Banner>
-      )}
-
       {/* (0) Caja hoy — Ley 1: el MISMO número que en Hoy y Caja. */}
-      <section aria-label="Caja hoy" className="grid gap-3 sm:grid-cols-3">
-        {caja.monto != null ? (
-          <KpiCard
-            label="Caja hoy"
-            period={chipCajaHoy(caja, banco, hoy)}
-            value={formatClp(caja.monto)}
-            detail={<DetalleCajaHoy cuadre={cuadre} estado={caja.estado} />}
-          />
-        ) : (
-          <KpiCard
-            label="Caja hoy"
-            period={chipCajaHoy(caja, banco, hoy)}
-            sinDato={{
-              reason:
-                "Todavía no tenemos el saldo de tu caja: el resumen no trajo el bloque de caja (banco sin conectar o fuente caída).",
-            }}
-            detail="El mismo número que en Hoy y Caja · según tus movimientos importados"
-          />
-        )}
+      <section aria-label="Caja hoy">
+        <CajaHoyHeroCard
+          caja={caja}
+          chip={chipCajaHoy(caja, banco, hoy)}
+          conexion={conexion}
+          cuadre={cuadre}
+          flujoMes={flujoMes}
+          flujoMesCargando={movimientosMesCargando}
+          flujoMesMotivo={movimientosMesMotivo}
+          resumenEtiquetas={resumenEtiquetas}
+        />
       </section>
 
       {/* (1) Cuentas */}
       <section aria-labelledby="v03-cuentas" className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2
-            id="v03-cuentas"
-            className="font-rediseno-mono text-[12px] font-semibold tracking-[.12em] text-rediseno-tinta-3 uppercase"
-          >
+          <h2 id="v03-cuentas" className="text-lg font-semibold text-rediseno-tinta">
             Cuentas
           </h2>
           {refrescando && (
@@ -359,7 +362,7 @@ export function BancoV03View({
               status="empty"
               what="cuentas de banco"
               hint="Conecta tu banco y vas a ver acá cada cuenta con su saldo, su estado de conexión y sus movimientos."
-              action={{ label: "Conectar un banco", href: "/conexiones" }}
+              action={{ label: "Conectar un banco", href: "/administracion/conexiones" }}
             />
           ) : (
             <DataState
@@ -369,12 +372,12 @@ export function BancoV03View({
                 conexion.motivo ??
                 "Ni el banco ni el estado de tus conexiones respondieron. No sabemos qué cuentas tienes ni cuánto hay en ellas."
               }
-              action={{ label: "Revisar conexiones", href: "/conexiones" }}
+              action={{ label: "Revisar conexiones", href: "/administracion/conexiones" }}
             />
           )
         ) : (
           <>
-            <TablaCuentas filas={filas} conexion={conexion} />
+            <BancoV03CuentasCards filas={filas} conexion={conexion} />
             <p className="text-[12.5px] text-rediseno-tinta-3">
               {suma.porMoneda.length > 0 ? (
                 <>
@@ -464,7 +467,7 @@ export function BancoV03View({
                   ? "Conecta tu banco para que empiecen a llegar."
                   : `No hay movimientos importados en ${alcance}. Si el banco sí tuvo movimientos, revisa la conexión.`
             }
-            action={{ label: "Revisar conexiones", href: "/conexiones" }}
+            action={{ label: "Revisar conexiones", href: "/administracion/conexiones" }}
           />
         ) : (
           <>
@@ -605,25 +608,128 @@ export function BancoV03View({
 
 /* ── Piezas ──────────────────────────────────────────────────────────────────── */
 
-function fechaCorta(iso: string): string {
-  /* Import local para no arrastrar el formateador a los props: la fecha corta de la spec. */
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (!m) return "Sin información";
-  const meses = [
-    "ene",
-    "feb",
-    "mar",
-    "abr",
-    "may",
-    "jun",
-    "jul",
-    "ago",
-    "sep",
-    "oct",
-    "nov",
-    "dic",
-  ];
-  return `${Number(m[3])} ${meses[Number(m[2]) - 1] ?? "Sin información"}`;
+function puntoConexion(conexion: ConexionBanco): string {
+  if (conexion.estado === "conectada") return "bg-emerald-500";
+  if (conexion.estado === "actualizando") return "bg-blue-500";
+  if (conexion.tono === "warn") return "bg-amber-500";
+  return "bg-neutral-mid/60";
+}
+
+function CajaHoyHeroCard({
+  caja,
+  chip,
+  conexion,
+  cuadre,
+  flujoMes,
+  flujoMesCargando,
+  flujoMesMotivo,
+  resumenEtiquetas,
+}: {
+  caja: CajaHoy;
+  chip: string;
+  conexion: ConexionBanco;
+  cuadre: ReturnType<typeof cuadreCajaHoy>;
+  flujoMes: FlujoMesCLP | null;
+  flujoMesCargando: boolean;
+  flujoMesMotivo: string | null;
+  resumenEtiquetas: { bancos: number; cuentas: number; tarjetas: number };
+}) {
+  const flujoValor = (monto: number) => {
+    if (flujoMesCargando) return "…";
+    if (flujoMesMotivo) {
+      return (
+        <span className="text-lg font-semibold italic text-rediseno-tinta-3-light">sin dato</span>
+      );
+    }
+    if (flujoMes == null) return "Sin dato";
+    return formatClp(monto);
+  };
+
+  return (
+    <div className="relative rounded-2xl border border-rediseno-hairline bg-rediseno-superficie shadow-sm">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden>
+        <div className="absolute -right-16 -top-20 size-64 rounded-full bg-blue-50/80 blur-2xl" />
+        <div className="absolute inset-y-0 left-0 w-1 bg-rediseno-azul" />
+      </div>
+      <div className="relative p-6 sm:p-8">
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1" data-kpi="Caja hoy">
+            <p className="text-sm font-medium text-rediseno-tinta-3">Caja hoy · CLP</p>
+            {caja.monto != null ? (
+              <p
+                data-kpi-valor=""
+                className="mt-2 text-4xl font-bold tracking-tight tabular-nums text-rediseno-tinta sm:text-5xl"
+              >
+                {formatClp(caja.monto)}
+              </p>
+            ) : (
+              <div className="mt-2" data-kpi-valor="">
+                <SinDato reason="Todavía no tenemos el saldo de tu caja: el resumen no trajo el bloque de caja (banco sin conectar o fuente caída)." />
+              </div>
+            )}
+            <div className="mt-3 text-[12.5px] text-rediseno-tinta-3">
+              <DetalleCajaHoy cuadre={cuadre} estado={caja.estado} />
+            </div>
+          </div>
+          <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-rediseno-hairline bg-slate-50/80 px-3 py-1.5 text-xs font-medium text-rediseno-tinta-3">
+            <span className={cn("size-2 shrink-0 rounded-full", puntoConexion(conexion))} />
+            <span className="truncate">{chip}</span>
+          </span>
+        </div>
+        <div className="relative mt-8 grid grid-cols-1 gap-4 border-t border-rediseno-hairline pt-5 sm:grid-cols-2 sm:gap-3">
+          <div className="flex items-center gap-3">
+            <span className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
+              <ArrowDownLeft className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-xs text-rediseno-tinta-3">Entradas este mes</p>
+              <div className="mt-0.5 text-lg font-semibold tabular-nums text-rediseno-tinta">
+                {flujoValor(flujoMes?.entradas ?? 0)}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="rounded-xl bg-rose-50 p-2.5 text-rose-700">
+              <ArrowUpRight className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-xs text-rediseno-tinta-3">Salidas este mes</p>
+              <div className="mt-0.5 text-lg font-semibold tabular-nums text-rediseno-tinta">
+                {flujoValor(flujoMes?.salidas ?? 0)}
+              </div>
+            </div>
+          </div>
+        </div>
+        {flujoMesMotivo && !flujoMesCargando && (
+          <div className="relative mt-3 border-t border-rediseno-hairline pt-4">
+            <SinDato reason={flujoMesMotivo} label="entradas y salidas del mes" />
+          </div>
+        )}
+        {(resumenEtiquetas.bancos > 0 ||
+          resumenEtiquetas.cuentas > 0 ||
+          resumenEtiquetas.tarjetas > 0) && (
+          <div className="relative mt-5 flex flex-wrap gap-2 text-xs text-rediseno-tinta-3">
+            {resumenEtiquetas.bancos > 0 && (
+              <span className="rounded-full bg-slate-100 px-3 py-1.5">
+                {resumenEtiquetas.bancos} {resumenEtiquetas.bancos === 1 ? "banco" : "bancos"}
+              </span>
+            )}
+            {resumenEtiquetas.cuentas > 0 && (
+              <span className="rounded-full bg-slate-100 px-3 py-1.5">
+                {resumenEtiquetas.cuentas} {resumenEtiquetas.cuentas === 1 ? "cuenta" : "cuentas"}
+              </span>
+            )}
+            {resumenEtiquetas.tarjetas > 0 && (
+              <span className="rounded-full bg-slate-100 px-3 py-1.5">
+                {resumenEtiquetas.tarjetas}{" "}
+                {resumenEtiquetas.tarjetas === 1 ? "tarjeta manual" : "tarjetas manuales"}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** El apellido de "Caja hoy" + el cuadre con el banco, con su ⓘ (spec §1.4). */
@@ -644,33 +750,25 @@ function DetalleCajaHoy({
             : ""}
         el mismo número que en Hoy y Caja
       </span>
-      <details className="group relative inline-block">
-        <summary
-          className="inline-flex cursor-pointer list-none items-center text-rediseno-tinta-3-light hover:text-rediseno-tinta-2 focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none [&::-webkit-details-marker]:hidden"
-          aria-label="Qué es Caja hoy y cómo se compara con lo que informa el banco"
-        >
-          <Info className="size-3.5" aria-hidden />
-        </summary>
-        <span className="absolute top-full left-0 z-40 mt-1.5 block w-[min(20rem,80vw)] rounded-xl border border-rediseno-hairline bg-rediseno-superficie p-3 text-left text-[12.5px] leading-relaxed font-normal text-rediseno-tinta-2 normal-case shadow-lg">
-          <span className="block font-semibold text-rediseno-tinta">Caja hoy</span>
-          <span className="mt-1 block">
-            Es tu saldo de apertura más todos los movimientos importados del banco, en pesos. Sale
-            del resumen del dashboard: la misma fuente y el mismo número que en Hoy y en Caja.
-          </span>
-          <span className="mt-1 block">
-            La tabla de abajo muestra otro dato: el <b>saldo contable que el banco informa</b> por
-            cuenta, en vivo y en su moneda. Pueden diferir si hay movimientos que el banco ya
-            contabilizó y todavía no importamos, o cuentas en otra moneda.
-          </span>
-          <span className="mt-1 block text-rediseno-tinta-3">
-            {cuadre.coincide == null
-              ? "Hoy no se pueden comparar: falta uno de los dos."
-              : cuadre.coincide
-                ? `Hoy coinciden: el banco informa ${formatClp(cuadre.sumaBancoClp!)} en tus cuentas CLP.`
-                : `Hoy NO coinciden: el banco informa ${formatClp(cuadre.sumaBancoClp!)} en tus cuentas CLP (diferencia ${formatClp(cuadre.diferencia!)}).`}
-          </span>
+      <RedisenoInfoPopover ariaLabel="Qué es Caja hoy y cómo se compara con lo que informa el banco">
+        <span className="block font-semibold text-rediseno-tinta">Caja hoy</span>
+        <span className="mt-1 block">
+          Es tu saldo de apertura más todos los movimientos importados del banco, en pesos. Sale del
+          resumen del dashboard: la misma fuente y el mismo número que en Hoy y en Caja.
         </span>
-      </details>
+        <span className="mt-1 block">
+          La tabla de abajo muestra otro dato: el <b>saldo contable que el banco informa</b> por
+          cuenta, en vivo y en su moneda. Pueden diferir si hay movimientos que el banco ya
+          contabilizó y todavía no importamos, o cuentas en otra moneda.
+        </span>
+        <span className="mt-1 block text-rediseno-tinta-3">
+          {cuadre.coincide == null
+            ? "Hoy no se pueden comparar: falta uno de los dos."
+            : cuadre.coincide
+              ? `Hoy coinciden: el banco informa ${formatClp(cuadre.sumaBancoClp!)} en tus cuentas CLP.`
+              : `Hoy NO coinciden: el banco informa ${formatClp(cuadre.sumaBancoClp!)} en tus cuentas CLP (diferencia ${formatClp(cuadre.diferencia!)}).`}
+        </span>
+      </RedisenoInfoPopover>
       {cuadre.coincide === false && (
         <span className="text-rediseno-ambar">
           · el banco informa {formatClp(cuadre.sumaBancoClp!)} en CLP
@@ -678,68 +776,6 @@ function DetalleCajaHoy({
       )}
     </span>
   );
-}
-
-function TablaCuentas({
-  filas,
-  conexion,
-}: {
-  filas: CuentaV03[];
-  conexion: ReturnType<typeof conexionBanco>;
-}) {
-  const columns = React.useMemo<ColumnDef<CuentaV03, unknown>[]>(
-    () => [
-      {
-        id: "cuenta",
-        accessorFn: (f) => f.nombre,
-        header: "Cuenta",
-        meta: { principal: true },
-        cell: ({ row }) => <TablePrimaryCell value={row.original.nombre} sub={row.original.sub} />,
-      },
-      {
-        id: "estado",
-        accessorFn: () => conexion.estado,
-        header: "Estado",
-        enableSorting: false,
-        meta: { hideBelow: "sm" },
-        cell: () => <Pill variant={conexion.tono}>{conexion.pill}</Pill>,
-      },
-      {
-        id: "saldo",
-        accessorFn: (f) => f.saldo ?? Number.NEGATIVE_INFINITY,
-        header: "Saldo contable",
-        meta: { align: "right" },
-        cell: ({ row }) =>
-          row.original.saldo == null ? (
-            <SinDato
-              variant="compact"
-              label="el saldo de esta cuenta"
-              reason={row.original.saldoMotivo ?? "El banco no informó el saldo."}
-            />
-          ) : (
-            <span className={cn(row.original.saldo < 0 && "text-rediseno-tinta-2")}>
-              {formatMoney(row.original.saldo, row.original.moneda)}
-            </span>
-          ),
-      },
-      {
-        id: "accion",
-        header: "",
-        enableSorting: false,
-        meta: { align: "right" },
-        cell: ({ row }) =>
-          row.original.href ? (
-            <Link href={row.original.href} className={LINK}>
-              {row.original.accion}
-            </Link>
-          ) : (
-            <span className="text-rediseno-tinta-3-light">sin cartola</span>
-          ),
-      },
-    ],
-    [conexion],
-  );
-  return <RedisenoTable columns={columns} data={filas} />;
 }
 
 function TablaMovimientos({

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
-/** Ventana mensual que el dueño puede elegir antes de conectar el SII. */
+/** Ventana mensual que el dueño elige antes de conectar SII y banco (mismo mes de corte). */
 export type OnboardingImportWindow = components["schemas"]["OnboardingImportWindowResponse"];
 export type OnboardingImportWindowRequest = components["schemas"]["OnboardingImportWindowRequest"];
 
@@ -29,7 +29,7 @@ export function useOnboardingImportWindow() {
   });
 }
 
-/** `PUT /api/onboarding/import-window` — persiste el mes antes de guardar la clave SII. */
+/** `PUT /api/onboarding/import-window` — persiste el mes de corte para SII y Fintoc. */
 export function useSetOnboardingImportWindow() {
   const qc = useQueryClient();
   return useMutation({

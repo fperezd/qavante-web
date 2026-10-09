@@ -9,7 +9,11 @@ import {
 } from "@/lib/api/pagos";
 import { ApiError } from "@/lib/api/errors";
 import { PagarV05View } from "./pagar-v05-view";
-import { queryFiltroServidor, type FiltroServidorV05 } from "./pagar-v05-model";
+import {
+  queryFiltroServidor,
+  type FiltroServidorV05,
+  type PagarHorizonte,
+} from "./pagar-v05-model";
 import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
 
 /* Cableado de V05 · Pagar. La vista es presentacional; acá se resuelve la ÚNICA fuente de cifras:
@@ -60,6 +64,7 @@ export function PagarV05Live({
 } = {}) {
   const [hoy] = React.useState(() => new Date());
   const [filtro, setFiltro] = React.useState<FiltroServidorV05>("todos");
+  const [horizonte, setHorizonte] = React.useState<PagarHorizonte>(7);
   const [consulta, setConsulta] = React.useState("");
   const [busqueda, setBusqueda] = React.useState("");
   const [cursores, setCursores] = React.useState<string[]>([]);
@@ -138,6 +143,10 @@ export function PagarV05Live({
         pagina={cursores.length + 1}
         cursorAviso={cursorAviso}
         cargandoPagina={ap.isFetching}
+        horizonte={horizonte}
+        onHorizonteChange={(next) => {
+          setHorizonte(next);
+        }}
         onFiltroChange={(next) => {
           setFiltro(next);
           setCursores([]);

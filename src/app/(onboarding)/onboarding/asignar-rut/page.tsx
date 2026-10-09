@@ -1,7 +1,7 @@
-import { AssignRutView } from "@/components/onboarding/assign-rut-view";
+import { redirect } from "next/navigation";
+import { routeAfter } from "@/components/onboarding/onboarding-steps";
 
-/* `/onboarding/asignar-rut` — primer paso post-auth si la cuenta no tiene
-   `core.users.rut`. Lo dispara `UserRutGuard` desde el panel. */
-export default function AsignarRutPage() {
-  return <AssignRutView />;
+/* Ruta legacy: el RUT personal se pide en `/registro` (paso 1). */
+export default function AsignarRutLegacyRedirect() {
+  redirect(routeAfter("verify-email"));
 }

@@ -81,7 +81,7 @@ export const SinDatoEnVezDeCero: Story = {
     await expect(canvas.getByText("sin dato")).toBeVisible();
 
     await userEvent.click(canvas.getByRole("button", { name: "Por qué no sabemos vencido" }));
-    const panel = await canvas.findByRole("tooltip");
+    const panel = await within(canvasElement.ownerDocument.body).findByRole("dialog");
     await expect(within(panel).getByText(/Vencimientos del RCV/)).toBeVisible();
   },
 };

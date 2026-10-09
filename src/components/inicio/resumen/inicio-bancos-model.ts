@@ -25,6 +25,7 @@ export function bancosInicio(items: readonly BankAccountItem[]) {
       .filter((a) => a.currency_code.trim())
       .map((a) => ({
         key: a.id,
+        bankName: a.bank_name.trim() || "Banco",
         nombre: a.name,
         sub: "",
         moneda: a.currency_code.trim().toUpperCase(),
@@ -33,6 +34,7 @@ export function bancosInicio(items: readonly BankAccountItem[]) {
         href: null,
         accion: "",
         porConciliar: null,
+        accountNumberDisplay: a.account_number_display ?? null,
         tipo: "cuenta" as const,
       })),
   );

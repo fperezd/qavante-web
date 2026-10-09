@@ -29,6 +29,7 @@ const MOVEMENTS: BankMovement[] = [
     counterparty_source: "not_captured",
     data_status: "available",
     imported_at: "2026-05-15T09:00:00Z",
+    is_investment_or_extraordinary: false,
   },
   {
     id: "bm-2",
@@ -47,6 +48,7 @@ const MOVEMENTS: BankMovement[] = [
     counterparty_source: "not_captured",
     data_status: "available",
     imported_at: "2026-05-16T09:00:00Z",
+    is_investment_or_extraordinary: false,
   },
 ];
 

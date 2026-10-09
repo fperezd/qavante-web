@@ -491,6 +491,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/csrf/posture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * CSRF: si la verificación de Origin está en pie (observabilidad)
+         * @description Dice si la defensa de `Origin` está activa, y si eso se pudo saber.
+         *
+         *     SOLO LECTURA: `measure_csrf_posture` lee variables de entorno y no escribe
+         *     ninguna. No prende el control si lo encuentra apagado — un chequeo que
+         *     arreglara lo que vigila se vería siempre verde porque él mismo haría el
+         *     trabajo, y además dejaría sin rastro el `az containerapp update` que lo
+         *     apagó.
+         */
+        get: operations["admin_csrf_posture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/f29/remanente-seed": {
         parameters: {
             query?: never;
@@ -511,6 +537,27 @@ export interface paths {
          *     Idempotente. `remanente` = crédito fiscal acumulado arrastrado HACIA `(period_year, period_month)`.
          */
         post: operations["admin_f29_remanente_seed_put"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/legal-entities/functional-currency-gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sociedades existentes sin moneda funcional declarada (panel del barrido)
+         * @description Lectura de SOLO LECTURA, cross-tenant: no toca ninguna tabla monetaria, sólo la
+         *     configuración de moneda funcional por sociedad. No invoca ningún job de reparación.
+         */
+        get: operations["admin_legal_entities_functional_currency_gaps"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2819,6 +2866,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fintoc/subscription-checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Subscription Checkout
+         * @description Crea un Checkout Session Fintoc (`flow: subscription`) y devuelve `redirect_url`.
+         *
+         *     Usa `FINTOC_SECRET_KEY` del servidor — el FE nunca ve la secret. Para pruebas PAC,
+         *     `FINTOC_SUBSCRIPTION_USE_SANDBOX_CUSTOMER=true` fuerza el cliente de la documentación Fintoc.
+         */
+        post: operations["subscription_checkout_api_fintoc_subscription_checkout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/fintoc/sync": {
         parameters: {
             query?: never;
@@ -2884,8 +2954,13 @@ export interface paths {
         get: operations["legal_entities_list"];
         put?: never;
         /**
-         * Crea una Empresa dentro del tenant actual
+         * Crea una Empresa dentro del tenant actual (exige moneda funcional)
          * @description Alta de Empresa; no crea ni cambia el tenant de la sesión.
+         *
+         *     Gate del BO 2026-10-08 (#698): ninguna sociedad nueva nace sin moneda funcional. Antes de
+         *     este gate, `legal_name` bastaba y la sociedad quedaba "activa" pero invisible para
+         *     PULSO/QHS hasta que alguien, en un paso aparte y sin aviso, completara el dato — y 6 de las
+         *     8 sociedades reales de producción medidas el 2026-10-08 nunca llegaron a ese paso.
          */
         post: operations["legal_entities_create"];
         delete?: never;
@@ -3977,6 +4052,8 @@ export interface paths {
          * Proponer el presupuesto de resultado del año desde el histórico real
          * @description Genera (o regenera, idempotente) el Presupuesto de Resultado del año fiscal desde los 12
          *     meses anteriores (tendencia + estacionalidad + meta simple). ADR-0091 F1a.
+         *
+         *     Requiere rol financiero de escritura (api#1131).
          */
         post: operations["planning_budget_propose"];
         delete?: never;
@@ -4018,6 +4095,11 @@ export interface paths {
         /**
          * Aceptar/ratificar el presupuesto del año (draft → published)
          * @description El usuario acepta el presupuesto — la versión pasa a `published`.
+         *
+         *     Aceptar es publicar la cifra contra la que se compara todo el año, así que requiere rol
+         *     financiero de escritura **y** un aprobador identificado: con cookie es la sesión, con
+         *     X-Api-Key hay que declarar `actor_user_id` y se valida contra `core.memberships` (api#1131).
+         *     Re-aceptar una versión ya publicada NO cambia de aprobador: conserva el vigente.
          */
         post: operations["planning_budget_accept"];
         delete?: never;
@@ -4043,6 +4125,8 @@ export interface paths {
          * Editar una celda del presupuesto (categoría x mes) — el usuario ajusta el propuesto
          * @description Modifica el monto de una celda. Solo capa `budget` (no toca actuals). Editar re-abre a
          *     `draft` una versión ya aceptada.
+         *
+         *     Requiere rol financiero de escritura (api#1131).
          */
         patch: operations["planning_budget_edit_line"];
         trace?: never;
@@ -5121,7 +5205,9 @@ export interface paths {
          *     2026-10-04 (ADR-0123 §1). `graph_publication` dice qué publicó el grafo —versión,
          *     identificadores y aliases vigentes—, porque `overall=enabled` sólo significa que el
          *     productor tiene permiso de escribir: con `seeded=false` ese permiso no produce nada.
-         *     Read-only: no abre ni cierra la compuerta.
+         *     `observation` fecha la lectura: ningún cron refresca estas filas (los dos productores son
+         *     por evento), así que `enabled` sin su antigüedad al lado no dice si se midió hoy o hace un
+         *     mes. Read-only: no abre ni cierra la compuerta.
          */
         get: operations["sii_rcv_d08_gate"];
         put?: never;
@@ -5930,7 +6016,7 @@ export interface paths {
         };
         /**
          * Catálogo + metadata de las categorías canónicas (Addendum §8/§10)
-         * @description Devuelve las 26 categorías canónicas con su metadata funcional
+         * @description Devuelve las 29 categorías canónicas con su metadata funcional
          *     (dirección esperada, grupo de caja, modelo financiero, impacto,
          *     raíz de gestión, flags de revisión). Orden estable por `sort_order`.
          */
@@ -6086,6 +6172,32 @@ export interface paths {
         put?: never;
         /** Create Projection Run */
         post: operations["create_cash_projection_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/cash-projection-runs/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Projection Health
+         * @description Por qué la proyección de este scope no responde. SÓLO LECTURA: ningún 201, ningún run.
+         *
+         *     Hasta acá, distinguir «falta provisionar una autoridad» de «hay dos compitiendo» y de
+         *     «no corrió el cron» exigía un POST a `/api/treasury/cash-projection-runs` con clave de
+         *     idempotencia -- una escritura contra producción para leer un diagnóstico, que además
+         *     deja una fila. Las tres causas se arreglan al revés una de otra, así que no distinguirlas
+         *     es no saber qué hacer.
+         */
+        get: operations["get_cash_projection_health"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6555,6 +6667,48 @@ export interface paths {
          * @description Registra una selección humana; no envía solicitudes ni mueve dinero.
          */
         post: operations["treasury_select_financial_decision_alternative"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/declared-financing/credit-facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Declared Credit Facilities */
+        get: operations["read_declared_credit_facilities_api_treasury_declared_financing_credit_facilities_get"];
+        put?: never;
+        /**
+         * Declare Credit Facility
+         * @description Declara un cupo con evidencia; el headline es siempre disponible-no-usado.
+         */
+        post: operations["declare_credit_facility_api_treasury_declared_financing_credit_facilities_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/declared-financing/debt-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Declared Debt Lines */
+        get: operations["read_declared_debt_lines_api_treasury_declared_financing_debt_lines_get"];
+        put?: never;
+        /**
+         * Declare Debt Line
+         * @description Declara una línea de deuda viva, con evidencia (contrato/estado de cuenta).
+         */
+        post: operations["declare_debt_line_api_treasury_declared_financing_debt_lines_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9683,9 +9837,19 @@ export interface components {
         /**
          * BankAccountItem
          * @description Cuenta bancaria del tenant para el selector `account_id` del reporte
-         *     cash-flow. Read-only; no expone external_ref/account_number_masked.
+         *     cash-flow. Read-only; no expone `external_ref` (la referencia cruda del proveedor).
          */
         BankAccountItem: {
+            /**
+             * Account Number Display
+             * @description Número censurado para distinguir cuentas del mismo banco (p. ej. `**** **** **** 1234`). Solo últimos 4 dígitos visibles.
+             */
+            account_number_display?: string | null;
+            /**
+             * Account Number Masked
+             * @description Terminación de la cuenta, ya enmascarada (últimos dígitos), para que la UI distinga dos cuentas del mismo banco y moneda. `null` = sin dígitos disponibles.
+             */
+            account_number_masked?: string | null;
             /**
              * Account Type
              * @description checking/savings/credit_card/loan/investment.
@@ -9897,6 +10061,11 @@ export interface components {
              */
             direction: "credit" | "debit";
             /**
+             * Direction Warning
+             * @description Advertencia blanda si `canonical_category` no calza con la `direction` esperada (Addendum §25.1). `null` si coinciden, si la categoría espera 'any', o si no hay categoría. Nunca bloquea la clasificación.
+             */
+            direction_warning?: string | null;
+            /**
              * Effective Reconciliation Status
              * @description Estado efectivo considerando todos los resolutores canónicos y legacy.
              */
@@ -9912,6 +10081,22 @@ export interface components {
              * Format: date-time
              */
             imported_at: string;
+            /**
+             * Investment Confirmed At
+             * @description Cuándo se confirmó la marca. `null` salvo que `is_investment_or_extraordinary` sea `true`.
+             */
+            investment_confirmed_at?: string | null;
+            /**
+             * Investment Confirmed By
+             * @description Quién confirmó la marca. `null` salvo que `is_investment_or_extraordinary` sea `true`.
+             */
+            investment_confirmed_by?: string | null;
+            /**
+             * Is Investment Or Extraordinary
+             * @description `true` si una persona confirmó este movimiento como inversión o extraordinario (exp_v1.md §2.4/§6.2). Default `false`: nadie lo confirmó, no que no lo sea.
+             * @default false
+             */
+            is_investment_or_extraordinary: boolean;
             /** Management Account Id */
             management_account_id?: string | null;
             /** Match Score */
@@ -10195,12 +10380,39 @@ export interface components {
             total: string;
         };
         /**
+         * BudgetAcceptRequest
+         * @description Cuerpo OPCIONAL de `POST /budget/{year}/accept` — existe sólo para declarar autoría.
+         *
+         *     Opcional a propósito: el camino de navegador (cookie) no manda cuerpo y el autor es el
+         *     usuario de la sesión. Con `X-Api-Key` no hay persona detrás (`user_id is None`, ADR-0044 F1)
+         *     y `actor_user_id` pasa a ser obligatorio: aceptar es publicar la cifra contra la que se
+         *     compara todo el año, y una ratificación sin responsable no sirve como evidencia.
+         */
+        BudgetAcceptRequest: {
+            /**
+             * Actor User Id
+             * @description Obligatorio con X-Api-Key: el usuario con rol financiero de escritura ACTIVO en este tenant que acepta el presupuesto. Con cookie se omite (es la sesión).
+             */
+            actor_user_id?: string | null;
+        };
+        /**
          * BudgetAcceptResponse
          * @description Respuesta de `POST /budget/{year}/accept`.
          */
         BudgetAcceptResponse: {
             /** Accepted */
             accepted: boolean;
+            /**
+             * Already Accepted
+             * @description True si la versión ya estaba aceptada y con aprobador: no-op idempotente que CONSERVA al aprobador anterior en vez de pisarlo (api#1131).
+             * @default false
+             */
+            already_accepted: boolean;
+            /**
+             * Approved By
+             * @description Usuario que figura como aprobador de la publicación vigente.
+             */
+            approved_by?: string | null;
             /**
              * Status
              * @description draft | approved.
@@ -10815,7 +11027,7 @@ export interface components {
          * CanonicalCategory
          * @enum {string}
          */
-        CanonicalCategory: "client_collection" | "card_processor_settlement" | "cash_deposit" | "supplier_payment" | "payroll_payment" | "tax_payment" | "social_security_payment" | "tgr_payment" | "bank_fee" | "interest_income" | "interest_expense" | "debt_disbursement" | "debt_service" | "factoring_advance" | "factoring_cost_or_repayment" | "owner_contribution" | "owner_withdrawal" | "internal_bank_transfer" | "intercompany_transfer" | "investment_purchase" | "investment_return" | "capex_payment" | "refund_or_reversal" | "operational_expense" | "non_operational_income" | "unknown";
+        CanonicalCategory: "client_collection" | "card_processor_settlement" | "cash_deposit" | "supplier_payment" | "payroll_payment" | "tax_payment" | "social_security_payment" | "tgr_payment" | "bank_fee" | "interest_income" | "interest_expense" | "debt_disbursement" | "debt_service" | "factoring_advance" | "factoring_cost_or_repayment" | "owner_contribution" | "owner_withdrawal" | "internal_bank_transfer" | "intercompany_transfer" | "investment_purchase" | "investment_return" | "capex_payment" | "refund_or_reversal" | "operational_expense" | "non_operational_income" | "rent" | "utilities" | "subscriptions" | "unknown";
         /**
          * CanonicalCategoryMeta
          * @description Un ítem de `GET /api/treasury/canonical-categories` (Addendum §10.1).
@@ -10856,6 +11068,12 @@ export interface components {
         };
         /** CardIngestCardResult */
         CardIngestCardResult: {
+            /**
+             * Ambiguous
+             * @description Movimientos cuyo eje de identidad calzó con dos o más filas: no se fusionó ninguna ni se insertó una nueva; la decisión queda para una persona.
+             * @default 0
+             */
+            ambiguous: number;
             /** Card Ref */
             card_ref: string;
             /** Error */
@@ -10865,6 +11083,12 @@ export interface components {
              * @default 0
              */
             imported: number;
+            /**
+             * Reconciled
+             * @description Movimientos reconocidos como uno ya existente con la fecha reacomodada por el banco: se actualizó la fila en vez de crear un duplicado.
+             * @default 0
+             */
+            reconciled: number;
         };
         /**
          * CardIngestResult
@@ -10882,11 +11106,29 @@ export interface components {
              */
             cards_total: number;
             /**
+             * Movements Ambiguous
+             * @description Movimientos con identidad ambigua (dos o más filas candidatas): no se fusionaron ni se insertaron. Cada uno queda en el log con los ids en juego.
+             * @default 0
+             */
+            movements_ambiguous: number;
+            /**
              * Movements Imported
              * @description Movimientos simples persistidos como payables.
              * @default 0
              */
             movements_imported: number;
+            /**
+             * Movements Near Duplicates
+             * @description Movimientos con una fila del mismo comercio, monto y vencimiento pero con la emisión fuera de la ventana de reconciliación: se insertaron como cargo propio y quedan en el log para revisión.
+             * @default 0
+             */
+            movements_near_duplicates: number;
+            /**
+             * Movements Reconciled
+             * @description Movimientos que el banco volvió a informar con otra fecha de emisión y se reconocieron sobre la fila existente, sin duplicarla.
+             * @default 0
+             */
+            movements_reconciled: number;
             /**
              * Obligations Detected
              * @description Cuotas enrutadas a obligaciones card_purchase (ADR-0051 C).
@@ -11970,6 +12212,73 @@ export interface components {
             source_ref: string;
         };
         /**
+         * CashProjectionGenerationRef
+         * @description La generación sellada que sostiene la curva. Sólo viaja cuando existe.
+         */
+        CashProjectionGenerationRef: {
+            /**
+             * Cutoff At
+             * Format: date-time
+             */
+            cutoff_at: string;
+            /**
+             * Generation Id
+             * Format: uuid
+             */
+            generation_id: string;
+            /** Input Hash */
+            input_hash: string;
+            /**
+             * Produced At
+             * Format: date-time
+             */
+            produced_at: string;
+        };
+        /**
+         * CashProjectionHealthResponse
+         * @description Por qué la proyección de un scope no responde, en una lectura que no escribe nada.
+         *
+         *     `state` SEPARA LAS TRES CAUSAS QUE SE ARREGLAN DISTINTO, y es lo único que esta
+         *     respuesta existe para decir:
+         *
+         *     - `authority_missing`: no hay autoridad de catálogo para el scope. Hay que provisionarla.
+         *     - `authority_ambiguous`: hay más de una para el MISMO scope. Hay que retirar la que sobra.
+         *     - `generation_unavailable`: la autoridad está, pero no hay generación V14 sellada. Tiene
+         *       que correr el cron `v14-snapshots-daily`.
+         *     - `ready`: las dos puertas del productor del run pasan.
+         *
+         *     Las tres primeras salían con el mismo 503 opaco hasta el #1114, y después de ese arreglo
+         *     seguían requiriendo un POST con clave de idempotencia para verse: una escritura contra
+         *     producción para leer un diagnóstico. `code` mantiene el vínculo con ese 503,
+         *     `missing_input` nombra la tabla o el estado ausente y `message` lo dice en es-CL.
+         *
+         *     `sealed_input_batches` viaja SIEMPRE, también cuando falta la autoridad: con la autoridad
+         *     provisionada y cero lotes sellados, la generación nace `partial` y no hay curva. Sin esa
+         *     cifra, `authority_missing` se lee como «falta una cosa» cuando faltan dos.
+         */
+        CashProjectionHealthResponse: {
+            /** Authorities Found */
+            authorities_found?: number | null;
+            /** Code */
+            code?: string | null;
+            generation?: components["schemas"]["CashProjectionGenerationRef"] | null;
+            /** Message */
+            message?: string | null;
+            /** Missing Input */
+            missing_input?: string | null;
+            /** Scope */
+            scope: {
+                [key: string]: unknown;
+            };
+            /** Sealed Input Batches */
+            sealed_input_batches: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "authority_missing" | "authority_ambiguous" | "generation_unavailable";
+        };
+        /**
          * CashProjectionResponse
          * @description Proyección de caja unificada (ADR-0085 + RFC CC-WEB). Anclada en el saldo bancario real; NO
          *     se deriva de `financial_impacts` (no gatea por clasificación). Serie a CIERRE de día, dos
@@ -12940,6 +13249,11 @@ export interface components {
              */
             create_rule: boolean;
             /**
+             * Is Investment Or Extraordinary
+             * @description Confirma (`true`) o retira (`false`) la marca de inversión/extraordinario (exp_v1.md §2.4). `null`/ausente = no cambia la marca existente. Toggle opcional, nunca obligatorio (INV-DEC-010).
+             */
+            is_investment_or_extraordinary?: boolean | null;
+            /**
              * Management Account Id
              * @description Cuenta de gestión a asignar (obligatoria para clasificar).
              */
@@ -13187,6 +13501,12 @@ export interface components {
              * @default 0
              */
             impactos_committed_agendados_count: string;
+            /**
+             * Ingreso Recurrente Multi Sociedad Excluido
+             * @description True en un tenant con 2+ sociedades: la banda `esperado_con_ingresos` (streams de factoring/cliente/MX) se abstiene en vez de publicar, porque `treasury.cesiones` (identificadores de factoring) no tiene columna `legal_entity_id` — no hay por dónde filtrar sin mezclar sociedades (medido en producción 2026-10-07: 124 filas, ninguna atribuible).
+             * @default false
+             */
+            ingreso_recurrente_multi_sociedad_excluido: boolean;
             /**
              * Moneda Distinta Cuotas Excluidas
              * @description Cuotas de obligación (tarjeta/préstamo) pendientes vivas en una moneda distinta de la funcional (conteo). Clave aparte de `moneda_distinta_excluidos`, que describe el universo AP/AR: son tablas distintas y mezclarlas haría incomparable el contador que las dos superficies de Caja ponen una al lado de la otra.
@@ -15005,10 +15325,141 @@ export interface components {
              */
             jobs?: components["schemas"]["JobRunHealthResponse"][];
             /**
+             * Open Run Enforced
+             * @description Los jobs con una corrida abierta más vieja que su presupuesto de duración. CUARTA lista: se arregla mirando la capacidad del replica — `replicaTimeout`, memoria, SIGKILL—, y no el disparador ni el trabajo ni la fuente.
+             */
+            open_run_enforced?: string[];
+            /**
              * Silent Enforced
              * @description Las llaves que el chequeo tiene que gritar: `enforced` y `silent`. Incluye crons (llaves con guion bajo) y jobs (llaves con guion medio) en la misma lista, porque lo que el vigilante necesita es «qué está callado» y no «de qué sección». El criterio se calcula en el repo y no en el shell del workflow para que no se desincronice.
              */
             silent_enforced?: string[];
+            /**
+             * Stale Enforced
+             * @description Los jobs que corren, cierran bien, y no mueven nada desde más allá de su umbral. TERCERA lista, separada porque el qué-hacer es distinto de las otras dos: `silent` se arregla creando o arreglando el disparador, `failing` leyendo el error, y `stale` mirando la FUENTE — la credencial caída, el permiso que falta, la cola que nadie llena. Metida en cualquiera de las otras, manda a investigar el lugar equivocado.
+             */
+            stale_enforced?: string[];
+        };
+        /**
+         * CsrfPostureHealth
+         * @description Qué sabe ESTE proceso sobre su propia defensa CSRF (#1107).
+         *
+         *     **Tampoco mueve `status`**, por la misma razón que el bloque de
+         *     migraciones: `/health` es la sonda del contenedor, y una sonda que se
+         *     pusiera roja por una variable mal copiada sacaría las réplicas de rotación
+         *     —cero réplicas sanas— por un defecto de configuración que se arregla con un
+         *     `az containerapp update`. Acá se ve; la consecuencia la decide quien lea, y
+         *     `GET /api/admin/csrf/posture` la dice con todas las letras.
+         *
+         *     `verdict` nunca es `protegido` sin haber podido clasificar el entorno.
+         */
+        CsrfPostureHealth: {
+            /**
+             * Control
+             * @description `activo` o `apagado`, leído del entorno.
+             */
+            control: string;
+            /**
+             * Entorno
+             * @description `produccion`, `no_produccion` o `indeterminado`.
+             */
+            entorno: string;
+            /**
+             * Hay Que Gritar
+             * @description `true` en `desprotegido`, `activo_sin_allowlist` y `no_pude_medir`.
+             */
+            hay_que_gritar: boolean;
+            /**
+             * Medido En
+             * Format: date-time
+             */
+            medido_en: string;
+            /**
+             * Origenes
+             * @description Cuántos orígenes confiables hay, nunca cuáles.
+             */
+            origenes: number;
+            /**
+             * Senal
+             * @description La variable de plataforma que clasificó el entorno.
+             */
+            senal: string;
+            /**
+             * Verdict
+             * @description `protegido`: producción con el control activo. `desprotegido`: producción con el control apagado — no hay defensa CSRF. `activo_sin_allowlist`: el arranque se va a detener. `fuera_de_produccion`: entorno no productivo. `no_pude_medir`: no se pudo determinar el entorno. **`no_pude_medir` no es `protegido`.**
+             */
+            verdict: string;
+        };
+        /**
+         * CsrfPostureReadingResponse
+         * @description Una medición de la postura CSRF.
+         */
+        CsrfPostureReadingResponse: {
+            /**
+             * Control
+             * @description Si la verificación de `Origin` está activa en este proceso. Se lee del entorno y siempre se puede leer: es `entorno` lo que puede quedar sin respuesta.
+             * @enum {string}
+             */
+            control: "activo" | "apagado";
+            /**
+             * Entorno
+             * @description Dónde cree este proceso que corre, según variables que inyecta la plataforma. `indeterminado` no se redondea a `no_produccion`.
+             * @enum {string}
+             */
+            entorno: "produccion" | "no_produccion" | "indeterminado";
+            /**
+             * Medido En
+             * Format: date-time
+             * @description Cuándo se tomó esta medición.
+             */
+            medido_en: string;
+            /**
+             * Mensaje
+             * @description La misma frase que queda en el log, en una línea.
+             */
+            mensaje: string;
+            /**
+             * Motivo
+             * @description Por qué no se pudo medir. Vacío cuando se midió.
+             * @default
+             */
+            motivo: string;
+            /**
+             * Origenes
+             * @description Cuántos orígenes confiables tiene la allowlist efectiva.
+             */
+            origenes: number;
+            /**
+             * Origenes Detalle
+             * @description **Los orígenes.** Un número solo no es accionable: lo que se corrige es una entrada. Va acá y no en `/health` porque esta ruta exige credencial.
+             */
+            origenes_detalle?: string[];
+            /**
+             * Senal
+             * @description La variable de plataforma que permitió clasificar el entorno (`FLY_APP_NAME` o `CONTAINER_APP_NAME`). Vacía cuando ninguna estaba presente — sin esto, «no pude medir» no dice qué falta.
+             */
+            senal: string;
+            /**
+             * Verdict
+             * @description `protegido`: entorno de producción identificado y control de `Origin` activo. `desprotegido`: producción identificada y control APAGADO — no hay defensa CSRF, y es lo que hay que arreglar. `activo_sin_allowlist`: control activo sin orígenes confiables; el arranque se detiene en `validate_csrf_configuration`. `fuera_de_produccion`: entorno no productivo, donde correr sin el control es legítimo. `no_pude_medir`: no se pudo determinar el entorno. **`no_pude_medir` no es `protegido`:** el chequeo que lo trate como verde es el defecto, no la señal.
+             * @enum {string}
+             */
+            verdict: "protegido" | "desprotegido" | "activo_sin_allowlist" | "fuera_de_produccion" | "no_pude_medir";
+        };
+        /**
+         * CsrfPostureResponse
+         * @description La defensa CSRF vista desde el arranque del proceso y desde ahora mismo.
+         */
+        CsrfPostureResponse: {
+            /** @description Una lectura nueva del entorno, tomada al atender este request. */
+            ahora: components["schemas"]["CsrfPostureReadingResponse"];
+            /** @description Lo que midió al arrancar el proceso que está sirviendo. `null` sólo si el gate del arranque no llegó a correr. */
+            arranque?: components["schemas"]["CsrfPostureReadingResponse"] | null;
+            /**
+             * Hay Que Gritar
+             * @description `true` cuando `ahora.verdict` es `desprotegido`, `activo_sin_allowlist` o `no_pude_medir`. Los tres son rojo: los dos primeros porque la defensa no está en pie, el tercero porque el instrumento está ciego y el silencio no es salud.
+             */
+            hay_que_gritar: boolean;
         };
         /** CuentaBalanceResponse */
         CuentaBalanceResponse: {
@@ -15549,6 +16000,16 @@ export interface components {
              */
             selection_id: string;
         };
+        /** DeclarationMutationResponse */
+        DeclarationMutationResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Replayed */
+            replayed: boolean;
+        };
         /**
          * DeclareClassificationModeRequest
          * @description La sociedad declara su modo. No hay valor para 'no sé': eso es no declarar.
@@ -15566,6 +16027,90 @@ export interface components {
              */
             nota?: string | null;
         };
+        /** DeclareCreditFacilityRequest */
+        DeclareCreditFacilityRequest: {
+            /** Approved Limit */
+            approved_limit: number | string;
+            /**
+             * Counterparty Key
+             * Format: uuid
+             */
+            counterparty_key: string;
+            /** Currency Code */
+            currency_code: string;
+            /** Evidence Digest Sha256 */
+            evidence_digest_sha256: string;
+            /** Evidence Document Ref */
+            evidence_document_ref: string;
+            /** Facility Type */
+            facility_type: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Offered Limit */
+            offered_limit?: number | string | null;
+            /** Used Amount */
+            used_amount: number | string;
+            /**
+             * Valid Through
+             * Format: date
+             */
+            valid_through: string;
+        };
+        /** DeclareDebtLineRequest */
+        DeclareDebtLineRequest: {
+            /**
+             * Counterparty Key
+             * Format: uuid
+             */
+            counterparty_key: string;
+            /** Currency Code */
+            currency_code: string;
+            /**
+             * Disbursed On
+             * Format: date
+             */
+            disbursed_on: string;
+            /** Evidence Digest Sha256 */
+            evidence_digest_sha256: string;
+            /** Evidence Document Ref */
+            evidence_document_ref: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Instrument Type */
+            instrument_type: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Linked Obligation Id */
+            linked_obligation_id?: string | null;
+            /** Mandatory Cost Components */
+            mandatory_cost_components?: components["schemas"]["DeclaredCostComponentRequest"][];
+            /**
+             * Maturity Date
+             * Format: date
+             */
+            maturity_date: string;
+            /**
+             * Nominal Rate Type
+             * @enum {string}
+             */
+            nominal_rate_type: "fixed" | "variable";
+            /** Nominal Rate Value */
+            nominal_rate_value?: number | string | null;
+            /** Prepayment Cost */
+            prepayment_cost?: number | string | null;
+            /** Principal Amount */
+            principal_amount: number | string;
+            /** Total Contractual Repayment */
+            total_contractual_repayment: number | string;
+        };
         /** DeclareIdentifierRequest */
         DeclareIdentifierRequest: {
             /** Identifier Scheme */
@@ -15580,6 +16125,112 @@ export interface components {
              * @description Tal como lo tipeó la persona.
              */
             value: string;
+        };
+        /** DeclaredCostComponentRequest */
+        DeclaredCostComponentRequest: {
+            /** Amount */
+            amount: number | string;
+            /** Code */
+            code: string;
+            /** Deducted From Disbursement */
+            deducted_from_disbursement: boolean;
+        };
+        /** DeclaredCreditFacilityListResponse */
+        DeclaredCreditFacilityListResponse: {
+            /** Items */
+            items?: components["schemas"]["DeclaredCreditFacilityRead"][];
+        };
+        /** DeclaredCreditFacilityRead */
+        DeclaredCreditFacilityRead: {
+            /** Approved Limit */
+            approved_limit: string;
+            /** Available Capacity */
+            available_capacity: string;
+            /**
+             * Counterparty Key
+             * Format: uuid
+             */
+            counterparty_key: string;
+            /** Currency Code */
+            currency_code: string;
+            /** Evidence Document Ref */
+            evidence_document_ref: string;
+            /** Facility Type */
+            facility_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Offered Limit */
+            offered_limit?: string | null;
+            /** Used Amount */
+            used_amount: string;
+            /**
+             * Valid Through
+             * Format: date
+             */
+            valid_through: string;
+        };
+        /** DeclaredDebtLineListResponse */
+        DeclaredDebtLineListResponse: {
+            /** Items */
+            items?: components["schemas"]["DeclaredDebtLineRead"][];
+        };
+        /** DeclaredDebtLineRead */
+        DeclaredDebtLineRead: {
+            /** Comparable Cost Rate */
+            comparable_cost_rate?: string | null;
+            /**
+             * Counterparty Key
+             * Format: uuid
+             */
+            counterparty_key: string;
+            /** Currency Code */
+            currency_code: string;
+            /** Declared At */
+            declared_at: string;
+            /**
+             * Disbursed On
+             * Format: date
+             */
+            disbursed_on: string;
+            /** Evidence Document Ref */
+            evidence_document_ref: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Instrument Type */
+            instrument_type: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Linked Obligation Id */
+            linked_obligation_id?: string | null;
+            /**
+             * Maturity Date
+             * Format: date
+             */
+            maturity_date: string;
+            /** Nominal Rate Type */
+            nominal_rate_type: string;
+            /** Nominal Rate Value */
+            nominal_rate_value?: string | null;
+            /** Prepayment Cost */
+            prepayment_cost?: string | null;
+            /** Principal Amount */
+            principal_amount: string;
+            /** Remaining Financial Cost */
+            remaining_financial_cost?: string | null;
         };
         /** DeclaredPreviousValues */
         DeclaredPreviousValues: {
@@ -18365,7 +19016,7 @@ export interface components {
          * FinancialEventType
          * @enum {string}
          */
-        FinancialEventType: "client_collection" | "card_processor_settlement" | "cash_deposit" | "supplier_payment" | "payroll_payment" | "tax_payment" | "social_security_payment" | "tgr_payment" | "bank_fee" | "interest_income" | "interest_expense" | "debt_disbursement" | "debt_service" | "factoring_advance" | "factoring_cost_or_repayment" | "owner_contribution" | "owner_withdrawal" | "internal_bank_transfer" | "intercompany_transfer" | "investment_purchase" | "investment_return" | "capex_payment" | "refund_or_reversal" | "operational_expense" | "non_operational_income" | "unknown" | "card_processor_fee" | "card_processor_chargeback" | "card_processor_reserve_hold" | "card_processor_reserve_release" | "cash_withdrawal" | "confirming_advance" | "confirming_settlement" | "leasing_payment" | "leaseback_proceeds" | "corporate_card_payment" | "capital_reduction" | "related_party_loan_received" | "related_party_loan_granted" | "related_party_loan_repayment_received" | "related_party_loan_repayment_paid" | "cash_pool_transfer" | "escrow_funding" | "escrow_release" | "fx_conversion" | "term_deposit_placement" | "term_deposit_maturity" | "dividend_income" | "securities_sale" | "derivative_receipt" | "derivative_payment" | "collateral_posting" | "collateral_release" | "digital_asset_purchase" | "digital_asset_sale" | "trade_finance_payment" | "export_collection" | "bank_guarantee_fee" | "insurance_premium" | "insurance_claim" | "government_grant" | "tax_refund" | "customs_payment" | "employee_advance" | "employee_reimbursement" | "legal_hold" | "legal_release" | "donation_payment" | "donation_income";
+        FinancialEventType: "client_collection" | "card_processor_settlement" | "cash_deposit" | "supplier_payment" | "payroll_payment" | "tax_payment" | "social_security_payment" | "tgr_payment" | "bank_fee" | "interest_income" | "interest_expense" | "debt_disbursement" | "debt_service" | "factoring_advance" | "factoring_cost_or_repayment" | "owner_contribution" | "owner_withdrawal" | "internal_bank_transfer" | "intercompany_transfer" | "investment_purchase" | "investment_return" | "capex_payment" | "refund_or_reversal" | "operational_expense" | "non_operational_income" | "rent" | "utilities" | "subscriptions" | "unknown" | "card_processor_fee" | "card_processor_chargeback" | "card_processor_reserve_hold" | "card_processor_reserve_release" | "cash_withdrawal" | "confirming_advance" | "confirming_settlement" | "leasing_payment" | "leaseback_proceeds" | "corporate_card_payment" | "capital_reduction" | "related_party_loan_received" | "related_party_loan_granted" | "related_party_loan_repayment_received" | "related_party_loan_repayment_paid" | "cash_pool_transfer" | "escrow_funding" | "escrow_release" | "fx_conversion" | "term_deposit_placement" | "term_deposit_maturity" | "dividend_income" | "securities_sale" | "derivative_receipt" | "derivative_payment" | "collateral_posting" | "collateral_release" | "digital_asset_purchase" | "digital_asset_sale" | "trade_finance_payment" | "export_collection" | "bank_guarantee_fee" | "insurance_premium" | "insurance_claim" | "government_grant" | "tax_refund" | "customs_payment" | "employee_advance" | "employee_reimbursement" | "legal_hold" | "legal_release" | "donation_payment" | "donation_income";
         /** FinancialEventTypeItem */
         FinancialEventTypeItem: {
             /** Canonical Category */
@@ -19040,6 +19691,8 @@ export interface components {
         };
         /** FinancingOverviewDebtRead */
         FinancingOverviewDebtRead: {
+            /** Comparable Cost Rate */
+            comparable_cost_rate?: string | null;
             /** Contract Rate Type */
             contract_rate_type?: string | null;
             /** Contract Rate Value */
@@ -19084,6 +19737,10 @@ export interface components {
          * @description Read model V13; ``None`` significa que la fuente no puede certificar la cifra.
          */
         FinancingOverviewResponse: {
+            /** Approved Capacity */
+            approved_capacity?: string | null;
+            /** Comparable Cost Method */
+            comparable_cost_method?: string | null;
             /** Comparable Cost Rate */
             comparable_cost_rate?: string | null;
             /**
@@ -19094,8 +19751,12 @@ export interface components {
             /** Debts */
             debts?: components["schemas"]["FinancingOverviewDebtRead"][];
             freshness: components["schemas"]["FinancingOverviewFreshness"];
+            /** Offered Capacity */
+            offered_capacity?: string | null;
             /** Outstanding Principal */
             outstanding_principal?: string | null;
+            /** Prepayment Cost */
+            prepayment_cost?: string | null;
             /** Reason Codes */
             reason_codes?: string[];
             /** Remaining Financial Cost */
@@ -19241,6 +19902,27 @@ export interface components {
             webhook_url?: string | null;
             /** Widget Token */
             widget_token: string;
+        };
+        /** FintocSubscriptionCheckoutRequest */
+        FintocSubscriptionCheckoutRequest: {
+            /** Cancel Url */
+            cancel_url: string;
+            /**
+             * Plan Id
+             * @enum {string}
+             */
+            plan_id: "gestion" | "decision";
+            /** Success Url */
+            success_url: string;
+        };
+        /** FintocSubscriptionCheckoutResponse */
+        FintocSubscriptionCheckoutResponse: {
+            /** Checkout Session Id */
+            checkout_session_id: string;
+            /** Mode */
+            mode: string;
+            /** Redirect Url */
+            redirect_url: string;
         };
         /** FintocSyncResponse */
         FintocSyncResponse: {
@@ -19623,6 +20305,9 @@ export interface components {
              * @default tooxs-gestion
              */
             app: string;
+            /** App Sha */
+            app_sha?: string | null;
+            csrf?: components["schemas"]["CsrfPostureHealth"] | null;
             db: components["schemas"]["DbHealth"];
             /** Db Configured */
             db_configured: boolean;
@@ -19781,6 +20466,8 @@ export interface components {
         };
         /** InboxPriority */
         InboxPriority: {
+            /** Also In Queues */
+            also_in_queues?: ("reconciliation" | "receivables" | "payables" | "classification")[];
             /**
              * Amount
              * @description `null` = documento/movimiento en cuarentena de conciliación (#687).
@@ -20285,6 +20972,18 @@ export interface components {
              * @description La llave del job en `app/jobs/catalog.py`.
              */
             key: string;
+            /**
+             * Last App Sha
+             * @description La versión del código que corrió la última vez (`audit.job_runs.app_sha`, `0264`). `None` = el deploy no la declaró, que es un hecho sobre el DEPLOY y no sobre la corrida. Sin esto, «¿se arregló con el deploy de anoche?» no tiene respuesta en ninguna parte: `cae-qavante-prod-net` descarta sus logs.
+             */
+            last_app_sha?: string | null;
+            /** Last Items Age Seconds */
+            last_items_age_seconds?: number | null;
+            /**
+             * Last Items At
+             * @description Cierre de la última corrida que declaró `items > 0`.
+             */
+            last_items_at?: string | null;
             /** Last Ok Age Seconds */
             last_ok_age_seconds?: number | null;
             /**
@@ -20316,6 +21015,26 @@ export interface components {
              * @description La edad que se comparó contra el umbral para `failing`.
              */
             ok_age_evaluated_seconds?: number | null;
+            /** Oldest Open Age Seconds */
+            oldest_open_age_seconds?: number | null;
+            /** Oldest Open Started At */
+            oldest_open_started_at?: string | null;
+            /**
+             * Open Run
+             * @description `True` = hay una corrida abierta más vieja que el presupuesto de duración del job. `False` = ninguna quedó colgada. `None` = sin presupuesto declarado. Mide la EDAD de la abierta más vieja y no la CANTIDAD de abiertas: la corrida de ahora está abierta por definición, así que contar abiertas gritaría contra el job sano cada vez que trabaja. Ninguna de las otras tres señales dice esto — la corrida muerta no alcanzó a escribir `error` y `last_started_at` quedó fresca.
+             */
+            open_run?: boolean | null;
+            /**
+             * Open Run Basis
+             * @description `oldest_open`, `sin_abiertas` (afirma `False`), `informative` o `sin_libro`.
+             * @default oldest_open
+             */
+            open_run_basis: string;
+            /**
+             * Open Run Max Age Seconds
+             * @description Presupuesto de duración del job, en segundos.
+             */
+            open_run_max_age_seconds?: number | null;
             /**
              * Open Runs
              * @description Corridas con `started_at` y sin `finished_at`. Una es la que está corriendo ahora. Varias viejas significan que el replica muere sin cerrar — `replicaTimeout` corto, OOM o SIGKILL—, y eso no lo dice ninguna otra señal.
@@ -20329,10 +21048,37 @@ export interface components {
              */
             runs: number;
             /**
+             * Runs Con Items
+             * @description Corridas que escribieron `items` (cualquier valor, incluido 0). `0` es la razón de `stale_basis = sin_cantidad`.
+             * @default 0
+             */
+            runs_con_items: number;
+            /**
              * Silent
              * @description `True` = nadie lo invoca desde más allá del umbral. `None` = **no se afirma** (sin historia, o sin umbral). `None` no es `False`.
              */
             silent?: boolean | null;
+            /**
+             * Stale
+             * @description `True` = cierra `ok` pero no mueve una sola unidad desde más allá de su umbral. `False` = movió algo dentro del umbral. `None` = **no se afirma**. Es una pregunta DISTINTA de `silent` y de `failing`, y las tres pueden salir en falso a la vez con el job sano: la primera dice si alguien lo dispara, la segunda si termina, ésta si lo que termina trae algo. Es la señal que el incidente del Worker de Cloudflare necesitaba y no existía: tres días sin movimientos bancarios se veían verdes.
+             */
+            stale?: boolean | null;
+            /**
+             * Stale Age Evaluated Seconds
+             * @description La edad que se comparó contra el umbral para `stale`.
+             */
+            stale_age_evaluated_seconds?: number | null;
+            /**
+             * Stale Basis
+             * @description `last_items`, `oldest_row` (declararon cantidad y ninguna movió nada), `sin_cantidad` (NINGUNA corrida escribió `items` todavía — base recién migrada con `0264`, o resumen que sólo trae un booleano), `no_history`, `informative` o `sin_libro`. `sin_cantidad` se abstiene a propósito: afirmar «no trae nada» cuando lo que falta es la medición haría nacer los doce jobs en rojo el día del deploy.
+             * @default last_items
+             */
+            stale_basis: string;
+            /**
+             * Stale Max Age Seconds
+             * @description Umbral sobre `last_items_age_seconds`. Es MUCHO más laxo que `max_age_seconds` a propósito: un drenador que no encuentra nada que drenar durante horas está sano, y un umbral de cadencia acá gritaría contra la operación normal.
+             */
+            stale_max_age_seconds?: number | null;
         };
         /**
          * LearningCandidateItem
@@ -20502,6 +21248,51 @@ export interface components {
             status: "ok" | "missing" | "pending" | "deferred";
         };
         /**
+         * LegalEntityCurrencyGapItem
+         * @description Una sociedad existente sin moneda funcional declarada — pendiente, no adivinada.
+         */
+        LegalEntityCurrencyGapItem: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Default */
+            is_default: boolean;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Legal Entity Name */
+            legal_entity_name: string;
+            /**
+             * Provenance
+             * @description Cómo nació la sociedad: 'tenant_backfill' (migración histórica) o 'user_configured' (alta por signup/onboarding).
+             */
+            provenance: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Tenant Legal Name */
+            tenant_legal_name: string;
+        };
+        /**
+         * LegalEntityCurrencyGapsResponse
+         * @description El barrido puntual completo. Vacío = no queda ninguna sociedad pendiente.
+         */
+        LegalEntityCurrencyGapsResponse: {
+            /** Items */
+            items?: components["schemas"]["LegalEntityCurrencyGapItem"][];
+            /**
+             * Total
+             * @description Cantidad de sociedades sin moneda funcional, hoy.
+             */
+            total: number;
+        };
+        /**
          * LegalEntityFunctionalCurrencySettings
          * @description Moneda funcional explícita de una sociedad, no un default de tenant.
          */
@@ -20528,8 +21319,16 @@ export interface components {
         /**
          * LegalEntityNameRequest
          * @description Nombre de una Empresa operativa dentro del tenant autenticado.
+         *
+         *     Edición (`PATCH`): sólo cambia el nombre, ``functional_currency_code`` queda ``None`` y no
+         *     se usa.
          */
         LegalEntityNameRequest: {
+            /**
+             * Functional Currency Code
+             * @description Obligatoria en el ALTA (`POST`). Gate del BO 2026-10-08 (#698): una sociedad nueva no puede quedar operativa sin moneda funcional — es lo que la deja ciega para PULSO/QHS (`list_canonical_financial_scopes` la excluye) sin que nadie lo note. Se ignora en el `PATCH` de nombre.
+             */
+            functional_currency_code?: string | null;
             /** Legal Name */
             legal_name: string;
         };
@@ -21264,6 +22063,23 @@ export interface components {
              */
             adelantadas?: string[];
             /**
+             * Contenido Medido
+             * @description `false` → `editadas` está vacío porque el sello (`CONTENIDO.sha256`) no se pudo verificar, **no** porque ninguna haya cambiado. Es el mismo hueco que `medido` cierra del lado del ledger, en el otro eje.
+             * @default true
+             */
+            contenido_medido: boolean;
+            /**
+             * Contenido Motivo
+             * @description Por qué no se pudo verificar el sello. Vacío cuando se verificó.
+             * @default
+             */
+            contenido_motivo: string;
+            /**
+             * Editadas
+             * @description **Los nombres.** Migraciones que cambiaron de contenido después de sellarse, sin cambiar de nombre. El ledger de la base no las puede ver: tiene `filename` y `applied_at`, nada más. Lo que divergió es el SQL que corrió esta base contra el que va a correr CI y el restore de DR (#1035).
+             */
+            editadas?: string[];
+            /**
              * Medido
              * @description `false` → `pendientes` está vacío porque no se sabe, no porque no falte ninguna.
              */
@@ -21301,11 +22117,21 @@ export interface components {
              */
             rol: string;
             /**
+             * Sello Huerfano
+             * @description El sello nombra estos archivos y el paquete no los trae. Sí es un defecto.
+             */
+            sello_huerfano?: string[];
+            /**
+             * Sin Sellar
+             * @description En el paquete y todavía fuera del sello. **No es un defecto** y no mueve el veredicto: en este repo se mergean varias migraciones por día y el sello se regenera con `python api/scripts/sellar_migraciones.py --escribir`.
+             */
+            sin_sellar?: string[];
+            /**
              * Verdict
-             * @description `al_dia`: la base acredita el paquete de este artefacto. `faltan_migraciones`: el código va adelante de la base — la ventana del #1074, y lo que hay que arreglar. `base_adelantada`: la base va adelante del código, que es la forma de un rollback de imagen sin rollback de datos y un procedimiento legítimo. `no_pude_medir`: no se pudo leer el ledger. **`no_pude_medir` no es `al_dia`:** el chequeo que lo trate como verde es el defecto, no la señal.
+             * @description `al_dia`: la base acredita el paquete de este artefacto. `faltan_migraciones`: el código va adelante de la base — la ventana del #1074, y lo que hay que arreglar. `base_adelantada`: la base va adelante del código, que es la forma de un rollback de imagen sin rollback de datos y un procedimiento legítimo. `contenido_editado`: la base acredita los nombres y el contenido de al menos un `.sql` ya aplicado cambió — el ledger sella `filename`, así que la acreditación por nombre da `al_dia` igual (#1137). `no_pude_medir`: no se pudo leer el ledger, o no se pudo verificar el sello de contenido. **`no_pude_medir` no es `al_dia`:** el chequeo que lo trate como verde es el defecto, no la señal.
              * @enum {string}
              */
-            verdict: "al_dia" | "base_adelantada" | "faltan_migraciones" | "no_pude_medir";
+            verdict: "al_dia" | "base_adelantada" | "contenido_editado" | "faltan_migraciones" | "no_pude_medir";
         };
         /**
          * MigrationDriftResponse
@@ -21318,7 +22144,7 @@ export interface components {
             arranque?: components["schemas"]["MigrationDriftReadingResponse"] | null;
             /**
              * Hay Que Gritar
-             * @description `true` cuando `ahora.verdict` es `faltan_migraciones` **o** `no_pude_medir`. Los dos son rojo: el primero porque el código va adelante de la base, el segundo porque el instrumento está ciego y el silencio no es salud.
+             * @description `true` cuando `ahora.verdict` es `faltan_migraciones`, `contenido_editado` **o** `no_pude_medir`. Los tres son rojo: el primero porque el código va adelante de la base, el segundo porque el SQL que corrió esta base ya no es el que va a correr la siguiente, y el tercero porque el instrumento está ciego y el silencio no es salud. `base_adelantada` y `al_dia` son los dos verdes.
              */
             hay_que_gritar: boolean;
         };
@@ -21332,8 +22158,16 @@ export interface components {
          *     rotación y dejaría el producto entero abajo. Acá se ve; la consecuencia la
          *     decide quien lea.
          *
-         *     No nombra los archivos: `/health` es anónimo. Los nombres —lo único
-         *     accionable— los da `GET /api/admin/migrations/drift`, con credencial.
+         *     No nombra los archivos del INVENTARIO de la base —qué tiene y qué le
+         *     falta—: `/health` es anónimo, y esos nombres los da
+         *     `GET /api/admin/migrations/drift`, con credencial.
+         *
+         *     **Las editadas sí van con nombre, y la diferencia no es un descuido.** Una
+         *     migración cuyo contenido cambió después de sellarse es un defecto del repo,
+         *     de a lo más un puñado de archivos que el propio artefacto trae, no un
+         *     retrato de lo que hay en producción. Y es lo único accionable: «hay drift
+         *     de checksum» sin el nombre no le dice a nadie qué archivo mirar, que es
+         *     exactamente el campo-que-no-mide-nada que este repo ya vio seis veces.
          */
         MigrationLedgerHealth: {
             /**
@@ -21348,6 +22182,23 @@ export interface components {
              */
             adelantadas: number;
             /**
+             * Contenido Medido
+             * @description `false` → `editadas` está vacío porque el sello no se pudo verificar, **no** porque ninguna haya cambiado. Un sello ilegible no es un sello intacto.
+             * @default true
+             */
+            contenido_medido: boolean;
+            /**
+             * Contenido Motivo
+             * @description Por qué no se pudo verificar el sello. Vacío cuando se verificó.
+             * @default
+             */
+            contenido_motivo: string;
+            /**
+             * Editadas
+             * @description **Con nombre.** Migraciones que cambiaron de contenido después de sellarse, sin cambiar de nombre. El ledger de la base no las puede ver: sella `filename`. Una migración ya aplicada no se vuelve a correr, así que el SQL nuevo sólo llega a las bases construidas después —CI y el restore de DR— mientras el recibo acredita que son iguales (#1035).
+             */
+            editadas?: string[];
+            /**
              * Medido
              * @description `False` → los contadores de abajo no describen la base, describen lo que no se pudo averiguar. Un `pendientes: 0` con `medido: false` no dice que no falte ninguna.
              */
@@ -21360,7 +22211,7 @@ export interface components {
             medido_en: string;
             /**
              * Mensaje
-             * @description El estado en una frase, SIN los nombres de archivo: esta ruta es anónima. Los nombres los da `GET /api/admin/migrations/drift`.
+             * @description El estado en una frase, sin los nombres del inventario de la base: esta ruta es anónima. Ésos los da `GET /api/admin/migrations/drift`. Los de las editadas sí van: son un defecto del repo, no un retrato de producción.
              */
             mensaje: string;
             /**
@@ -21375,11 +22226,22 @@ export interface components {
              */
             pendientes: number;
             /**
+             * Sello Huerfano
+             * @description El sello nombra estos archivos y el paquete no los trae. Sí es un defecto.
+             */
+            sello_huerfano?: string[];
+            /**
+             * Sin Sellar
+             * @description Cuántas migraciones del paquete el sello todavía no cubre. **No es un defecto** y no mueve el veredicto: en este repo se mergean varias por día y el sello se regenera después. Se publica para que la cobertura no se degrade en silencio.
+             * @default 0
+             */
+            sin_sellar: number;
+            /**
              * Verdict
-             * @description `al_dia`: la base acredita el paquete de este artefacto. `faltan_migraciones`: el código va adelante de la base (la ventana del #1074). `base_adelantada`: la base va adelante del código (rollback de imagen). `no_pude_medir`: no se pudo leer el ledger. **No es `al_dia`.**
+             * @description `al_dia`: la base acredita el paquete de este artefacto, por nombre y por contenido. `faltan_migraciones`: el código va adelante de la base (la ventana del #1074). `contenido_editado`: la base acredita los nombres y el contenido de al menos un `.sql` ya aplicado cambió — el ledger sella `filename`, así que no lo puede ver (#1137). `base_adelantada`: la base va adelante del código (rollback de imagen). `no_pude_medir`: no se pudo leer el ledger, o no se pudo verificar el sello de contenido. **No es `al_dia`.**
              * @enum {string}
              */
-            verdict: "al_dia" | "base_adelantada" | "faltan_migraciones" | "no_pude_medir";
+            verdict: "al_dia" | "base_adelantada" | "contenido_editado" | "faltan_migraciones" | "no_pude_medir";
         };
         /**
          * MonthIntegrity
@@ -22799,6 +23661,11 @@ export interface components {
          */
         OperationalResultBreakdownResponse: {
             /**
+             * Abstained Sources
+             * @description Fuentes que este lector dejó FUERA del árbol porque no pudo atribuirlas a la sociedad activa, por nombre: `bhe` (los honorarios se cachean sin sociedad), `document_classifications` / `document_lines` (decisiones manuales y detalle de DTE con grano de tenant), `classification_rules` / `classification_rule_account_mappings` (sin sociedad demostrable no hay catálogo). Existe para que el aviso NOMBRE qué falta en vez de abstenerse en bloque: «no se pudieron leer los honorarios» es accionable, «las fuentes personales» no. Lista vacía = nada quedó afuera. La NÓMINA ya no aparece acá: desde la migración 0266 (api#1124) declara su sociedad y se lee siempre.
+             */
+            abstained_sources?: string[];
+            /**
              * Generated At
              * Format: date-time
              */
@@ -22836,7 +23703,7 @@ export interface components {
             rows: components["schemas"]["BreakdownRow"][];
             /**
              * Warnings
-             * @description Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activa una cuenta de costo y clasifica las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verifica re-emisiones pendientes. `payroll_cost_missing`: la nómina NO fue sincronizada en el rango (ausente, no $0) pero hay actividad → el Resultado está SOBREESTIMADO (falta el costo laboral); sincroniza remuneraciones. No dispara para empresas legítimamente sin empleados. `payroll_cost_unattributed`: el tenant tiene más de una sociedad y la nómina se guarda sin sociedad, así que este lector se ABSTUVO de leerla; el Resultado está igual de sobreestimado, pero la causa NO es una ausencia medida — nadie miró. El texto no debe afirmar que la nómina falta NI que está, y no debe pedir que se sincronice: sincronizar remuneraciones no cambia nada. `tenant_wide_personal_sources_abstained`: acompaña al anterior y cubre también los honorarios (BHE), que se abstienen por la misma razón.
+             * @description Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activa una cuenta de costo y clasifica las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verifica re-emisiones pendientes. `payroll_cost_missing`: la nómina NO fue sincronizada en el rango (ausente, no $0) pero hay actividad → el Resultado está SOBREESTIMADO (falta el costo laboral); sincroniza remuneraciones. No dispara para empresas legítimamente sin empleados. `payroll_cost_unattributed`: este lector se ABSTUVO de leer la nómina y el Resultado está igual de sobreestimado, pero la causa NO es una ausencia medida — nadie miró. El texto no debe afirmar que la nómina falta NI que está, y no debe pedir que se sincronice: sincronizar remuneraciones no cambia nada. **Desde la migración 0266 (api#1124) la nómina canónica declara su sociedad, así que el breakdown ya NO emite este código por tener el tenant varias sociedades**; el código sigue en el contrato porque sigue siendo la única forma honesta de publicar una abstención de nómina si apareciera otra causa. `tenant_wide_personal_sources_abstained`: hay fuentes tenant-wide que este lector NO pudo atribuir a la sociedad activa y dejó fuera del árbol. Cuáles, por nombre, en `abstained_sources` — hoy los honorarios (BHE) y la evidencia manual de documentos, que todavía se guardan sin sociedad.
              */
             warnings?: string[];
         };
@@ -26120,12 +26987,14 @@ export interface components {
          *
          *     `overall=unobserved` cuando no hay observación (ausencia nunca es `enabled`). `enabled` sólo
          *     dice que el dual-write prospectivo corrió: no autoriza backfill, shadow-read ni consumidores,
-         *     y **no dice que el grafo haya publicado algo** — eso lo dice `graph_publication`.
+         *     y **no dice que el grafo haya publicado algo** — eso lo dice `graph_publication`. Tampoco
+         *     dice cuándo corrió: eso lo dice `observation`.
          */
         RcvD08GateResponse: {
             d07_prerequisite: components["schemas"]["RcvD08Prerequisite"];
             graph_publication: components["schemas"]["RcvD08GraphPublication"];
             identity_gate: components["schemas"]["RcvD08GateState"] | null;
+            observation: components["schemas"]["RcvD08Observation"];
             /**
              * Overall
              * @enum {string}
@@ -26225,6 +27094,50 @@ export interface components {
              * @description Hay al menos un identificador fuerte publicado. Mientras sea `false`, el dual-write no puede publicar: sólo agrega aliases a contrapartes que ya resuelven por un identificador, y el producto no tiene un escritor que asierte el primero. Ver ADR-0123 §3.
              */
             seeded: boolean;
+        };
+        /**
+         * RcvD08Observation
+         * @description CUÁNDO se midió lo que el resto de la respuesta afirma.
+         *
+         *     Ningún cron refresca estas filas: los dos productores son por evento (`sync_rcv` cuelga del
+         *     botón "Sincronizar SII"; `rcv_backfill`, del guardado de credenciales, del onboarding y de
+         *     los endpoints de admin), así que la antigüedad de la lectura no tiene techo. Medido el
+         *     2026-10-07 en producción, el tenant Tooxs decía `enabled` con una observación de 25 h 49 min
+         *     antes, y nada en la respuesta mostraba esa distancia: `enabled` de hace un mes y `enabled` de
+         *     hace un minuto se leían idénticos.
+         *
+         *     Es un número, **no un veredicto**: sin productor programado, una lectura vieja significa que
+         *     nadie materializó RCV hace rato, no que algo esté roto. Quien decida un umbral lo decide
+         *     arriba, con su propio criterio.
+         */
+        RcvD08Observation: {
+            /**
+             * Age Seconds
+             * @description Segundos entre `oldest_observed_at` y `evaluated_at`. Null si `unobserved`.
+             */
+            age_seconds?: number | null;
+            /**
+             * Evaluated At
+             * Format: date-time
+             * @description Reloj de la base al leer — el mismo que sella `observed_at`.
+             */
+            evaluated_at: string;
+            /**
+             * Last Observed At
+             * @description La observación visible más NUEVA. Null si `unobserved`.
+             */
+            last_observed_at: string | null;
+            /**
+             * Oldest Observed At
+             * @description La observación visible más VIEJA: es la que limita lo que la respuesta puede afirmar, porque `overall` cerrado por cualquier fila. Null si `unobserved`.
+             */
+            oldest_observed_at: string | null;
+            /**
+             * Status
+             * @description `unobserved` cuando no hay ninguna fila visible para el request: las tres marcas quedan en null en vez de un cero que se leería como 'recién medido'.
+             * @enum {string}
+             */
+            status: "observed" | "unobserved";
         };
         /**
          * RcvD08Prerequisite
@@ -31702,6 +32615,26 @@ export interface operations {
             };
         };
     };
+    admin_csrf_posture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsrfPostureResponse"];
+                };
+            };
+        };
+    };
     admin_f29_remanente_seed_get: {
         parameters: {
             query: {
@@ -31779,6 +32712,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_legal_entities_functional_currency_gaps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalEntityCurrencyGapsResponse"];
                 };
             };
         };
@@ -36076,6 +37029,41 @@ export interface operations {
             };
         };
     };
+    subscription_checkout_api_fintoc_subscription_checkout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FintocSubscriptionCheckoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocSubscriptionCheckoutResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     sync_fintoc_api_fintoc_sync_post: {
         parameters: {
             query?: never;
@@ -36230,14 +37218,12 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedLegalEntity"];
                 };
             };
-            /** @description Validation Error */
+            /** @description `functional_currency_code` ausente o no es una moneda activa del catálogo. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
@@ -37263,7 +38249,7 @@ export interface operations {
                     "application/json": components["schemas"]["OperationalResultResponse"];
                 };
             };
-            /** @description Scope financiero incompleto o P&L compuesto no atribuible por sociedad. */
+            /** @description Scope financiero incompleto: sin sociedad activa resuelta para el tenant (ninguna, o varias sin que la sesión eligiera una). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -38792,6 +39778,13 @@ export interface operations {
                     "application/json": components["schemas"]["BudgetProposeResponse"];
                 };
             };
+            /** @description Rol sin permiso de escritura financiera (api#1131). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Writer de presupuesto sin FinancialScope atribuido se abstiene. */
             409: {
                 headers: {
@@ -38859,9 +39852,13 @@ export interface operations {
                 qavante_session?: string | null;
             };
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BudgetAcceptRequest"] | null;
+            };
+        };
         responses: {
-            /** @description Successful Response */
+            /** @description Versión publicada, o no-op que conserva al aprobador vigente. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -38870,6 +39867,20 @@ export interface operations {
                     "application/json": components["schemas"]["BudgetAcceptResponse"];
                 };
             };
+            /** @description Credencial de servidor sin tenant: no acredita al aprobador. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso, o `actor_user_id` sin membership de escritura. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description No hay presupuesto del año (propón uno primero). */
             404: {
                 headers: {
@@ -38877,14 +39888,12 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description Con X-Api-Key falta `actor_user_id` (api#1131). */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
@@ -38913,6 +39922,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BudgetEditResponse"];
                 };
+            };
+            /** @description Rol sin permiso de escritura financiera (api#1131). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description No hay presupuesto del año (propón uno primero). */
             404: {
@@ -43064,7 +44080,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 26 categorías canónicas ordenadas por sort_order. */
+            /** @description 29 categorías canónicas ordenadas por sort_order. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -43493,6 +44509,67 @@ export interface operations {
                      * @example {
                      *       "detail": {
                      *         "code": "v14_scope_authority_missing"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
+                };
+            };
+        };
+    };
+    get_cash_projection_health: {
+        parameters: {
+            query: {
+                /** @description Sociedad del scope. No se infiere. */
+                legal_entity_id: string;
+                /** @description Moneda del scope. */
+                currency: string;
+                /** @description Día del scope; por defecto, hoy en Chile. */
+                as_of?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashProjectionHealthResponse"];
+                };
+            };
+            /** @description Scope inválido en la query. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "invalid_currency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
+                };
+            };
+            /** @description La sonda misma no pudo leer el estado. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "cash_projection_health_unavailable"
                      *       }
                      *     }
                      */
@@ -44606,6 +45683,146 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DecisionSelectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_declared_credit_facilities_api_treasury_declared_financing_credit_facilities_get: {
+        parameters: {
+            query: {
+                legal_entity_id: string;
+                currency: string;
+                as_of?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclaredCreditFacilityListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    declare_credit_facility_api_treasury_declared_financing_credit_facilities_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclareCreditFacilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_declared_debt_lines_api_treasury_declared_financing_debt_lines_get: {
+        parameters: {
+            query: {
+                legal_entity_id: string;
+                currency: string;
+                as_of?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclaredDebtLineListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    declare_debt_line_api_treasury_declared_financing_debt_lines_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclareDebtLineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationMutationResponse"];
                 };
             };
             /** @description Validation Error */

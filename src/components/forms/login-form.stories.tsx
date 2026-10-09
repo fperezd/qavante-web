@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { LoginForm } from "./login-form";
 
-/* LoginForm — ruta `/login`, la pantalla más crítica del producto (puerta
+/* LoginForm — ruta `/login-rut`, login por RUT (puerta
    de entrada). Usa la validación contractual de RUT/clave, `useRouter`
    /`useSearchParams` (auto-mockeados por @storybook/nextjs-vite) y `api.post`
    en submit. El snapshot captura el estado inicial (form vacío); los estados
@@ -20,7 +20,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Formulario de login por RUT. Valida RUT chileno + clave ≥6. Toggle de visibilidad de clave, enlace a recuperar clave (`/recuperar-clave`) y mapeo de error de submit vía apiErrorToUserMessage. En éxito redirige a `?redirect` o `/inicio`. El login por correo y OAuth vive en `/login-correo`.",
+          "Formulario de login por RUT. Valida RUT chileno + clave ≥6. Toggle de visibilidad de clave, enlace a recuperar clave (`/recuperar-clave`) y mapeo de error de submit vía apiErrorToUserMessage. En éxito redirige a `?redirect` o `/inicio`. El login principal (correo/OAuth) vive en `/login-correo`.",
       },
     },
   },

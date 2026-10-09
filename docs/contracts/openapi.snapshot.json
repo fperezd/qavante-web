@@ -2648,8 +2648,32 @@
       },
       "BankAccountItem": {
         "additionalProperties": false,
-        "description": "Cuenta bancaria del tenant para el selector `account_id` del reporte\ncash-flow. Read-only; no expone external_ref/account_number_masked.",
+        "description": "Cuenta bancaria del tenant para el selector `account_id` del reporte\ncash-flow. Read-only; no expone `external_ref` (la referencia cruda del proveedor).",
         "properties": {
+          "account_number_display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Número censurado para distinguir cuentas del mismo banco (p. ej. `**** **** **** 1234`). Solo últimos 4 dígitos visibles.",
+            "title": "Account Number Display"
+          },
+          "account_number_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Terminación de la cuenta, ya enmascarada (últimos dígitos), para que la UI distinga dos cuentas del mismo banco y moneda. `null` = sin dígitos disponibles.",
+            "title": "Account Number Masked"
+          },
           "account_type": {
             "description": "checking/savings/credit_card/loan/investment.",
             "title": "Account Type",
@@ -3112,6 +3136,18 @@
             "title": "Direction",
             "type": "string"
           },
+          "direction_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Advertencia blanda si `canonical_category` no calza con la `direction` esperada (Addendum §25.1). `null` si coinciden, si la categoría espera 'any', o si no hay categoría. Nunca bloquea la clasificación.",
+            "title": "Direction Warning"
+          },
           "effective_reconciliation_status": {
             "anyOf": [
               {
@@ -3147,6 +3183,37 @@
             "format": "date-time",
             "title": "Imported At",
             "type": "string"
+          },
+          "investment_confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo se confirmó la marca. `null` salvo que `is_investment_or_extraordinary` sea `true`.",
+            "title": "Investment Confirmed At"
+          },
+          "investment_confirmed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quién confirmó la marca. `null` salvo que `is_investment_or_extraordinary` sea `true`.",
+            "title": "Investment Confirmed By"
+          },
+          "is_investment_or_extraordinary": {
+            "default": false,
+            "description": "`true` si una persona confirmó este movimiento como inversión o extraordinario (exp_v1.md §2.4/§6.2). Default `false`: nadie lo confirmó, no que no lo sea.",
+            "title": "Is Investment Or Extraordinary",
+            "type": "boolean"
           },
           "management_account_id": {
             "anyOf": [
@@ -3755,6 +3822,27 @@
         "title": "BreakdownRow",
         "type": "object"
       },
+      "BudgetAcceptRequest": {
+        "additionalProperties": false,
+        "description": "Cuerpo OPCIONAL de `POST /budget/{year}/accept` — existe sólo para declarar autoría.\n\nOpcional a propósito: el camino de navegador (cookie) no manda cuerpo y el autor es el\nusuario de la sesión. Con `X-Api-Key` no hay persona detrás (`user_id is None`, ADR-0044 F1)\ny `actor_user_id` pasa a ser obligatorio: aceptar es publicar la cifra contra la que se\ncompara todo el año, y una ratificación sin responsable no sirve como evidencia.",
+        "properties": {
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Obligatorio con X-Api-Key: el usuario con rol financiero de escritura ACTIVO en este tenant que acepta el presupuesto. Con cookie se omite (es la sesión).",
+            "title": "Actor User Id"
+          }
+        },
+        "title": "BudgetAcceptRequest",
+        "type": "object"
+      },
       "BudgetAcceptResponse": {
         "additionalProperties": false,
         "description": "Respuesta de `POST /budget/{year}/accept`.",
@@ -3762,6 +3850,24 @@
           "accepted": {
             "title": "Accepted",
             "type": "boolean"
+          },
+          "already_accepted": {
+            "default": false,
+            "description": "True si la versión ya estaba aceptada y con aprobador: no-op idempotente que CONSERVA al aprobador anterior en vez de pisarlo (api#1131).",
+            "title": "Already Accepted",
+            "type": "boolean"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Usuario que figura como aprobador de la publicación vigente.",
+            "title": "Approved By"
           },
           "status": {
             "description": "draft | approved.",
@@ -4954,6 +5060,9 @@
           "refund_or_reversal",
           "operational_expense",
           "non_operational_income",
+          "rent",
+          "utilities",
+          "subscriptions",
           "unknown"
         ],
         "title": "CanonicalCategory",
@@ -5038,6 +5147,12 @@
       },
       "CardIngestCardResult": {
         "properties": {
+          "ambiguous": {
+            "default": 0,
+            "description": "Movimientos cuyo eje de identidad calzó con dos o más filas: no se fusionó ninguna ni se insertó una nueva; la decisión queda para una persona.",
+            "title": "Ambiguous",
+            "type": "integer"
+          },
           "card_ref": {
             "title": "Card Ref",
             "type": "string"
@@ -5056,6 +5171,12 @@
           "imported": {
             "default": 0,
             "title": "Imported",
+            "type": "integer"
+          },
+          "reconciled": {
+            "default": 0,
+            "description": "Movimientos reconocidos como uno ya existente con la fecha reacomodada por el banco: se actualizó la fila en vez de crear un duplicado.",
+            "title": "Reconciled",
             "type": "integer"
           }
         },
@@ -5078,10 +5199,28 @@
             "title": "Cards Total",
             "type": "integer"
           },
+          "movements_ambiguous": {
+            "default": 0,
+            "description": "Movimientos con identidad ambigua (dos o más filas candidatas): no se fusionaron ni se insertaron. Cada uno queda en el log con los ids en juego.",
+            "title": "Movements Ambiguous",
+            "type": "integer"
+          },
           "movements_imported": {
             "default": 0,
             "description": "Movimientos simples persistidos como payables.",
             "title": "Movements Imported",
+            "type": "integer"
+          },
+          "movements_near_duplicates": {
+            "default": 0,
+            "description": "Movimientos con una fila del mismo comercio, monto y vencimiento pero con la emisión fuera de la ventana de reconciliación: se insertaron como cargo propio y quedan en el log para revisión.",
+            "title": "Movements Near Duplicates",
+            "type": "integer"
+          },
+          "movements_reconciled": {
+            "default": 0,
+            "description": "Movimientos que el banco volvió a informar con otra fecha de emisión y se reconocieron sobre la fila existente, sin duplicarla.",
+            "title": "Movements Reconciled",
             "type": "integer"
           },
           "obligations_detected": {
@@ -7558,6 +7697,125 @@
         "title": "CashProjectionExclusion",
         "type": "object"
       },
+      "CashProjectionGenerationRef": {
+        "additionalProperties": false,
+        "description": "La generación sellada que sostiene la curva. Sólo viaja cuando existe.",
+        "properties": {
+          "cutoff_at": {
+            "format": "date-time",
+            "title": "Cutoff At",
+            "type": "string"
+          },
+          "generation_id": {
+            "format": "uuid",
+            "title": "Generation Id",
+            "type": "string"
+          },
+          "input_hash": {
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "produced_at": {
+            "format": "date-time",
+            "title": "Produced At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "generation_id",
+          "input_hash",
+          "cutoff_at",
+          "produced_at"
+        ],
+        "title": "CashProjectionGenerationRef",
+        "type": "object"
+      },
+      "CashProjectionHealthResponse": {
+        "additionalProperties": false,
+        "description": "Por qué la proyección de un scope no responde, en una lectura que no escribe nada.\n\n`state` SEPARA LAS TRES CAUSAS QUE SE ARREGLAN DISTINTO, y es lo único que esta\nrespuesta existe para decir:\n\n- `authority_missing`: no hay autoridad de catálogo para el scope. Hay que provisionarla.\n- `authority_ambiguous`: hay más de una para el MISMO scope. Hay que retirar la que sobra.\n- `generation_unavailable`: la autoridad está, pero no hay generación V14 sellada. Tiene\n  que correr el cron `v14-snapshots-daily`.\n- `ready`: las dos puertas del productor del run pasan.\n\nLas tres primeras salían con el mismo 503 opaco hasta el #1114, y después de ese arreglo\nseguían requiriendo un POST con clave de idempotencia para verse: una escritura contra\nproducción para leer un diagnóstico. `code` mantiene el vínculo con ese 503,\n`missing_input` nombra la tabla o el estado ausente y `message` lo dice en es-CL.\n\n`sealed_input_batches` viaja SIEMPRE, también cuando falta la autoridad: con la autoridad\nprovisionada y cero lotes sellados, la generación nace `partial` y no hay curva. Sin esa\ncifra, `authority_missing` se lee como «falta una cosa» cuando faltan dos.",
+        "properties": {
+          "authorities_found": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorities Found"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "generation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CashProjectionGenerationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "missing_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Input"
+          },
+          "scope": {
+            "additionalProperties": true,
+            "title": "Scope",
+            "type": "object"
+          },
+          "sealed_input_batches": {
+            "title": "Sealed Input Batches",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "ready",
+              "authority_missing",
+              "authority_ambiguous",
+              "generation_unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "state",
+          "sealed_input_batches"
+        ],
+        "title": "CashProjectionHealthResponse",
+        "type": "object"
+      },
       "CashProjectionResponse": {
         "additionalProperties": false,
         "description": "Proyección de caja unificada (ADR-0085 + RFC CC-WEB). Anclada en el saldo bancario real; NO\nse deriva de `financial_impacts` (no gatea por clasificación). Serie a CIERRE de día, dos\nescenarios (esperado = con cobros / duro = nadie paga), vencido como señal aparte pero contado.",
@@ -9772,6 +10030,18 @@
             "title": "Create Rule",
             "type": "boolean"
           },
+          "is_investment_or_extraordinary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Confirma (`true`) o retira (`false`) la marca de inversión/extraordinario (exp_v1.md §2.4). `null`/ausente = no cambia la marca existente. Toggle opcional, nunca obligatorio (INV-DEC-010).",
+            "title": "Is Investment Or Extraordinary"
+          },
           "management_account_id": {
             "description": "Cuenta de gestión a asignar (obligatoria para clasificar).",
             "minLength": 1,
@@ -10129,6 +10399,12 @@
             "description": "Nº de días con impacto committed dentro de `horizon_days`.",
             "title": "Impactos Committed Agendados Count",
             "type": "string"
+          },
+          "ingreso_recurrente_multi_sociedad_excluido": {
+            "default": false,
+            "description": "True en un tenant con 2+ sociedades: la banda `esperado_con_ingresos` (streams de factoring/cliente/MX) se abstiene en vez de publicar, porque `treasury.cesiones` (identificadores de factoring) no tiene columna `legal_entity_id` — no hay por dónde filtrar sin mezclar sociedades (medido en producción 2026-10-07: 124 filas, ninguna atribuible).",
+            "title": "Ingreso Recurrente Multi Sociedad Excluido",
+            "type": "boolean"
           },
           "moneda_distinta_cuotas_excluidas": {
             "default": "0",
@@ -14179,6 +14455,14 @@
             "title": "Jobs",
             "type": "array"
           },
+          "open_run_enforced": {
+            "description": "Los jobs con una corrida abierta más vieja que su presupuesto de duración. CUARTA lista: se arregla mirando la capacidad del replica — `replicaTimeout`, memoria, SIGKILL—, y no el disparador ni el trabajo ni la fuente.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Open Run Enforced",
+            "type": "array"
+          },
           "silent_enforced": {
             "description": "Las llaves que el chequeo tiene que gritar: `enforced` y `silent`. Incluye crons (llaves con guion bajo) y jobs (llaves con guion medio) en la misma lista, porque lo que el vigilante necesita es «qué está callado» y no «de qué sección». El criterio se calcula en el repo y no en el shell del workflow para que no se desincronice.",
             "items": {
@@ -14186,12 +14470,184 @@
             },
             "title": "Silent Enforced",
             "type": "array"
+          },
+          "stale_enforced": {
+            "description": "Los jobs que corren, cierran bien, y no mueven nada desde más allá de su umbral. TERCERA lista, separada porque el qué-hacer es distinto de las otras dos: `silent` se arregla creando o arreglando el disparador, `failing` leyendo el error, y `stale` mirando la FUENTE — la credencial caída, el permiso que falta, la cola que nadie llena. Metida en cualquiera de las otras, manda a investigar el lugar equivocado.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Stale Enforced",
+            "type": "array"
           }
         },
         "required": [
           "generated_at"
         ],
         "title": "CronHealthResponse",
+        "type": "object"
+      },
+      "CsrfPostureHealth": {
+        "description": "Qué sabe ESTE proceso sobre su propia defensa CSRF (#1107).\n\n**Tampoco mueve `status`**, por la misma razón que el bloque de\nmigraciones: `/health` es la sonda del contenedor, y una sonda que se\npusiera roja por una variable mal copiada sacaría las réplicas de rotación\n—cero réplicas sanas— por un defecto de configuración que se arregla con un\n`az containerapp update`. Acá se ve; la consecuencia la decide quien lea, y\n`GET /api/admin/csrf/posture` la dice con todas las letras.\n\n`verdict` nunca es `protegido` sin haber podido clasificar el entorno.",
+        "properties": {
+          "control": {
+            "description": "`activo` o `apagado`, leído del entorno.",
+            "title": "Control",
+            "type": "string"
+          },
+          "entorno": {
+            "description": "`produccion`, `no_produccion` o `indeterminado`.",
+            "title": "Entorno",
+            "type": "string"
+          },
+          "hay_que_gritar": {
+            "description": "`true` en `desprotegido`, `activo_sin_allowlist` y `no_pude_medir`.",
+            "title": "Hay Que Gritar",
+            "type": "boolean"
+          },
+          "medido_en": {
+            "format": "date-time",
+            "title": "Medido En",
+            "type": "string"
+          },
+          "origenes": {
+            "description": "Cuántos orígenes confiables hay, nunca cuáles.",
+            "title": "Origenes",
+            "type": "integer"
+          },
+          "senal": {
+            "description": "La variable de plataforma que clasificó el entorno.",
+            "title": "Senal",
+            "type": "string"
+          },
+          "verdict": {
+            "description": "`protegido`: producción con el control activo. `desprotegido`: producción con el control apagado — no hay defensa CSRF. `activo_sin_allowlist`: el arranque se va a detener. `fuera_de_produccion`: entorno no productivo. `no_pude_medir`: no se pudo determinar el entorno. **`no_pude_medir` no es `protegido`.**",
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "control",
+          "entorno",
+          "senal",
+          "origenes",
+          "hay_que_gritar",
+          "medido_en"
+        ],
+        "title": "CsrfPostureHealth",
+        "type": "object"
+      },
+      "CsrfPostureReadingResponse": {
+        "description": "Una medición de la postura CSRF.",
+        "properties": {
+          "control": {
+            "description": "Si la verificación de `Origin` está activa en este proceso. Se lee del entorno y siempre se puede leer: es `entorno` lo que puede quedar sin respuesta.",
+            "enum": [
+              "activo",
+              "apagado"
+            ],
+            "title": "Control",
+            "type": "string"
+          },
+          "entorno": {
+            "description": "Dónde cree este proceso que corre, según variables que inyecta la plataforma. `indeterminado` no se redondea a `no_produccion`.",
+            "enum": [
+              "produccion",
+              "no_produccion",
+              "indeterminado"
+            ],
+            "title": "Entorno",
+            "type": "string"
+          },
+          "medido_en": {
+            "description": "Cuándo se tomó esta medición.",
+            "format": "date-time",
+            "title": "Medido En",
+            "type": "string"
+          },
+          "mensaje": {
+            "description": "La misma frase que queda en el log, en una línea.",
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "motivo": {
+            "default": "",
+            "description": "Por qué no se pudo medir. Vacío cuando se midió.",
+            "title": "Motivo",
+            "type": "string"
+          },
+          "origenes": {
+            "description": "Cuántos orígenes confiables tiene la allowlist efectiva.",
+            "title": "Origenes",
+            "type": "integer"
+          },
+          "origenes_detalle": {
+            "description": "**Los orígenes.** Un número solo no es accionable: lo que se corrige es una entrada. Va acá y no en `/health` porque esta ruta exige credencial.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Origenes Detalle",
+            "type": "array"
+          },
+          "senal": {
+            "description": "La variable de plataforma que permitió clasificar el entorno (`FLY_APP_NAME` o `CONTAINER_APP_NAME`). Vacía cuando ninguna estaba presente — sin esto, «no pude medir» no dice qué falta.",
+            "title": "Senal",
+            "type": "string"
+          },
+          "verdict": {
+            "description": "`protegido`: entorno de producción identificado y control de `Origin` activo. `desprotegido`: producción identificada y control APAGADO — no hay defensa CSRF, y es lo que hay que arreglar. `activo_sin_allowlist`: control activo sin orígenes confiables; el arranque se detiene en `validate_csrf_configuration`. `fuera_de_produccion`: entorno no productivo, donde correr sin el control es legítimo. `no_pude_medir`: no se pudo determinar el entorno. **`no_pude_medir` no es `protegido`:** el chequeo que lo trate como verde es el defecto, no la señal.",
+            "enum": [
+              "protegido",
+              "desprotegido",
+              "activo_sin_allowlist",
+              "fuera_de_produccion",
+              "no_pude_medir"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "control",
+          "entorno",
+          "senal",
+          "origenes",
+          "medido_en",
+          "mensaje"
+        ],
+        "title": "CsrfPostureReadingResponse",
+        "type": "object"
+      },
+      "CsrfPostureResponse": {
+        "description": "La defensa CSRF vista desde el arranque del proceso y desde ahora mismo.",
+        "properties": {
+          "ahora": {
+            "$ref": "#/components/schemas/CsrfPostureReadingResponse",
+            "description": "Una lectura nueva del entorno, tomada al atender este request."
+          },
+          "arranque": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CsrfPostureReadingResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que midió al arrancar el proceso que está sirviendo. `null` sólo si el gate del arranque no llegó a correr."
+          },
+          "hay_que_gritar": {
+            "description": "`true` cuando `ahora.verdict` es `desprotegido`, `activo_sin_allowlist` o `no_pude_medir`. Los tres son rojo: los dos primeros porque la defensa no está en pie, el tercero porque el instrumento está ciego y el silencio no es salud.",
+            "title": "Hay Que Gritar",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ahora",
+          "hay_que_gritar"
+        ],
+        "title": "CsrfPostureResponse",
         "type": "object"
       },
       "CuentaBalanceResponse": {
@@ -15648,6 +16104,26 @@
         "title": "DecisionSelectionResponse",
         "type": "object"
       },
+      "DeclarationMutationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "replayed": {
+            "title": "Replayed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "replayed"
+        ],
+        "title": "DeclarationMutationResponse",
+        "type": "object"
+      },
       "DeclareClassificationModeRequest": {
         "additionalProperties": false,
         "description": "La sociedad declara su modo. No hay valor para 'no sé': eso es no declarar.",
@@ -15681,6 +16157,266 @@
         "title": "DeclareClassificationModeRequest",
         "type": "object"
       },
+      "DeclareCreditFacilityRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_limit": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Approved Limit"
+          },
+          "counterparty_key": {
+            "format": "uuid",
+            "title": "Counterparty Key",
+            "type": "string"
+          },
+          "currency_code": {
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency Code",
+            "type": "string"
+          },
+          "evidence_digest_sha256": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "title": "Evidence Digest Sha256",
+            "type": "string"
+          },
+          "evidence_document_ref": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Evidence Document Ref",
+            "type": "string"
+          },
+          "facility_type": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Facility Type",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "legal_entity_id": {
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
+          "offered_limit": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offered Limit"
+          },
+          "used_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Used Amount"
+          },
+          "valid_through": {
+            "format": "date",
+            "title": "Valid Through",
+            "type": "string"
+          }
+        },
+        "required": [
+          "legal_entity_id",
+          "counterparty_key",
+          "currency_code",
+          "facility_type",
+          "approved_limit",
+          "used_amount",
+          "valid_through",
+          "evidence_document_ref",
+          "evidence_digest_sha256",
+          "idempotency_key"
+        ],
+        "title": "DeclareCreditFacilityRequest",
+        "type": "object"
+      },
+      "DeclareDebtLineRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "counterparty_key": {
+            "format": "uuid",
+            "title": "Counterparty Key",
+            "type": "string"
+          },
+          "currency_code": {
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency Code",
+            "type": "string"
+          },
+          "disbursed_on": {
+            "format": "date",
+            "title": "Disbursed On",
+            "type": "string"
+          },
+          "evidence_digest_sha256": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "title": "Evidence Digest Sha256",
+            "type": "string"
+          },
+          "evidence_document_ref": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Evidence Document Ref",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "instrument_type": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Instrument Type",
+            "type": "string"
+          },
+          "legal_entity_id": {
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
+          "linked_obligation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Obligation Id"
+          },
+          "mandatory_cost_components": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredCostComponentRequest"
+            },
+            "title": "Mandatory Cost Components",
+            "type": "array"
+          },
+          "maturity_date": {
+            "format": "date",
+            "title": "Maturity Date",
+            "type": "string"
+          },
+          "nominal_rate_type": {
+            "enum": [
+              "fixed",
+              "variable"
+            ],
+            "title": "Nominal Rate Type",
+            "type": "string"
+          },
+          "nominal_rate_value": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nominal Rate Value"
+          },
+          "prepayment_cost": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prepayment Cost"
+          },
+          "principal_amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Principal Amount"
+          },
+          "total_contractual_repayment": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Total Contractual Repayment"
+          }
+        },
+        "required": [
+          "legal_entity_id",
+          "counterparty_key",
+          "currency_code",
+          "instrument_type",
+          "principal_amount",
+          "disbursed_on",
+          "maturity_date",
+          "nominal_rate_type",
+          "total_contractual_repayment",
+          "evidence_document_ref",
+          "evidence_digest_sha256",
+          "idempotency_key"
+        ],
+        "title": "DeclareDebtLineRequest",
+        "type": "object"
+      },
       "DeclareIdentifierRequest": {
         "additionalProperties": false,
         "properties": {
@@ -15711,6 +16447,268 @@
           "value"
         ],
         "title": "DeclareIdentifierRequest",
+        "type": "object"
+      },
+      "DeclaredCostComponentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "code": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "deducted_from_disbursement": {
+            "title": "Deducted From Disbursement",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "amount",
+          "deducted_from_disbursement"
+        ],
+        "title": "DeclaredCostComponentRequest",
+        "type": "object"
+      },
+      "DeclaredCreditFacilityListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredCreditFacilityRead"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "DeclaredCreditFacilityListResponse",
+        "type": "object"
+      },
+      "DeclaredCreditFacilityRead": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_limit": {
+            "title": "Approved Limit",
+            "type": "string"
+          },
+          "available_capacity": {
+            "title": "Available Capacity",
+            "type": "string"
+          },
+          "counterparty_key": {
+            "format": "uuid",
+            "title": "Counterparty Key",
+            "type": "string"
+          },
+          "currency_code": {
+            "title": "Currency Code",
+            "type": "string"
+          },
+          "evidence_document_ref": {
+            "title": "Evidence Document Ref",
+            "type": "string"
+          },
+          "facility_type": {
+            "title": "Facility Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "legal_entity_id": {
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
+          "offered_limit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offered Limit"
+          },
+          "used_amount": {
+            "title": "Used Amount",
+            "type": "string"
+          },
+          "valid_through": {
+            "format": "date",
+            "title": "Valid Through",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "legal_entity_id",
+          "currency_code",
+          "counterparty_key",
+          "facility_type",
+          "approved_limit",
+          "used_amount",
+          "available_capacity",
+          "valid_through",
+          "evidence_document_ref"
+        ],
+        "title": "DeclaredCreditFacilityRead",
+        "type": "object"
+      },
+      "DeclaredDebtLineListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredDebtLineRead"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "DeclaredDebtLineListResponse",
+        "type": "object"
+      },
+      "DeclaredDebtLineRead": {
+        "additionalProperties": false,
+        "properties": {
+          "comparable_cost_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparable Cost Rate"
+          },
+          "counterparty_key": {
+            "format": "uuid",
+            "title": "Counterparty Key",
+            "type": "string"
+          },
+          "currency_code": {
+            "title": "Currency Code",
+            "type": "string"
+          },
+          "declared_at": {
+            "title": "Declared At",
+            "type": "string"
+          },
+          "disbursed_on": {
+            "format": "date",
+            "title": "Disbursed On",
+            "type": "string"
+          },
+          "evidence_document_ref": {
+            "title": "Evidence Document Ref",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "instrument_type": {
+            "title": "Instrument Type",
+            "type": "string"
+          },
+          "legal_entity_id": {
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
+          "linked_obligation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Obligation Id"
+          },
+          "maturity_date": {
+            "format": "date",
+            "title": "Maturity Date",
+            "type": "string"
+          },
+          "nominal_rate_type": {
+            "title": "Nominal Rate Type",
+            "type": "string"
+          },
+          "nominal_rate_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nominal Rate Value"
+          },
+          "prepayment_cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prepayment Cost"
+          },
+          "principal_amount": {
+            "title": "Principal Amount",
+            "type": "string"
+          },
+          "remaining_financial_cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining Financial Cost"
+          }
+        },
+        "required": [
+          "id",
+          "legal_entity_id",
+          "currency_code",
+          "counterparty_key",
+          "instrument_type",
+          "principal_amount",
+          "disbursed_on",
+          "maturity_date",
+          "nominal_rate_type",
+          "evidence_document_ref",
+          "declared_at"
+        ],
+        "title": "DeclaredDebtLineRead",
         "type": "object"
       },
       "DeclaredPreviousValues": {
@@ -21666,6 +22664,9 @@
           "refund_or_reversal",
           "operational_expense",
           "non_operational_income",
+          "rent",
+          "utilities",
+          "subscriptions",
           "unknown",
           "card_processor_fee",
           "card_processor_chargeback",
@@ -23653,6 +24654,17 @@
       "FinancingOverviewDebtRead": {
         "additionalProperties": false,
         "properties": {
+          "comparable_cost_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparable Cost Rate"
+          },
           "contract_rate_type": {
             "anyOf": [
               {
@@ -23830,6 +24842,28 @@
         "additionalProperties": false,
         "description": "Read model V13; ``None`` significa que la fuente no puede certificar la cifra.",
         "properties": {
+          "approved_capacity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Capacity"
+          },
+          "comparable_cost_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparable Cost Method"
+          },
           "comparable_cost_rate": {
             "anyOf": [
               {
@@ -23860,6 +24894,17 @@
           "freshness": {
             "$ref": "#/components/schemas/FinancingOverviewFreshness"
           },
+          "offered_capacity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offered Capacity"
+          },
           "outstanding_principal": {
             "anyOf": [
               {
@@ -23870,6 +24915,17 @@
               }
             ],
             "title": "Outstanding Principal"
+          },
+          "prepayment_cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prepayment Cost"
           },
           "reason_codes": {
             "items": {
@@ -24284,6 +25340,58 @@
           "connected"
         ],
         "title": "FintocLinkIntentResponse",
+        "type": "object"
+      },
+      "FintocSubscriptionCheckoutRequest": {
+        "properties": {
+          "cancel_url": {
+            "minLength": 8,
+            "title": "Cancel Url",
+            "type": "string"
+          },
+          "plan_id": {
+            "enum": [
+              "gestion",
+              "decision"
+            ],
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "success_url": {
+            "minLength": 8,
+            "title": "Success Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id",
+          "success_url",
+          "cancel_url"
+        ],
+        "title": "FintocSubscriptionCheckoutRequest",
+        "type": "object"
+      },
+      "FintocSubscriptionCheckoutResponse": {
+        "properties": {
+          "checkout_session_id": {
+            "title": "Checkout Session Id",
+            "type": "string"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "redirect_url": {
+            "title": "Redirect Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkout_session_id",
+          "redirect_url",
+          "mode"
+        ],
+        "title": "FintocSubscriptionCheckoutResponse",
         "type": "object"
       },
       "FintocSyncResponse": {
@@ -25142,6 +26250,27 @@
             "title": "App",
             "type": "string"
           },
+          "app_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Sha"
+          },
+          "csrf": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CsrfPostureHealth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "db": {
             "$ref": "#/components/schemas/DbHealth"
           },
@@ -25528,6 +26657,19 @@
       "InboxPriority": {
         "additionalProperties": false,
         "properties": {
+          "also_in_queues": {
+            "items": {
+              "enum": [
+                "reconciliation",
+                "receivables",
+                "payables",
+                "classification"
+              ],
+              "type": "string"
+            },
+            "title": "Also In Queues",
+            "type": "array"
+          },
           "amount": {
             "anyOf": [
               {
@@ -26500,6 +27642,42 @@
             "title": "Key",
             "type": "string"
           },
+          "last_app_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La versión del código que corrió la última vez (`audit.job_runs.app_sha`, `0264`). `None` = el deploy no la declaró, que es un hecho sobre el DEPLOY y no sobre la corrida. Sin esto, «¿se arregló con el deploy de anoche?» no tiene respuesta en ninguna parte: `cae-qavante-prod-net` descarta sus logs.",
+            "title": "Last App Sha"
+          },
+          "last_items_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Items Age Seconds"
+          },
+          "last_items_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cierre de la última corrida que declaró `items > 0`.",
+            "title": "Last Items At"
+          },
           "last_ok_age_seconds": {
             "anyOf": [
               {
@@ -26596,6 +27774,59 @@
             "description": "La edad que se comparó contra el umbral para `failing`.",
             "title": "Ok Age Evaluated Seconds"
           },
+          "oldest_open_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Open Age Seconds"
+          },
+          "oldest_open_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Open Started At"
+          },
+          "open_run": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`True` = hay una corrida abierta más vieja que el presupuesto de duración del job. `False` = ninguna quedó colgada. `None` = sin presupuesto declarado. Mide la EDAD de la abierta más vieja y no la CANTIDAD de abiertas: la corrida de ahora está abierta por definición, así que contar abiertas gritaría contra el job sano cada vez que trabaja. Ninguna de las otras tres señales dice esto — la corrida muerta no alcanzó a escribir `error` y `last_started_at` quedó fresca.",
+            "title": "Open Run"
+          },
+          "open_run_basis": {
+            "default": "oldest_open",
+            "description": "`oldest_open`, `sin_abiertas` (afirma `False`), `informative` o `sin_libro`.",
+            "title": "Open Run Basis",
+            "type": "string"
+          },
+          "open_run_max_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Presupuesto de duración del job, en segundos.",
+            "title": "Open Run Max Age Seconds"
+          },
           "open_runs": {
             "default": 0,
             "description": "Corridas con `started_at` y sin `finished_at`. Una es la que está corriendo ahora. Varias viejas significan que el replica muere sin cerrar — `replicaTimeout` corto, OOM o SIGKILL—, y eso no lo dice ninguna otra señal.",
@@ -26606,6 +27837,12 @@
             "default": 0,
             "description": "Corridas registradas. `0` = nunca se invocó, que NO es un atasco: es el estado del día del deploy y de cualquier base restaurada.",
             "title": "Runs",
+            "type": "integer"
+          },
+          "runs_con_items": {
+            "default": 0,
+            "description": "Corridas que escribieron `items` (cualquier valor, incluido 0). `0` es la razón de `stale_basis = sin_cantidad`.",
+            "title": "Runs Con Items",
             "type": "integer"
           },
           "silent": {
@@ -26619,6 +27856,48 @@
             ],
             "description": "`True` = nadie lo invoca desde más allá del umbral. `None` = **no se afirma** (sin historia, o sin umbral). `None` no es `False`.",
             "title": "Silent"
+          },
+          "stale": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`True` = cierra `ok` pero no mueve una sola unidad desde más allá de su umbral. `False` = movió algo dentro del umbral. `None` = **no se afirma**. Es una pregunta DISTINTA de `silent` y de `failing`, y las tres pueden salir en falso a la vez con el job sano: la primera dice si alguien lo dispara, la segunda si termina, ésta si lo que termina trae algo. Es la señal que el incidente del Worker de Cloudflare necesitaba y no existía: tres días sin movimientos bancarios se veían verdes.",
+            "title": "Stale"
+          },
+          "stale_age_evaluated_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La edad que se comparó contra el umbral para `stale`.",
+            "title": "Stale Age Evaluated Seconds"
+          },
+          "stale_basis": {
+            "default": "last_items",
+            "description": "`last_items`, `oldest_row` (declararon cantidad y ninguna movió nada), `sin_cantidad` (NINGUNA corrida escribió `items` todavía — base recién migrada con `0264`, o resumen que sólo trae un booleano), `no_history`, `informative` o `sin_libro`. `sin_cantidad` se abstiene a propósito: afirmar «no trae nada» cuando lo que falta es la medición haría nacer los doce jobs en rojo el día del deploy.",
+            "title": "Stale Basis",
+            "type": "string"
+          },
+          "stale_max_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Umbral sobre `last_items_age_seconds`. Es MUCHO más laxo que `max_age_seconds` a propósito: un drenador que no encuentra nada que drenar durante horas está sano, y un umbral de cadencia acá gritaría contra la operación normal.",
+            "title": "Stale Max Age Seconds"
           }
         },
         "required": [
@@ -27049,6 +28328,76 @@
         "title": "LegalEntityCheck",
         "type": "object"
       },
+      "LegalEntityCurrencyGapItem": {
+        "description": "Una sociedad existente sin moneda funcional declarada — pendiente, no adivinada.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "legal_entity_id": {
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
+          "legal_entity_name": {
+            "title": "Legal Entity Name",
+            "type": "string"
+          },
+          "provenance": {
+            "description": "Cómo nació la sociedad: 'tenant_backfill' (migración histórica) o 'user_configured' (alta por signup/onboarding).",
+            "title": "Provenance",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "tenant_legal_name": {
+            "title": "Tenant Legal Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "tenant_legal_name",
+          "legal_entity_id",
+          "legal_entity_name",
+          "is_default",
+          "provenance",
+          "created_at"
+        ],
+        "title": "LegalEntityCurrencyGapItem",
+        "type": "object"
+      },
+      "LegalEntityCurrencyGapsResponse": {
+        "description": "El barrido puntual completo. Vacío = no queda ninguna sociedad pendiente.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LegalEntityCurrencyGapItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Cantidad de sociedades sin moneda funcional, hoy.",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total"
+        ],
+        "title": "LegalEntityCurrencyGapsResponse",
+        "type": "object"
+      },
       "LegalEntityFunctionalCurrencySettings": {
         "additionalProperties": false,
         "description": "Moneda funcional explícita de una sociedad, no un default de tenant.",
@@ -27093,8 +28442,23 @@
       },
       "LegalEntityNameRequest": {
         "additionalProperties": false,
-        "description": "Nombre de una Empresa operativa dentro del tenant autenticado.",
+        "description": "Nombre de una Empresa operativa dentro del tenant autenticado.\n\nEdición (`PATCH`): sólo cambia el nombre, ``functional_currency_code`` queda ``None`` y no\nse usa.",
         "properties": {
+          "functional_currency_code": {
+            "anyOf": [
+              {
+                "maxLength": 3,
+                "minLength": 3,
+                "pattern": "^[A-Za-z]{3}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Obligatoria en el ALTA (`POST`). Gate del BO 2026-10-08 (#698): una sociedad nueva no puede quedar operativa sin moneda funcional — es lo que la deja ciega para PULSO/QHS (`list_canonical_financial_scopes` la excluye) sin que nadie lo note. Se ignora en el `PATCH` de nombre.",
+            "title": "Functional Currency Code"
+          },
           "legal_name": {
             "maxLength": 200,
             "minLength": 2,
@@ -28593,6 +29957,26 @@
             "title": "Adelantadas",
             "type": "array"
           },
+          "contenido_medido": {
+            "default": true,
+            "description": "`false` → `editadas` está vacío porque el sello (`CONTENIDO.sha256`) no se pudo verificar, **no** porque ninguna haya cambiado. Es el mismo hueco que `medido` cierra del lado del ledger, en el otro eje.",
+            "title": "Contenido Medido",
+            "type": "boolean"
+          },
+          "contenido_motivo": {
+            "default": "",
+            "description": "Por qué no se pudo verificar el sello. Vacío cuando se verificó.",
+            "title": "Contenido Motivo",
+            "type": "string"
+          },
+          "editadas": {
+            "description": "**Los nombres.** Migraciones que cambiaron de contenido después de sellarse, sin cambiar de nombre. El ledger de la base no las puede ver: tiene `filename` y `applied_at`, nada más. Lo que divergió es el SQL que corrió esta base contra el que va a correr CI y el restore de DR (#1035).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Editadas",
+            "type": "array"
+          },
           "medido": {
             "description": "`false` → `pendientes` está vacío porque no se sabe, no porque no falte ninguna.",
             "title": "Medido",
@@ -28633,11 +30017,28 @@
             "title": "Rol",
             "type": "string"
           },
+          "sello_huerfano": {
+            "description": "El sello nombra estos archivos y el paquete no los trae. Sí es un defecto.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sello Huerfano",
+            "type": "array"
+          },
+          "sin_sellar": {
+            "description": "En el paquete y todavía fuera del sello. **No es un defecto** y no mueve el veredicto: en este repo se mergean varias migraciones por día y el sello se regenera con `python api/scripts/sellar_migraciones.py --escribir`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sin Sellar",
+            "type": "array"
+          },
           "verdict": {
-            "description": "`al_dia`: la base acredita el paquete de este artefacto. `faltan_migraciones`: el código va adelante de la base — la ventana del #1074, y lo que hay que arreglar. `base_adelantada`: la base va adelante del código, que es la forma de un rollback de imagen sin rollback de datos y un procedimiento legítimo. `no_pude_medir`: no se pudo leer el ledger. **`no_pude_medir` no es `al_dia`:** el chequeo que lo trate como verde es el defecto, no la señal.",
+            "description": "`al_dia`: la base acredita el paquete de este artefacto. `faltan_migraciones`: el código va adelante de la base — la ventana del #1074, y lo que hay que arreglar. `base_adelantada`: la base va adelante del código, que es la forma de un rollback de imagen sin rollback de datos y un procedimiento legítimo. `contenido_editado`: la base acredita los nombres y el contenido de al menos un `.sql` ya aplicado cambió — el ledger sella `filename`, así que la acreditación por nombre da `al_dia` igual (#1137). `no_pude_medir`: no se pudo leer el ledger, o no se pudo verificar el sello de contenido. **`no_pude_medir` no es `al_dia`:** el chequeo que lo trate como verde es el defecto, no la señal.",
             "enum": [
               "al_dia",
               "base_adelantada",
+              "contenido_editado",
               "faltan_migraciones",
               "no_pude_medir"
             ],
@@ -28675,7 +30076,7 @@
             "description": "Lo que midió el proceso que está sirviendo, al arrancar. `null` cuando arrancó sin `DATABASE_URL` y no hubo nada que medir."
           },
           "hay_que_gritar": {
-            "description": "`true` cuando `ahora.verdict` es `faltan_migraciones` **o** `no_pude_medir`. Los dos son rojo: el primero porque el código va adelante de la base, el segundo porque el instrumento está ciego y el silencio no es salud.",
+            "description": "`true` cuando `ahora.verdict` es `faltan_migraciones`, `contenido_editado` **o** `no_pude_medir`. Los tres son rojo: el primero porque el código va adelante de la base, el segundo porque el SQL que corrió esta base ya no es el que va a correr la siguiente, y el tercero porque el instrumento está ciego y el silencio no es salud. `base_adelantada` y `al_dia` son los dos verdes.",
             "title": "Hay Que Gritar",
             "type": "boolean"
           }
@@ -28688,7 +30089,7 @@
         "type": "object"
       },
       "MigrationLedgerHealth": {
-        "description": "Qué sabe ESTE proceso sobre el desfase entre su código y la base.\n\n**No mueve `status`.** `/health` es la sonda del contenedor: si este bloque\npudiera degradarla, un desfase de migraciones —que es el estado normal de\nla ventana entre el merge y la migración a mano— sacaría las réplicas de\nrotación y dejaría el producto entero abajo. Acá se ve; la consecuencia la\ndecide quien lea.\n\nNo nombra los archivos: `/health` es anónimo. Los nombres —lo único\naccionable— los da `GET /api/admin/migrations/drift`, con credencial.",
+        "description": "Qué sabe ESTE proceso sobre el desfase entre su código y la base.\n\n**No mueve `status`.** `/health` es la sonda del contenedor: si este bloque\npudiera degradarla, un desfase de migraciones —que es el estado normal de\nla ventana entre el merge y la migración a mano— sacaría las réplicas de\nrotación y dejaría el producto entero abajo. Acá se ve; la consecuencia la\ndecide quien lea.\n\nNo nombra los archivos del INVENTARIO de la base —qué tiene y qué le\nfalta—: `/health` es anónimo, y esos nombres los da\n`GET /api/admin/migrations/drift`, con credencial.\n\n**Las editadas sí van con nombre, y la diferencia no es un descuido.** Una\nmigración cuyo contenido cambió después de sellarse es un defecto del repo,\nde a lo más un puñado de archivos que el propio artefacto trae, no un\nretrato de lo que hay en producción. Y es lo único accionable: «hay drift\nde checksum» sin el nombre no le dice a nadie qué archivo mirar, que es\nexactamente el campo-que-no-mide-nada que este repo ya vio seis veces.",
         "properties": {
           "acreditadas": {
             "anyOf": [
@@ -28708,6 +30109,26 @@
             "title": "Adelantadas",
             "type": "integer"
           },
+          "contenido_medido": {
+            "default": true,
+            "description": "`false` → `editadas` está vacío porque el sello no se pudo verificar, **no** porque ninguna haya cambiado. Un sello ilegible no es un sello intacto.",
+            "title": "Contenido Medido",
+            "type": "boolean"
+          },
+          "contenido_motivo": {
+            "default": "",
+            "description": "Por qué no se pudo verificar el sello. Vacío cuando se verificó.",
+            "title": "Contenido Motivo",
+            "type": "string"
+          },
+          "editadas": {
+            "description": "**Con nombre.** Migraciones que cambiaron de contenido después de sellarse, sin cambiar de nombre. El ledger de la base no las puede ver: sella `filename`. Una migración ya aplicada no se vuelve a correr, así que el SQL nuevo sólo llega a las bases construidas después —CI y el restore de DR— mientras el recibo acredita que son iguales (#1035).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Editadas",
+            "type": "array"
+          },
           "medido": {
             "description": "`False` → los contadores de abajo no describen la base, describen lo que no se pudo averiguar. Un `pendientes: 0` con `medido: false` no dice que no falte ninguna.",
             "title": "Medido",
@@ -28720,7 +30141,7 @@
             "type": "string"
           },
           "mensaje": {
-            "description": "El estado en una frase, SIN los nombres de archivo: esta ruta es anónima. Los nombres los da `GET /api/admin/migrations/drift`.",
+            "description": "El estado en una frase, sin los nombres del inventario de la base: esta ruta es anónima. Ésos los da `GET /api/admin/migrations/drift`. Los de las editadas sí van: son un defecto del repo, no un retrato de producción.",
             "title": "Mensaje",
             "type": "string"
           },
@@ -28735,11 +30156,26 @@
             "title": "Pendientes",
             "type": "integer"
           },
+          "sello_huerfano": {
+            "description": "El sello nombra estos archivos y el paquete no los trae. Sí es un defecto.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sello Huerfano",
+            "type": "array"
+          },
+          "sin_sellar": {
+            "default": 0,
+            "description": "Cuántas migraciones del paquete el sello todavía no cubre. **No es un defecto** y no mueve el veredicto: en este repo se mergean varias por día y el sello se regenera después. Se publica para que la cobertura no se degrade en silencio.",
+            "title": "Sin Sellar",
+            "type": "integer"
+          },
           "verdict": {
-            "description": "`al_dia`: la base acredita el paquete de este artefacto. `faltan_migraciones`: el código va adelante de la base (la ventana del #1074). `base_adelantada`: la base va adelante del código (rollback de imagen). `no_pude_medir`: no se pudo leer el ledger. **No es `al_dia`.**",
+            "description": "`al_dia`: la base acredita el paquete de este artefacto, por nombre y por contenido. `faltan_migraciones`: el código va adelante de la base (la ventana del #1074). `contenido_editado`: la base acredita los nombres y el contenido de al menos un `.sql` ya aplicado cambió — el ledger sella `filename`, así que no lo puede ver (#1137). `base_adelantada`: la base va adelante del código (rollback de imagen). `no_pude_medir`: no se pudo leer el ledger, o no se pudo verificar el sello de contenido. **No es `al_dia`.**",
             "enum": [
               "al_dia",
               "base_adelantada",
+              "contenido_editado",
               "faltan_migraciones",
               "no_pude_medir"
             ],
@@ -31783,6 +33219,14 @@
       "OperationalResultBreakdownResponse": {
         "description": "Resultado Operacional mensualizado por categoría (árbol de cuentas del tenant).",
         "properties": {
+          "abstained_sources": {
+            "description": "Fuentes que este lector dejó FUERA del árbol porque no pudo atribuirlas a la sociedad activa, por nombre: `bhe` (los honorarios se cachean sin sociedad), `document_classifications` / `document_lines` (decisiones manuales y detalle de DTE con grano de tenant), `classification_rules` / `classification_rule_account_mappings` (sin sociedad demostrable no hay catálogo). Existe para que el aviso NOMBRE qué falta en vez de abstenerse en bloque: «no se pudieron leer los honorarios» es accionable, «las fuentes personales» no. Lista vacía = nada quedó afuera. La NÓMINA ya no aparece acá: desde la migración 0266 (api#1124) declara su sociedad y se lee siempre.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Abstained Sources",
+            "type": "array"
+          },
           "generated_at": {
             "format": "date-time",
             "title": "Generated At",
@@ -31845,7 +33289,7 @@
             "type": "array"
           },
           "warnings": {
-            "description": "Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activa una cuenta de costo y clasifica las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verifica re-emisiones pendientes. `payroll_cost_missing`: la nómina NO fue sincronizada en el rango (ausente, no $0) pero hay actividad → el Resultado está SOBREESTIMADO (falta el costo laboral); sincroniza remuneraciones. No dispara para empresas legítimamente sin empleados. `payroll_cost_unattributed`: el tenant tiene más de una sociedad y la nómina se guarda sin sociedad, así que este lector se ABSTUVO de leerla; el Resultado está igual de sobreestimado, pero la causa NO es una ausencia medida — nadie miró. El texto no debe afirmar que la nómina falta NI que está, y no debe pedir que se sincronice: sincronizar remuneraciones no cambia nada. `tenant_wide_personal_sources_abstained`: acompaña al anterior y cubre también los honorarios (BHE), que se abstienen por la misma razón.",
+            "description": "Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activa una cuenta de costo y clasifica las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verifica re-emisiones pendientes. `payroll_cost_missing`: la nómina NO fue sincronizada en el rango (ausente, no $0) pero hay actividad → el Resultado está SOBREESTIMADO (falta el costo laboral); sincroniza remuneraciones. No dispara para empresas legítimamente sin empleados. `payroll_cost_unattributed`: este lector se ABSTUVO de leer la nómina y el Resultado está igual de sobreestimado, pero la causa NO es una ausencia medida — nadie miró. El texto no debe afirmar que la nómina falta NI que está, y no debe pedir que se sincronice: sincronizar remuneraciones no cambia nada. **Desde la migración 0266 (api#1124) la nómina canónica declara su sociedad, así que el breakdown ya NO emite este código por tener el tenant varias sociedades**; el código sigue en el contrato porque sigue siendo la única forma honesta de publicar una abstención de nómina si apareciera otra causa. `tenant_wide_personal_sources_abstained`: hay fuentes tenant-wide que este lector NO pudo atribuir a la sociedad activa y dejó fuera del árbol. Cuáles, por nombre, en `abstained_sources` — hoy los honorarios (BHE) y la evidencia manual de documentos, que todavía se guardan sin sociedad.",
             "items": {
               "type": "string"
             },
@@ -38696,7 +40140,7 @@
         "type": "object"
       },
       "RcvD08GateResponse": {
-        "description": "`GET /api/sii/rcv/d08-gate`: estado observable de la compuerta del dual-write D08.\n\n`overall=unobserved` cuando no hay observación (ausencia nunca es `enabled`). `enabled` sólo\ndice que el dual-write prospectivo corrió: no autoriza backfill, shadow-read ni consumidores,\ny **no dice que el grafo haya publicado algo** — eso lo dice `graph_publication`.",
+        "description": "`GET /api/sii/rcv/d08-gate`: estado observable de la compuerta del dual-write D08.\n\n`overall=unobserved` cuando no hay observación (ausencia nunca es `enabled`). `enabled` sólo\ndice que el dual-write prospectivo corrió: no autoriza backfill, shadow-read ni consumidores,\ny **no dice que el grafo haya publicado algo** — eso lo dice `graph_publication`. Tampoco\ndice cuándo corrió: eso lo dice `observation`.",
         "properties": {
           "d07_prerequisite": {
             "$ref": "#/components/schemas/RcvD08Prerequisite"
@@ -38713,6 +40157,9 @@
                 "type": "null"
               }
             ]
+          },
+          "observation": {
+            "$ref": "#/components/schemas/RcvD08Observation"
           },
           "overall": {
             "enum": [
@@ -38741,6 +40188,7 @@
           "overall",
           "d07_prerequisite",
           "graph_publication",
+          "observation",
           "identity_gate",
           "source_accounts"
         ],
@@ -38901,6 +40349,73 @@
           "seeded"
         ],
         "title": "RcvD08GraphPublication",
+        "type": "object"
+      },
+      "RcvD08Observation": {
+        "description": "CUÁNDO se midió lo que el resto de la respuesta afirma.\n\nNingún cron refresca estas filas: los dos productores son por evento (`sync_rcv` cuelga del\nbotón \"Sincronizar SII\"; `rcv_backfill`, del guardado de credenciales, del onboarding y de\nlos endpoints de admin), así que la antigüedad de la lectura no tiene techo. Medido el\n2026-10-07 en producción, el tenant Tooxs decía `enabled` con una observación de 25 h 49 min\nantes, y nada en la respuesta mostraba esa distancia: `enabled` de hace un mes y `enabled` de\nhace un minuto se leían idénticos.\n\nEs un número, **no un veredicto**: sin productor programado, una lectura vieja significa que\nnadie materializó RCV hace rato, no que algo esté roto. Quien decida un umbral lo decide\narriba, con su propio criterio.",
+        "properties": {
+          "age_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Segundos entre `oldest_observed_at` y `evaluated_at`. Null si `unobserved`.",
+            "title": "Age Seconds"
+          },
+          "evaluated_at": {
+            "description": "Reloj de la base al leer — el mismo que sella `observed_at`.",
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "last_observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La observación visible más NUEVA. Null si `unobserved`.",
+            "title": "Last Observed At"
+          },
+          "oldest_observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La observación visible más VIEJA: es la que limita lo que la respuesta puede afirmar, porque `overall` cerrado por cualquier fila. Null si `unobserved`.",
+            "title": "Oldest Observed At"
+          },
+          "status": {
+            "description": "`unobserved` cuando no hay ninguna fila visible para el request: las tres marcas quedan en null en vez de un cero que se leería como 'recién medido'.",
+            "enum": [
+              "observed",
+              "unobserved"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "evaluated_at",
+          "last_observed_at",
+          "oldest_observed_at"
+        ],
+        "title": "RcvD08Observation",
         "type": "object"
       },
       "RcvD08Prerequisite": {
@@ -51584,6 +53099,33 @@
         ]
       }
     },
+    "/api/admin/csrf/posture": {
+      "get": {
+        "description": "Dice si la defensa de `Origin` está activa, y si eso se pudo saber.\n\nSOLO LECTURA: `measure_csrf_posture` lee variables de entorno y no escribe\nninguna. No prende el control si lo encuentra apagado — un chequeo que\narreglara lo que vigila se vería siempre verde porque él mismo haría el\ntrabajo, y además dejaría sin rastro el `az containerapp update` que lo\napagó.",
+        "operationId": "admin_csrf_posture",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsrfPostureResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "CSRF: si la verificación de Origin está en pie (observabilidad)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/f29/remanente-seed": {
       "get": {
         "description": "Devuelve el seed del remanente inicial del tenant. `exists=false` (con montos en 0) si no\ntiene uno cargado. Alcance **tenant**.",
@@ -51693,6 +53235,33 @@
           }
         ],
         "summary": "F29: carga/reemplaza el seed del remanente inicial del tenant (ADR-0069 Fase 2)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/legal-entities/functional-currency-gaps": {
+      "get": {
+        "description": "Lectura de SOLO LECTURA, cross-tenant: no toca ninguna tabla monetaria, sólo la\nconfiguración de moneda funcional por sociedad. No invoca ningún job de reparación.",
+        "operationId": "admin_legal_entities_functional_currency_gaps",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalEntityCurrencyGapsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Sociedades existentes sin moneda funcional declarada (panel del barrido)",
         "tags": [
           "admin"
         ]
@@ -59014,6 +60583,71 @@
         ]
       }
     },
+    "/api/fintoc/subscription-checkout": {
+      "post": {
+        "description": "Crea un Checkout Session Fintoc (`flow: subscription`) y devuelve `redirect_url`.\n\nUsa `FINTOC_SECRET_KEY` del servidor — el FE nunca ve la secret. Para pruebas PAC,\n`FINTOC_SUBSCRIPTION_USE_SANDBOX_CUSTOMER=true` fuerza el cliente de la documentación Fintoc.",
+        "operationId": "subscription_checkout_api_fintoc_subscription_checkout_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FintocSubscriptionCheckoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FintocSubscriptionCheckoutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Subscription Checkout",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
     "/api/fintoc/sync": {
       "post": {
         "operationId": "sync_fintoc_api_fintoc_sync_post",
@@ -59244,7 +60878,7 @@
         ]
       },
       "post": {
-        "description": "Alta de Empresa; no crea ni cambia el tenant de la sesión.",
+        "description": "Alta de Empresa; no crea ni cambia el tenant de la sesión.\n\nGate del BO 2026-10-08 (#698): ninguna sociedad nueva nace sin moneda funcional. Antes de\neste gate, `legal_name` bastaba y la sociedad quedaba \"activa\" pero invisible para\nPULSO/QHS hasta que alguien, en un paso aparte y sin aviso, completara el dato — y 6 de las\n8 sociedades reales de producción medidas el 2026-10-08 nunca llegaron a ese paso.",
         "operationId": "legal_entities_create",
         "parameters": [
           {
@@ -59302,14 +60936,7 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "`functional_currency_code` ausente o no es una moneda activa del catálogo."
           }
         },
         "security": [
@@ -59317,7 +60944,7 @@
             "APIKeyHeader": []
           }
         ],
-        "summary": "Crea una Empresa dentro del tenant actual",
+        "summary": "Crea una Empresa dentro del tenant actual (exige moneda funcional)",
         "tags": [
           "legal-entities"
         ]
@@ -60985,7 +62612,7 @@
             "description": "Resultado operacional del período. `result: null` + `abstention_reason` cuando la integridad de fuentes no es `eligible` (incluye el período sin documentos)."
           },
           "409": {
-            "description": "Scope financiero incompleto o P&L compuesto no atribuible por sociedad."
+            "description": "Scope financiero incompleto: sin sociedad activa resuelta para el tenant (ninguna, o varias sin que la sesión eligiera una)."
           },
           "422": {
             "description": "period mal formado."
@@ -63623,7 +65250,7 @@
     },
     "/api/planning/budget/propose": {
       "post": {
-        "description": "Genera (o regenera, idempotente) el Presupuesto de Resultado del año fiscal desde los 12\nmeses anteriores (tendencia + estacionalidad + meta simple). ADR-0091 F1a.",
+        "description": "Genera (o regenera, idempotente) el Presupuesto de Resultado del año fiscal desde los 12\nmeses anteriores (tendencia + estacionalidad + meta simple). ADR-0091 F1a.\n\nRequiere rol financiero de escritura (api#1131).",
         "operationId": "planning_budget_propose",
         "parameters": [
           {
@@ -63663,6 +65290,9 @@
               }
             },
             "description": "Presupuesto generado; escribe financial_impacts layer=budget."
+          },
+          "403": {
+            "description": "Rol sin permiso de escritura financiera (api#1131)."
           },
           "409": {
             "description": "Writer de presupuesto sin FinancialScope atribuido se abstiene."
@@ -63751,7 +65381,7 @@
     },
     "/api/planning/budget/{year}/accept": {
       "post": {
-        "description": "El usuario acepta el presupuesto — la versión pasa a `published`.",
+        "description": "El usuario acepta el presupuesto — la versión pasa a `published`.\n\nAceptar es publicar la cifra contra la que se compara todo el año, así que requiere rol\nfinanciero de escritura **y** un aprobador identificado: con cookie es la sesión, con\nX-Api-Key hay que declarar `actor_user_id` y se valida contra `core.memberships` (api#1131).\nRe-aceptar una versión ya publicada NO cambia de aprobador: conserva el vigente.",
         "operationId": "planning_budget_accept",
         "parameters": [
           {
@@ -63780,6 +65410,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BudgetAcceptRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -63789,20 +65436,19 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Versión publicada, o no-op que conserva al aprobador vigente."
+          },
+          "400": {
+            "description": "Credencial de servidor sin tenant: no acredita al aprobador."
+          },
+          "403": {
+            "description": "Rol sin permiso, o `actor_user_id` sin membership de escritura."
           },
           "404": {
             "description": "No hay presupuesto del año (propón uno primero)."
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Con X-Api-Key falta `actor_user_id` (api#1131)."
           }
         },
         "security": [
@@ -63818,7 +65464,7 @@
     },
     "/api/planning/budget/{year}/line": {
       "patch": {
-        "description": "Modifica el monto de una celda. Solo capa `budget` (no toca actuals). Editar re-abre a\n`draft` una versión ya aceptada.",
+        "description": "Modifica el monto de una celda. Solo capa `budget` (no toca actuals). Editar re-abre a\n`draft` una versión ya aceptada.\n\nRequiere rol financiero de escritura (api#1131).",
         "operationId": "planning_budget_edit_line",
         "parameters": [
           {
@@ -63867,6 +65513,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "description": "Rol sin permiso de escritura financiera (api#1131)."
           },
           "404": {
             "description": "No hay presupuesto del año (propón uno primero)."
@@ -68012,7 +69661,7 @@
     },
     "/api/sii/rcv/d08-gate": {
       "get": {
-        "description": "Último estado de la compuerta D08 del RCV (#701, ADR-0116 §9 paso 5): la fila del tenant\n(identidad: ventas y compras observaron el mismo RUT empresa válido) y una por cuenta fuente\n`cl_rut` (sociedad: el RUT prueba una sociedad única). Con Empresa seleccionada se ocultan las\ncuentas que hoy declara otra sociedad. Sin montos. `d07_prerequisite` quedó `credited` el\n2026-10-04 (ADR-0123 §1). `graph_publication` dice qué publicó el grafo —versión,\nidentificadores y aliases vigentes—, porque `overall=enabled` sólo significa que el\nproductor tiene permiso de escribir: con `seeded=false` ese permiso no produce nada.\nRead-only: no abre ni cierra la compuerta.",
+        "description": "Último estado de la compuerta D08 del RCV (#701, ADR-0116 §9 paso 5): la fila del tenant\n(identidad: ventas y compras observaron el mismo RUT empresa válido) y una por cuenta fuente\n`cl_rut` (sociedad: el RUT prueba una sociedad única). Con Empresa seleccionada se ocultan las\ncuentas que hoy declara otra sociedad. Sin montos. `d07_prerequisite` quedó `credited` el\n2026-10-04 (ADR-0123 §1). `graph_publication` dice qué publicó el grafo —versión,\nidentificadores y aliases vigentes—, porque `overall=enabled` sólo significa que el\nproductor tiene permiso de escribir: con `seeded=false` ese permiso no produce nada.\n`observation` fecha la lectura: ningún cron refresca estas filas (los dos productores son\npor evento), así que `enabled` sin su antigüedad al lado no dice si se midió hoy o hace un\nmes. Read-only: no abre ni cierra la compuerta.",
         "operationId": "sii_rcv_d08_gate",
         "parameters": [
           {
@@ -71000,7 +72649,7 @@
     },
     "/api/treasury/canonical-categories": {
       "get": {
-        "description": "Devuelve las 26 categorías canónicas con su metadata funcional\n(dirección esperada, grupo de caja, modelo financiero, impacto,\nraíz de gestión, flags de revisión). Orden estable por `sort_order`.",
+        "description": "Devuelve las 29 categorías canónicas con su metadata funcional\n(dirección esperada, grupo de caja, modelo financiero, impacto,\nraíz de gestión, flags de revisión). Orden estable por `sort_order`.",
         "operationId": "canonical_categories_list",
         "parameters": [
           {
@@ -71029,7 +72678,7 @@
                 }
               }
             },
-            "description": "26 categorías canónicas ordenadas por sort_order."
+            "description": "29 categorías canónicas ordenadas por sort_order."
           },
           "401": {
             "description": "Falta o es inválida la autenticación."
@@ -71628,6 +73277,124 @@
           }
         ],
         "summary": "Create Projection Run",
+        "tags": [
+          "treasury-metrics"
+        ]
+      }
+    },
+    "/api/treasury/cash-projection-runs/health": {
+      "get": {
+        "description": "Por qué la proyección de este scope no responde. SÓLO LECTURA: ningún 201, ningún run.\n\nHasta acá, distinguir «falta provisionar una autoridad» de «hay dos compitiendo» y de\n«no corrió el cron» exigía un POST a `/api/treasury/cash-projection-runs` con clave de\nidempotencia -- una escritura contra producción para leer un diagnóstico, que además\ndeja una fila. Las tres causas se arreglan al revés una de otra, así que no distinguirlas\nes no saber qué hacer.",
+        "operationId": "get_cash_projection_health",
+        "parameters": [
+          {
+            "description": "Sociedad del scope. No se infiere.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "description": "Sociedad del scope. No se infiere.",
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Moneda del scope.",
+            "in": "query",
+            "name": "currency",
+            "required": true,
+            "schema": {
+              "description": "Moneda del scope.",
+              "pattern": "^[A-Z]{3}$",
+              "title": "Currency",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Día del scope; por defecto, hoy en Chile.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Día del scope; por defecto, hoy en Chile.",
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashProjectionHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_currency"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CashProjectionErrorResponse"
+                }
+              }
+            },
+            "description": "Scope inválido en la query."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "cash_projection_health_unavailable"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CashProjectionErrorResponse"
+                }
+              }
+            },
+            "description": "La sonda misma no pudo leer el estado."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Projection Health",
         "tags": [
           "treasury-metrics"
         ]
@@ -73688,6 +75455,294 @@
         "summary": "Select Financial Decision Alternative",
         "tags": [
           "financial-decisions"
+        ]
+      }
+    },
+    "/api/treasury/declared-financing/credit-facilities": {
+      "get": {
+        "operationId": "read_declared_credit_facilities_api_treasury_declared_financing_credit_facilities_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "currency",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Z]{3}$",
+              "title": "Currency",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclaredCreditFacilityListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Declared Credit Facilities",
+        "tags": [
+          "declared-financing"
+        ]
+      },
+      "post": {
+        "description": "Declara un cupo con evidencia; el headline es siempre disponible-no-usado.",
+        "operationId": "declare_credit_facility_api_treasury_declared_financing_credit_facilities_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclareCreditFacilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclarationMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Declare Credit Facility",
+        "tags": [
+          "declared-financing"
+        ]
+      }
+    },
+    "/api/treasury/declared-financing/debt-lines": {
+      "get": {
+        "operationId": "read_declared_debt_lines_api_treasury_declared_financing_debt_lines_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "currency",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Z]{3}$",
+              "title": "Currency",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclaredDebtLineListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Declared Debt Lines",
+        "tags": [
+          "declared-financing"
+        ]
+      },
+      "post": {
+        "description": "Declara una línea de deuda viva, con evidencia (contrato/estado de cuenta).",
+        "operationId": "declare_debt_line_api_treasury_declared_financing_debt_lines_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclareDebtLineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclarationMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Declare Debt Line",
+        "tags": [
+          "declared-financing"
         ]
       }
     },
@@ -80683,8 +82738,8 @@
   },
   "servers": [
     {
-      "description": "Producción (Fly.io)",
-      "url": "https://tooxs-gestion-api.fly.dev"
+      "description": "Producción (Azure Container Apps)",
+      "url": "https://api.qavante.com"
     }
   ]
 }

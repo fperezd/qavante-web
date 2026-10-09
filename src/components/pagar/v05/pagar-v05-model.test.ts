@@ -19,6 +19,8 @@ import {
   filtrarPagos,
   kpiCritico,
   kpiPorPagar,
+  recuadroPorPagar,
+  recuadroVencidoPagar,
   kpiVencido,
   nombreDe,
   ordenarPorUrgencia,
@@ -227,6 +229,43 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
   it("Ley 1: 'Por pagar · 14 días' ES el total de 'Sale · 14 días' de V02 (misma función base)", () => {
     const deV02 = sale14d(pagos(), HOY);
     expect(kpiPorPagar(pagos(), 14).total).toBe(deV02!.total);
+  });
+
+  it("due_7d en cero con total vivo y sin undated → por pagar, no $0", () => {
+    const ap = pagos({
+      due_7d: "0",
+      total: "849120",
+      undated_count: 0,
+      undated_amount: "0",
+      filter_metadata: {
+        ...pagos().filter_metadata,
+        unfiltered_items_total: 3,
+      },
+    });
+    expect(recuadroPorPagar(ap, 7).value).toBe("$849.120 por pagar");
+    expect(recuadroPorPagar(ap, 7).detail).toBe("3 documentos");
+  });
+
+  it("due_7d en cero con todo sin fecha → por agendar, no $0", () => {
+    const ap = pagos({
+      due_7d: "0",
+      due_14d: "0",
+      total: "849120",
+      undated_amount: "849120",
+      undated_count: 3,
+      overdue_summary: {
+        amount_clp: null,
+        known_amount_clp: "0",
+        complete: false,
+        count: 3,
+        unknown_due_date_count: 3,
+        excluded_by_currency: [],
+      },
+    });
+    expect(recuadroPorPagar(ap, 7).value).toBe("$849.120 por agendar");
+    expect(recuadroPorPagar(ap, 7).detail).toBe("3 documentos");
+    expect(recuadroVencidoPagar(ap).value).toBe("$0");
+    expect(recuadroVencidoPagar(ap).detail).toBeUndefined();
   });
 
   it("mantiene caja final, críticos y cobertura canónica como conceptos separados", () => {

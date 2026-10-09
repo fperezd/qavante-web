@@ -4,7 +4,7 @@ test("Financiamiento sin sesión conserva la frontera de autenticación", async 
   const response = await request.get("/financiamiento", { maxRedirects: 0 });
 
   expect(response.status()).toBe(307);
-  expect(response.headers().location).toContain("/login");
+  expect(response.headers().location).toContain("/login-correo");
   expect(response.headers().location).toContain("redirect=%2Ffinanciamiento");
 });
 

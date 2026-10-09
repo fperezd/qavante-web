@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useOnboardingImportWindow } from "@/lib/api/onboarding-import-window";
 import { useOnboardingSources } from "@/lib/api/onboarding-sources";
-import { useMe } from "@/lib/api/users";
 import { onboardingResumeRoute, shouldResumeOnboarding } from "./onboarding-steps";
 
 /* Guard del onboarding. Si el flag `onboarding` está ON y el tenant NO completó
@@ -29,23 +29,23 @@ import { onboardingResumeRoute, shouldResumeOnboarding } from "./onboarding-step
 export function OnboardingGuard() {
   const router = useRouter();
   const { states, isUnknown, isStale, completed } = useOnboardingSources(true);
-  const { data: me, isSuccess: meReady, isFetching: meFetching } = useMe();
+  const importWindow = useOnboardingImportWindow();
   const redirected = React.useRef(false);
-  const missingPersonalRut = meReady && !meFetching && !me?.user?.rut;
+
+  const importStartSelected = importWindow.data?.selected_start_date != null;
+  const resumeUnknown = isUnknown || importWindow.isLoading || importWindow.isError;
 
   /* `states` es un objeto nuevo en cada render (`deriveSourceStates` construye
      uno) → sin memo el efecto se re-dispara en cada render. Depender del destino
      ya calculado (un string) lo deja estable. */
-  const resumeRoute = onboardingResumeRoute(states);
+  const resumeRoute = onboardingResumeRoute(states, { importStartSelected });
 
   React.useEffect(() => {
     if (redirected.current) return;
-    if (!meReady || meFetching) return;
-    if (missingPersonalRut) return;
-    if (!shouldResumeOnboarding({ isUnknown, isStale, completed })) return;
+    if (!shouldResumeOnboarding({ isUnknown: resumeUnknown, isStale, completed })) return;
     redirected.current = true;
     router.replace(resumeRoute);
-  }, [resumeRoute, isUnknown, isStale, completed, missingPersonalRut, meReady, meFetching, router]);
+  }, [resumeRoute, resumeUnknown, isStale, completed, router]);
 
   return null;
 }

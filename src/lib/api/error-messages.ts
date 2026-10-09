@@ -86,6 +86,12 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
   if (err.code === "fintoc_not_configured") {
     return "La conexión bancaria no está disponible en este momento. Intenta nuevamente más tarde.";
   }
+  if (err.code === "fintoc_checkout_failed") {
+    return "No pudimos abrir la activación del plan. Intenta de nuevo en un momento.";
+  }
+  if (err.code === "fintoc_subscription_rut_missing") {
+    return "Necesitamos el RUT de tu empresa para activar el plan. Complétalo en el registro o continúa y actívalo más adelante.";
+  }
   if (err.code === "bank_movement_currency_unverified") {
     // #370 v1 (qavante-api#905): 422 sin escritura. El backend no completa la moneda con la de
     // la cuenta ni con CLP; el mensaje no invita a reintentar lo mismo.
@@ -103,10 +109,19 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
     return "Tienes más de una Empresa marcada como predeterminada, así que Qavante no puede decidir sobre cuál escribir. Deja una sola marcada en Administración → Empresas.";
   }
   if (err.code === "scope_mismatch:legal_entity") {
-    return "La Empresa que tenías elegida ya no corresponde a esta cuenta. Vuelve a elegirla en el encabezado y repite la clasificación.";
+    return "La Empresa que tenías elegida ya no corresponde a esta cuenta. Vuelve a elegirla en el encabezado y repite la operación.";
+  }
+  if (err.code === "scope_mismatch:active_company") {
+    return "La empresa activa no coincide con la que estás configurando. Recarga la página e intenta de nuevo.";
   }
   if (err.code === "missing_scope:functional_currency") {
     return "Esta Empresa todavía no tiene moneda funcional declarada, y la clasificación la necesita para registrar el impacto en la caja. Declárala en Administración → Empresas.";
+  }
+  if (err.code === "currency_settings_not_found") {
+    return "Aún no pudimos guardar los ajustes de moneda de la cuenta. Confirma la moneda funcional de tu empresa e intenta de nuevo.";
+  }
+  if (err.code === "functional_currency_requires_legal_entity") {
+    return "La moneda funcional se guarda por empresa. Elige la sociedad correcta en el encabezado e intenta de nuevo; si el error continúa, actualiza la aplicación.";
   }
   /* Lote completo rechazado (qavante-api `treasury_repo`): la respuesta trae `movement_ids`
      con los culpables. Nada quedó clasificado, así que el mensaje no insinúa un éxito parcial. */

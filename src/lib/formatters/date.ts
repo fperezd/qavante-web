@@ -1,4 +1,4 @@
-import { MESES_CORTOS } from "./months";
+import { MESES_CORTOS, MESES_LARGOS } from "./months";
 
 export function formatDate(date: Date) {
   return new Intl.DateTimeFormat("es-CL").format(date);
@@ -110,6 +110,13 @@ export function formatDateLong(raw: string | Date | null | undefined): string {
   const c = civil(raw);
   if (!c || MES_INVALIDO(c.m)) return "s/d";
   return `${c.d} ${MESES_CORTOS[c.m - 1]} ${c.y}`;
+}
+
+/** Fecha de cabecera (día civil en Chile): `9 de octubre de 2026`. */
+export function formatDateHeading(raw: string | Date | null | undefined): string {
+  const c = civil(raw);
+  if (!c || MES_INVALIDO(c.m)) return "s/d";
+  return `${c.d} de ${MESES_LARGOS[c.m - 1]} de ${c.y}`;
 }
 
 /** Relativo de la spec: `hace 73 días`, `en 5 días`, `hoy`, `ayer`, `mañana`.

@@ -10,8 +10,6 @@ test.describe("Flujo: bancos en credenciales (/administracion/credenciales)", ()
     await page.goto("/administracion/credenciales");
 
     await expect(page.getByRole("heading", { name: "Bancos de la empresa" })).toBeVisible();
-    await expect(
-      page.getByText(/Administra aquí tus conexiones bancarias/),
-    ).toBeVisible();
+    await expect(page.getByText(/Conecta instituciones con Fintoc/)).toBeVisible();
   });
 });

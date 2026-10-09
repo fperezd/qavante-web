@@ -32,7 +32,6 @@ import { useMe } from "@/lib/api/users";
 import { asUserRole } from "@/lib/auth/types";
 import { cashGapProposals } from "./cash-gap-proposal-model";
 import { InicioResumenView } from "../resumen/inicio-resumen-view";
-import { InicioCreditosLive } from "../resumen/inicio-creditos-live";
 import { InicioBancosLive } from "../resumen/inicio-bancos-live";
 import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
 import {
@@ -122,86 +121,86 @@ export function HoyLive({
     : undefined;
 
   return (
-    <div className="space-y-6">
-      {!suppressRecommendations && (
-        <CashProjectionRunPanel
-          horizonDays={14}
-          title="Caja para las decisiones de hoy"
-          onSnapshot={setProjection}
-        />
-      )}
-      <InicioResumenView
-        balances={bankBalancesEnabled ? <InicioBancosLive /> : undefined}
-        credits={<InicioCreditosLive enabled={bankBalancesEnabled} />}
-        suppressRecommendations={suppressRecommendations}
-        data={summary.data ?? null}
-        empresa={me.data?.user?.tenant_name ?? null}
-        liquidityEvaluation={liquidity.data ?? null}
-        liquidityLoading={liquidity.isLoading}
-        liquidityFailed={liquidity.isError}
-        cashGapProposals={cashGapProposals(canonicalPaymentPlan, collectionPlan.data)}
-        cashGapProposalsLoading={paymentPlan.isLoading || collectionPlan.isLoading}
-        canSelectLiquidity={role === "owner" || role === "admin"}
-        operationPlanRead={operationPlan.data ?? null}
-        operationPlanLoading={operationPlan.isLoading}
-        operationPlanError={operationPlan.error}
-        onRetryOperationPlan={() => void operationPlan.refetch()}
-        collectionSituation={collectionSituation.data ?? null}
-        collectionEvaluation={collectionEvaluation.data ?? null}
-        collectionLoading={collectionSituation.isLoading || collectionEvaluation.isLoading}
-        collectionError={collectionSituation.error ?? collectionEvaluation.error}
-        collectionScopeAvailable={collectionScope !== null}
-        onRetryCollection={
-          collectionScope
-            ? () => {
-                void collectionSituation.refetch();
-                void collectionEvaluation.refetch();
-              }
-            : undefined
-        }
-        decisionReaders={
-          decisionReadScope
-            ? {
-                fxExposures: {
-                  data: fxExposures.data,
-                  loading: fxExposures.isLoading,
-                  failed: fxExposures.isError,
-                },
-                fxEvaluations: {
-                  data: fxEvaluations.data,
-                  loading: fxEvaluations.isLoading,
-                  failed: fxEvaluations.isError,
-                },
-                investableSurplus: {
-                  data: investableSurplus.data,
-                  loading: investableSurplus.isLoading,
-                  failed: investableSurplus.isError,
-                },
-                investmentEvaluations: {
-                  data: investmentEvaluations.data,
-                  loading: investmentEvaluations.isLoading,
-                  failed: investmentEvaluations.isError,
-                },
-                outcomeValues: {
-                  data: outcomeValues.data,
-                  loading: outcomeValues.isLoading,
-                  failed: outcomeValues.isError,
-                },
-                learningCandidates: {
-                  data: learningCandidates.data,
-                  loading: learningCandidates.isLoading,
-                  failed: learningCandidates.isError,
-                },
-                sourceFreshness: {
-                  data: sourceFreshness.data,
-                  loading: sourceFreshness.isLoading,
-                  failed: sourceFreshness.isError,
-                },
-              }
-            : null
-        }
-      />
-    </div>
+    <InicioResumenView
+      debajoDeCaja={
+        !suppressRecommendations ? (
+          <CashProjectionRunPanel
+            horizonDays={14}
+            title="Caja para las decisiones de hoy"
+            onSnapshot={setProjection}
+          />
+        ) : undefined
+      }
+      balances={bankBalancesEnabled ? <InicioBancosLive /> : undefined}
+      suppressRecommendations={suppressRecommendations}
+      projection={projection}
+      data={summary.data ?? null}
+      empresa={me.data?.user?.tenant_name ?? null}
+      liquidityEvaluation={liquidity.data ?? null}
+      liquidityLoading={liquidity.isLoading}
+      liquidityFailed={liquidity.isError}
+      cashGapProposals={cashGapProposals(canonicalPaymentPlan, collectionPlan.data)}
+      cashGapProposalsLoading={paymentPlan.isLoading || collectionPlan.isLoading}
+      canSelectLiquidity={role === "owner" || role === "admin"}
+      operationPlanRead={operationPlan.data ?? null}
+      operationPlanLoading={operationPlan.isLoading}
+      operationPlanError={operationPlan.error}
+      onRetryOperationPlan={() => void operationPlan.refetch()}
+      collectionSituation={collectionSituation.data ?? null}
+      collectionEvaluation={collectionEvaluation.data ?? null}
+      collectionLoading={collectionSituation.isLoading || collectionEvaluation.isLoading}
+      collectionError={collectionSituation.error ?? collectionEvaluation.error}
+      collectionScopeAvailable={collectionScope !== null}
+      onRetryCollection={
+        collectionScope
+          ? () => {
+              void collectionSituation.refetch();
+              void collectionEvaluation.refetch();
+            }
+          : undefined
+      }
+      decisionReaders={
+        decisionReadScope
+          ? {
+              fxExposures: {
+                data: fxExposures.data,
+                loading: fxExposures.isLoading,
+                failed: fxExposures.isError,
+              },
+              fxEvaluations: {
+                data: fxEvaluations.data,
+                loading: fxEvaluations.isLoading,
+                failed: fxEvaluations.isError,
+              },
+              investableSurplus: {
+                data: investableSurplus.data,
+                loading: investableSurplus.isLoading,
+                failed: investableSurplus.isError,
+              },
+              investmentEvaluations: {
+                data: investmentEvaluations.data,
+                loading: investmentEvaluations.isLoading,
+                failed: investmentEvaluations.isError,
+              },
+              outcomeValues: {
+                data: outcomeValues.data,
+                loading: outcomeValues.isLoading,
+                failed: outcomeValues.isError,
+              },
+              learningCandidates: {
+                data: learningCandidates.data,
+                loading: learningCandidates.isLoading,
+                failed: learningCandidates.isError,
+              },
+              sourceFreshness: {
+                data: sourceFreshness.data,
+                loading: sourceFreshness.isLoading,
+                failed: sourceFreshness.isError,
+              },
+            }
+          : null
+      }
+    />
   );
 }
 

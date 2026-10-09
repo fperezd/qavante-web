@@ -10,7 +10,9 @@ import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useVerifyEmail, useResendVerification } from "@/lib/api/onboarding";
 import { OnboardingShell } from "./onboarding-shell";
 import { Turnstile } from "./turnstile";
+import { createPendingSignupTenants } from "@/lib/onboarding/signup-extra-tenants";
 import { routeAfter } from "./onboarding-steps";
+import { useOnboardingBack } from "./use-onboarding-back";
 
 /* Paso 2 del onboarding — Verificar email. Dos entradas:
    - Con `?token=` (link del correo): auto-verifica → al éxito el backend setea
@@ -19,44 +21,46 @@ import { routeAfter } from "./onboarding-steps";
      correo" + reenviar. `verify-email` y `resend-verification` están en prod;
      el reenvío exige captcha (Turnstile). */
 
-const NEXT_ROUTE = routeAfter("verify-email"); // /onboarding/conectar-sii
+const NEXT_ROUTE = routeAfter("verify-email"); // /onboarding/plan
 const TURNSTILE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 export function VerifyEmailView() {
   const router = useRouter();
+  const onBack = useOnboardingBack("verify-email");
   const params = useSearchParams();
   const token = params.get("token");
   const email = params.get("email");
 
-  const verify = useVerifyEmail();
+  const { mutate: verifyEmail, isPending, isSuccess, isError, error, isIdle } = useVerifyEmail();
   const resend = useResendVerification();
-  const triggered = React.useRef(false);
+  const autoVerifyToken = React.useRef<string | null>(null);
 
-  // Auto-verificar una sola vez si llegó token.
   React.useEffect(() => {
-    if (token && !triggered.current) {
-      triggered.current = true;
-      verify.mutate({ token });
+    if (!token) {
+      autoVerifyToken.current = null;
+      return;
     }
-  }, [token, verify]);
+    if (autoVerifyToken.current === token) return;
+    autoVerifyToken.current = token;
+    verifyEmail({ token });
+  }, [token, verifyEmail]);
+
+  const retryVerify = React.useCallback(() => {
+    if (!token) return;
+    verifyEmail({ token });
+  }, [token, verifyEmail]);
 
   // ── Con token: verificando / éxito / error ──────────────────────────────
   if (token) {
-    if (verify.isSuccess) {
+    if (isSuccess) {
       return (
         <OnboardingShell step="verify-email">
-          <Centered>
-            <CheckCircle2 className="h-12 w-12 text-success-600" aria-hidden="true" />
-            <p className="text-sm text-neutral-dark">¡Tu correo quedó verificado!</p>
-            <QavanteButton size="lg" onClick={() => router.push(NEXT_ROUTE)}>
-              Continuar
-            </QavanteButton>
-          </Centered>
+          <VerifyEmailSuccess onContinue={() => router.push(NEXT_ROUTE)} />
         </OnboardingShell>
       );
     }
 
-    if (verify.isError) {
+    if (isError) {
       return (
         <OnboardingShell step="verify-email">
           <Centered>
@@ -68,13 +72,34 @@ export function VerifyEmailView() {
               <div className="text-left">
                 <p className="font-medium">No pudimos verificar tu correo</p>
                 <p className="mt-1">
-                  {verify.error instanceof ApiError
-                    ? apiErrorToUserMessage(verify.error)
+                  {error instanceof ApiError
+                    ? apiErrorToUserMessage(error)
                     : "El enlace es inválido o expiró. Pide uno nuevo."}
                 </p>
               </div>
             </div>
+            <QavanteButton variant="secondary" loading={isPending} onClick={retryVerify}>
+              Reintentar con este enlace
+            </QavanteButton>
             <ResendBlock email={email} resend={resend} />
+            {onBack && (
+              <QavanteButton type="button" variant="ghost" onClick={onBack}>
+                Atrás
+              </QavanteButton>
+            )}
+          </Centered>
+        </OnboardingShell>
+      );
+    }
+
+    if (isPending) {
+      return (
+        <OnboardingShell step="verify-email">
+          <Centered>
+            <Loader2 className="h-10 w-10 animate-spin text-brand-primary" aria-hidden="true" />
+            <p className="text-sm text-neutral-mid" role="status">
+              Verificando tu correo…
+            </p>
           </Centered>
         </OnboardingShell>
       );
@@ -83,10 +108,12 @@ export function VerifyEmailView() {
     return (
       <OnboardingShell step="verify-email">
         <Centered>
-          <Loader2 className="h-10 w-10 animate-spin text-brand-primary" aria-hidden="true" />
           <p className="text-sm text-neutral-mid" role="status">
-            Verificando tu correo…
+            {isIdle ? "Listo para verificar tu correo." : "Verificando tu correo…"}
           </p>
+          <QavanteButton size="lg" loading={isPending} onClick={retryVerify}>
+            Verificar ahora
+          </QavanteButton>
         </Centered>
       </OnboardingShell>
     );
@@ -112,6 +139,11 @@ export function VerifyEmailView() {
           )}
         </p>
         <ResendBlock email={email} resend={resend} />
+        {onBack && (
+          <QavanteButton type="button" variant="ghost" onClick={onBack}>
+            Atrás
+          </QavanteButton>
+        )}
       </Centered>
     </OnboardingShell>
   );
@@ -137,7 +169,18 @@ function ResendBlock({
     );
   }
   if (resend.isSuccess) {
-    return <p className="text-sm text-success-700">Te reenviamos el correo. Revisa tu bandeja.</p>;
+    return (
+      <p className="text-sm text-success-700">
+        Te reenviamos el correo. Revisa tu bandeja.
+        {process.env.NEXT_PUBLIC_APP_ENV === "development" && (
+          <>
+            {" "}
+            En local, el enlace nuevo también aparece en la terminal de la API (
+            <code className="text-xs">auth_resend_verify_link_local</code>).
+          </>
+        )}
+      </p>
+    );
   }
 
   const captchaOk = !TURNSTILE_CONFIGURED || Boolean(captchaToken);
@@ -158,6 +201,41 @@ function ResendBlock({
         </p>
       )}
     </div>
+  );
+}
+
+function VerifyEmailSuccess({ onContinue }: { onContinue: () => void }) {
+  const [extraTenantsReady, setExtraTenantsReady] = React.useState(false);
+  const [extraTenantsError, setExtraTenantsError] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    createPendingSignupTenants()
+      .catch(() => {
+        if (!cancelled) setExtraTenantsError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setExtraTenantsReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <Centered>
+      <CheckCircle2 className="h-12 w-12 text-success-600" aria-hidden="true" />
+      <p className="text-sm text-neutral-dark">¡Tu correo quedó verificado!</p>
+      {extraTenantsError && (
+        <p className="text-xs text-warning-700" role="status">
+          Algunas empresas extra no se crearon automáticamente. Puedes agregarlas después desde
+          Administración.
+        </p>
+      )}
+      <QavanteButton size="lg" disabled={!extraTenantsReady} onClick={onContinue}>
+        {extraTenantsReady ? "Continuar" : "Preparando tus empresas…"}
+      </QavanteButton>
+    </Centered>
   );
 }
 

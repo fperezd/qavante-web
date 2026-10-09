@@ -49,6 +49,9 @@ vi.mock("@/components/bandeja/bandeja-scope", () => ({
   BandejaScope: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("@/components/inicio/v01/inicio-hoy-page-header", () => ({
+  InicioHoyPageHeader: () => <div>inicio-hoy-header</div>,
+}));
 vi.mock("@/components/inicio/v01/hoy-live", () => ({
   HoyLive: ({ suppressRecommendations }: { suppressRecommendations?: boolean }) => (
     <div>hoy-live suppress={String(Boolean(suppressRecommendations))}</div>

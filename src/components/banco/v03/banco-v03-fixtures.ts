@@ -138,6 +138,7 @@ export function cuentasQavante(): BankAccountItem[] {
       currency_code: "CLP",
       account_type: "checking",
       active: true,
+      account_number_display: "**** **** **** 5678",
     },
     {
       id: "acc-usd",
@@ -146,6 +147,7 @@ export function cuentasQavante(): BankAccountItem[] {
       currency_code: "USD",
       account_type: "checking",
       active: true,
+      account_number_display: "**** **** **** 5679",
     },
   ];
 }
@@ -252,6 +254,7 @@ function mov(over: Partial<BankMovement> & Pick<BankMovement, "id">): BankMoveme
     counterparty_name: null,
     counterparty_tax_id: null,
     counterparty_source: "not_captured",
+    is_investment_or_extraordinary: false,
     ...over,
   };
 }

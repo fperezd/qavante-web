@@ -68,11 +68,12 @@ export function settingsToForm(s: CompanyCurrencySettings | null): SettingsFormV
   };
 }
 
-/** Form → body de PATCH. Strings vacíos → null (semántica "limpiar"); si
- *  indexed_unit_enabled=false, el code se manda null (resetea). */
-export function formToRequest(values: SettingsFormValues): UpdateCompanyCurrencySettingsRequest {
+/** Form → body de PATCH tenant-wide. La moneda funcional va por sociedad
+ *  (`PUT /api/core/legal-entity-financial-settings`), no en este PATCH. */
+export function formToCompanySettingsPatch(
+  values: SettingsFormValues,
+): UpdateCompanyCurrencySettingsRequest {
   return {
-    functional_currency_code: values.functional_currency_code,
     default_reporting_currency_code: values.default_reporting_currency_code || null,
     reporting_currency_codes: values.reporting_currency_codes,
     indexed_unit_enabled: values.indexed_unit_enabled,
@@ -81,4 +82,9 @@ export function formToRequest(values: SettingsFormValues): UpdateCompanyCurrency
       : null,
     default_exchange_rate_source: values.default_exchange_rate_source || null,
   };
+}
+
+/** @deprecated Use `formToCompanySettingsPatch` + PUT legal-entity-financial-settings. */
+export function formToRequest(values: SettingsFormValues): UpdateCompanyCurrencySettingsRequest {
+  return formToCompanySettingsPatch(values);
 }

@@ -12,6 +12,7 @@
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). El
  * gating de la UI lo hace `multiCurrency` (ADR-0008) en su PR de wire. */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { explicitCompanyRequestHeaders } from "@/lib/company/active-company";
 import { api } from "./client";
 import { ApiError } from "./errors";
 import type { components } from "./types";
@@ -23,6 +24,10 @@ export type ExchangeRateLookupResponse = components["schemas"]["ExchangeRateLook
 export type CompanyCurrencySettings = components["schemas"]["CompanyCurrencySettings"];
 export type UpdateCompanyCurrencySettingsRequest =
   components["schemas"]["UpdateCompanyCurrencySettingsRequest"];
+export type LegalEntityFunctionalCurrencySettings =
+  components["schemas"]["LegalEntityFunctionalCurrencySettings"];
+export type PutLegalEntityFunctionalCurrencySettingsRequest =
+  components["schemas"]["PutLegalEntityFunctionalCurrencySettingsRequest"];
 
 export interface ExchangeRateLookupParams {
   /** Moneda base (ej "UF"). */
@@ -39,6 +44,8 @@ export const currenciesKeys = {
   exchangeRate: (params: ExchangeRateLookupParams) =>
     [...currenciesKeys.all, "exchange-rate", params] as const,
   companySettings: () => [...currenciesKeys.all, "company-settings"] as const,
+  legalEntityFunctionalCurrency: (legalEntityId: string) =>
+    [...currenciesKeys.all, "legal-entity-functional-currency", legalEntityId] as const,
 };
 
 /** `GET /api/core/currencies` — catálogo global de monedas. Catálogo casi
@@ -108,6 +115,35 @@ export function useUpdateCompanyCurrencySettings() {
     onSuccess: (data) => {
       qc.setQueryData(currenciesKeys.companySettings(), data);
       qc.invalidateQueries({ queryKey: currenciesKeys.all });
+    },
+  });
+}
+
+function legalEntityFinancialSettingsPath(legalEntityId: string): string {
+  const q = new URLSearchParams({ legal_entity_id: legalEntityId });
+  return `/api/core/legal-entity-financial-settings?${q.toString()}`;
+}
+
+/** Declara la moneda funcional de una sociedad (ADR-0118). */
+export function useUpsertLegalEntityFunctionalCurrency() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      legalEntityId,
+      functional_currency_code,
+    }: PutLegalEntityFunctionalCurrencySettingsRequest & { legalEntityId: string }) =>
+      api.put<LegalEntityFunctionalCurrencySettings>(
+        legalEntityFinancialSettingsPath(legalEntityId),
+        {
+          body: { functional_currency_code },
+          headers: explicitCompanyRequestHeaders(legalEntityId),
+        },
+      ),
+    onSuccess: (_data, { legalEntityId }) => {
+      qc.invalidateQueries({
+        queryKey: currenciesKeys.legalEntityFunctionalCurrency(legalEntityId),
+      });
+      qc.invalidateQueries({ queryKey: currenciesKeys.companySettings() });
     },
   });
 }

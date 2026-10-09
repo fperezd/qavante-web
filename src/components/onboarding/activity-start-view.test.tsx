@@ -77,7 +77,7 @@ describe("el paso existe en el asistente, no es una pantalla suelta", () => {
   it("es un paso numerado con su propio título", () => {
     const html = render();
     expect(html).toContain("¿Desde cuándo existe cada sociedad?");
-    expect(html).toContain("Paso 10 de 11");
+    expect(html).toContain("Paso 13/14");
     expect(html).toContain("Inicio de tus sociedades");
   });
 

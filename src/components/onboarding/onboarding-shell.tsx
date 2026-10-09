@@ -1,66 +1,102 @@
 "use client";
 
-import * as React from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-/* El porcentaje que se LEE en voz alta va por el formateador de la casa, igual que
-   cualquier otro texto (§5.8). Hoy rinde idéntico —`progressPct` devuelve un entero,
-   medido de 0 a 100— así que no cambia lo que nadie oye; lo que cambia es que si la
-   regla de decimales de la casa se mueve, este texto se mueve con ella en vez de
-   quedarse solo. El `${pct}%` de la línea del `style` NO se toca: eso es un ancho CSS,
-   no una cifra. */
 import { formatPct } from "@/lib/formatters/pct";
 import {
+  ONBOARDING_STEP_GROUPS,
   ONBOARDING_STEPS,
-  TOTAL_ONBOARDING_STEPS,
+  TOTAL_ONBOARDING_GROUPS,
+  groupForStep,
+  groupNumber,
+  groupStatus,
   progressPct,
+  stepById,
   stepIndex,
   stepNumber,
+  type OnboardingStepGroup,
   type OnboardingStepId,
 } from "./onboarding-steps";
 
-/* Shell del wizard de onboarding: layout enfocado (sin nav de la app) con barra
-   de progreso + indicador "Paso N de 7" + título del paso, y un slot para el
-   contenido de cada pantalla. Presentacional puro (recibe el `step` activo); la
-   navegación real la maneja cada page. Lenguaje visual v1.3.
-
-   Sin `step` funciona en modo HUB (pantalla del wizard que no es un paso
-   numerado, ej. el hub de conexiones): sin barra de progreso ni "Paso N de 7" —
-   mostrar un progreso ahí sería inventar una posición que el usuario no tiene. */
-
 export interface OnboardingShellProps {
-  /** Paso activo. Omitirlo → modo hub (sin progreso); requiere `title`. */
   step?: OnboardingStepId;
-  /** Contenido del paso. */
   children: React.ReactNode;
-  /** Subtítulo opcional bajo el título. */
   description?: React.ReactNode;
-  /** Título en modo hub (sin `step`). Ignorado si hay `step`. */
   title?: string;
+}
+
+function GroupSubSteps({
+  group,
+  activeStep,
+  activeIndex,
+}: {
+  group: OnboardingStepGroup;
+  activeStep: OnboardingStepId;
+  activeIndex: number;
+}) {
+  return (
+    <ul className="mt-1.5 space-y-0.5 border-t border-border/30 pt-1.5">
+      {group.steps.map((stepId) => {
+        const sub = stepById(stepId);
+        if (!sub) return null;
+        const subIndex = stepIndex(stepId);
+        const subDone = subIndex < activeIndex;
+        const subActive = stepId === activeStep;
+        return (
+          <li
+            key={stepId}
+            className={cn(
+              "flex items-start gap-1 text-[9px] leading-[1.25] sm:text-[10px]",
+              subActive
+                ? "font-semibold text-brand-primary"
+                : subDone
+                  ? "text-neutral-dark"
+                  : "text-neutral-mid/90",
+            )}
+            aria-current={subActive ? "step" : undefined}
+            title={sub.label}
+          >
+            <span className="mt-px w-2.5 flex-shrink-0 text-center" aria-hidden="true">
+              {subDone ? (
+                <Check className="mx-auto h-2 w-2 text-success-600" />
+              ) : subActive ? (
+                <span className="mx-auto block h-1.5 w-1.5 rounded-full bg-brand-primary" />
+              ) : (
+                <span className="mx-auto block h-1 w-1 rounded-full bg-neutral-mid/50" />
+              )}
+            </span>
+            <span className="min-w-0 line-clamp-2">{sub.label}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 export function OnboardingShell({ step, children, description, title }: OnboardingShellProps) {
   const current = step ? ONBOARDING_STEPS.find((s) => s.id === step) : undefined;
   const activeIndex = step ? stepIndex(step) : -1;
   const pct = step ? progressPct(step) : 0;
+  const activeGroupN = step ? groupNumber(step) : 0;
+  const showProgress = step ? groupForStep(step) != null : false;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col px-4 py-8 sm:py-12">
-      {/* Encabezado: progreso (solo en modo paso). */}
-      {step && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-              Paso {stepNumber(step)} de {TOTAL_ONBOARDING_STEPS}
+    <div className="mx-auto flex w-full max-w-2xl flex-col px-4 py-8 sm:max-w-3xl sm:py-12">
+      {step && showProgress && (
+        <div className="space-y-2.5">
+          <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-mid">
+              Etapa {activeGroupN} de {TOTAL_ONBOARDING_GROUPS}
+              <span className="hidden font-normal normal-case sm:inline">
+                {" "}
+                · Paso {stepNumber(step)}/{ONBOARDING_STEPS.length}
+              </span>
             </span>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-primary">
-              {current?.label}
-            </span>
+            <span className="text-[10px] font-semibold text-brand-primary">{current?.label}</span>
           </div>
 
-          {/* Barra de progreso. */}
           <div
-            className="h-2 w-full overflow-hidden rounded-full bg-neutral-light/40"
+            className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-light/40"
             role="progressbar"
             aria-valuenow={pct}
             aria-valuemin={0}
@@ -73,36 +109,54 @@ export function OnboardingShell({ step, children, description, title }: Onboardi
             />
           </div>
 
-          {/* Pasos como puntos (md+). */}
-          <ol className="hidden flex-wrap gap-x-4 gap-y-1 pt-1 md:flex" aria-hidden="true">
-            {ONBOARDING_STEPS.map((s, i) => {
-              const done = i < activeIndex;
-              const active = i === activeIndex;
+          <ol
+            className="grid grid-cols-2 items-start gap-1.5 pt-0.5 sm:grid-cols-4 sm:gap-2"
+            aria-label="Etapas del onboarding"
+          >
+            {ONBOARDING_STEP_GROUPS.map((group, i) => {
+              const status = groupStatus(group, activeIndex);
+              const done = status === "done";
+              const active = status === "active";
+
               return (
                 <li
-                  key={s.id}
+                  key={group.id}
                   className={cn(
-                    "flex items-center gap-1.5 text-xs",
+                    "flex min-w-0 flex-col rounded-md border px-1.5 py-1.5 sm:px-2",
                     active
-                      ? "font-semibold text-brand-primary"
-                      : done
-                        ? "text-neutral-dark"
-                        : "text-neutral-mid",
+                      ? "border-brand-primary/35 bg-brand-primary/[0.03]"
+                      : "border-border/50 bg-surface/40",
+                    done && !active && "border-border/40",
                   )}
                 >
-                  <span
+                  <div
                     className={cn(
-                      "inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[10px]",
-                      done
-                        ? "bg-success-500 text-surface"
-                        : active
-                          ? "bg-brand-primary text-surface"
-                          : "bg-neutral-light/60 text-neutral-mid",
+                      "flex items-center gap-1.5",
+                      active
+                        ? "font-semibold text-brand-primary"
+                        : done
+                          ? "text-neutral-dark"
+                          : "text-neutral-mid",
                     )}
                   >
-                    {done ? <Check className="h-2.5 w-2.5" /> : i + 1}
-                  </span>
-                  {s.label}
+                    <span
+                      className={cn(
+                        "inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[9px]",
+                        done
+                          ? "bg-success-500 text-surface"
+                          : active
+                            ? "bg-brand-primary text-surface"
+                            : "bg-neutral-light/70 text-neutral-mid",
+                      )}
+                      aria-hidden="true"
+                    >
+                      {done ? <Check className="h-2.5 w-2.5" /> : i + 1}
+                    </span>
+                    <span className="truncate text-[10px] leading-tight sm:text-[11px]">
+                      {group.label}
+                    </span>
+                  </div>
+                  <GroupSubSteps group={group} activeStep={step} activeIndex={activeIndex} />
                 </li>
               );
             })}
@@ -110,11 +164,12 @@ export function OnboardingShell({ step, children, description, title }: Onboardi
         </div>
       )}
 
-      {/* Título + contenido. */}
-      <div className={cn("flex flex-1 flex-col", step && "mt-8")}>
-        <h1 className="text-2xl font-bold text-neutral-dark">{current?.title ?? title}</h1>
-        {description && <p className="mt-1 text-sm text-neutral-mid">{description}</p>}
-        <div className="mt-6 flex-1">{children}</div>
+      <div className={cn("flex flex-1 flex-col items-center", step && "mt-6")}>
+        <div className="w-full max-w-md text-left">
+          <h1 className="text-2xl font-bold text-neutral-dark">{current?.title ?? title}</h1>
+          {description && <p className="mt-1 text-sm text-neutral-mid">{description}</p>}
+        </div>
+        <div className="mt-6 flex w-full flex-1 flex-col items-center">{children}</div>
       </div>
     </div>
   );

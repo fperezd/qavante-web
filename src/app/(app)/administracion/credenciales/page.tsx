@@ -14,6 +14,8 @@ import {
   PreviredEstadoConexion,
 } from "@/components/credenciales";
 import { BancosConectadosPanel } from "@/components/banco/bancos-conectados-panel";
+import { FintocBankActions } from "@/components/banco/fintoc-bank-actions";
+import { QavanteBankConnectWidget } from "@/components/banco/qavante-bank-connect-widget";
 import { useSiiCredential, useSiiCredentials } from "@/lib/api/credentials";
 
 /* Pantalla Administración → Credenciales y conexiones. SII (Opción A, decisión
@@ -42,14 +44,20 @@ export default function CredencialesPage() {
       </header>
 
       <section aria-labelledby="bank-credential-heading" className="space-y-4">
-        <div>
-          <h2 id="bank-credential-heading" className="text-base font-semibold text-neutral-dark">
-            Bancos de la empresa
-          </h2>
-          <p className="mt-1 max-w-xl text-sm text-neutral-mid">
-            Administra aquí tus conexiones bancarias. Para conectar otro banco o actualizar cuentas,
-            ve a Banco.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="bank-credential-heading" className="text-base font-semibold text-neutral-dark">
+              Bancos de la empresa
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-neutral-mid">
+              Conecta instituciones con Fintoc (solo lectura). Desde aquí administras el enlace y
+              actualizas saldos y cartola de la empresa activa en el encabezado.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <QavanteBankConnectWidget />
+            <FintocBankActions />
+          </div>
         </div>
         <BancosConectadosPanel />
         {/* El código interno de consentimiento sigue siendo `bank_bice` (fuente canónica

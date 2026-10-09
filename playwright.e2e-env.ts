@@ -7,6 +7,9 @@ export function e2eBuildEnv(port: number, decisionBrief: boolean): Record<string
     NEXT_PUBLIC_API_MOCKING: "enabled",
     NEXT_PUBLIC_API_URL: `http://localhost:${port}`,
     NEXT_PUBLIC_TEST_MODE: "playwright",
+    /* Distinto de `development`: apaga maquetas/CTAs locales (`isLocalDevAppEnv`) que
+       duplicaban links del menú y KPIs provisionales en CI. */
+    NEXT_PUBLIC_APP_ENV: "e2e",
 
     // Flags de los recorridos existentes que se cubren contra MSW.
     NEXT_PUBLIC_FF_BANK_BALANCES: "true",

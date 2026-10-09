@@ -53,6 +53,7 @@ function html(props: Partial<ComponentProps<typeof BancoV03View>> = {}): string 
       links={links()}
       sources={sourcesOk()}
       movimientos={movimientos()}
+      movimientosMes={movimientos()}
       movimientosTotal={8}
       categorias={categorias()}
       banco={BANCO}
@@ -85,10 +86,18 @@ describe("BancoV03View — Ley 1: Caja hoy lee de cajaHoy() y de ningún otro la
     expect(t).toContain("el mismo número que en Hoy y Caja");
   });
 
+  it("hero: entradas y salidas del mes en CLP desde bank-movements", () => {
+    const t = texto(html());
+    expect(t).toContain("Entradas este mes");
+    expect(t).toContain("Salidas este mes");
+    expect(t).toContain("$7.120.000");
+    expect(t).toContain("$7.966.983");
+  });
+
   it("el saldo del banco se muestra APARTE, con su apellido, y no reemplaza a Caja hoy", () => {
     const t = texto(html());
-    // El banco informa $9.800.000 en la cuenta CLP: está en la tabla, bajo "Saldo contable".
-    expect(t).toContain("Saldo contable");
+    // El banco informa $9.800.000 en la cuenta CLP: en la tarjeta del banco.
+    expect(t).toContain("Saldo disponible CLP");
     expect(t).toContain("$9.800.000");
     expect(t).toContain(
       "Saldo contable según el banco, por moneda: CLP $9.800.000 (1 cuenta) · USD US$ 1.240,00 (1 cuenta)",
@@ -114,16 +123,17 @@ describe("BancoV03View — Ley 1: Caja hoy lee de cajaHoy() y de ningún otro la
 });
 
 describe("BancoV03View — estado de conexión: el 'no sé' es explícito", () => {
-  it("normal: Conectada ✓ en cada fila, frescura + pendientes en el .sub", () => {
+  it("normal: Conectado en la tarjeta del banco, frescura + pendientes visibles", () => {
     const t = texto(html());
-    expect(t).toContain("Conectada ✓");
+    expect(t).toContain("Conectado");
     expect(t).toContain("actualizada hoy · 4 movimientos por conciliar");
-    expect(t).toContain("BICE · Cuenta Corriente CLP ···67-8");
-    expect(t).toContain("BICE · Tarjeta de Crédito USD ···3210");
+    expect(t).toContain("Cuenta Corriente CLP");
+    expect(t).toContain("**** **** **** 5678");
+    expect(t).toContain("Tarjeta de Crédito USD");
     expect(t).toContain("−US$ 184,00");
   });
 
-  it("la forma REAL con la sesión vencida: 'Tu acción' + banner con qué hacer, sin $0 y sin 'Conectada'", () => {
+  it("la forma REAL con la sesión vencida: 'Tu acción' en filas, sin $0 y sin 'Conectada'", () => {
     const h = html({
       saldo: saldoSesionVencida(),
       tarjetas: tarjetasSesionVencida(),
@@ -132,12 +142,10 @@ describe("BancoV03View — estado de conexión: el 'no sé' es explícito", () =
     });
     const t = texto(h);
     expect(t).toContain("Tu acción");
-    expect(t).toContain("Tu sesión con BICE no está disponible.");
-    expect(t).toContain("Desde el 28 ago no llegan saldos ni movimientos nuevos");
-    expect(t).toContain("Reconectar BICE");
     expect(t).toContain("desde el 28 ago no llegan movimientos");
     // Las cuentas siguen listadas (existen), sin saldo y con motivo.
     expect(t).toContain("BICE · Cuenta Corriente CLP");
+    expect(t).toContain("**** **** **** 5678");
     expect(t).toContain("Sin información");
     expect(t).toContain("2 cuentas sin saldo informado");
     expect(t).not.toContain("Conectada ✓");

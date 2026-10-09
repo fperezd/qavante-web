@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
-/* C0-13 middleware: rutas protegidas redirigen a /login cuando no hay
+/* C0-13 middleware: rutas protegidas redirigen al login principal cuando no hay
    cookie de sesión. Este spec previene regresión del bug donde middleware.ts
    estaba en raíz (Next.js lo ignoraba por la estructura src/).
 
@@ -54,8 +54,8 @@ const PROTECTED_SUBPATHS = [
 const ROOT_REDIRECT_PATH = "/";
 
 const PUBLIC_PATHS = [
-  "/login",
   "/login-correo",
+  "/login-rut",
   "/recuperar-clave",
   "/playground",
   "/aceptar-invitacion",
@@ -70,15 +70,21 @@ test.describe("middleware: rutas protegidas (C0-13)", () => {
   });
 
   for (const path of [...PROTECTED_PATHS, ...PROTECTED_SUBPATHS]) {
-    test(`GET ${path} sin sesión → 307 a /login?redirect=${path}`, async ({ request }) => {
+    test(`GET ${path} sin sesión → 307 a /login-correo?redirect=${path}`, async ({ request }) => {
       const res = await request.get(path, { maxRedirects: 0 });
       expect(res.status()).toBe(307);
       const location = res.headers()["location"];
       expect(location).toBeDefined();
-      expect(location).toContain("/login");
+      expect(location).toContain("/login-correo");
       expect(location).toContain(`redirect=${encodeURIComponent(path)}`);
     });
   }
+});
+
+test("/login sin sesión → 307 al login principal (alias)", async ({ request }) => {
+  const res = await request.get("/login", { maxRedirects: 0 });
+  expect(res.status()).toBe(307);
+  expect(res.headers()["location"]).toContain("/login-correo");
 });
 
 test.describe("middleware: rutas públicas pasan sin redirect (C0-13)", () => {

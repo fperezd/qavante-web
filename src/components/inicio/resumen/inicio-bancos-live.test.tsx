@@ -32,6 +32,8 @@ describe("Inicio: presentación bancaria", () => {
     expect(html).toContain("8.500");
     expect(html).toContain("Ver saldos por cuenta y fecha");
     expect(html).toContain("Banco de Chile");
+    expect(html).toContain("**** **** **** 5678");
+    expect(html).toContain("**** **** **** 4321");
     expect(html).not.toContain("Hay saldos sin actualización");
   });
   it("avisa fechas antiguas o ausentes en primer nivel", () => {

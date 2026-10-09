@@ -31,17 +31,17 @@ type Story = StoryObj<typeof meta>;
 async function verifyLayout(canvasElement: HTMLElement, mobile: boolean) {
   const canvas = within(canvasElement);
   const sections = canvas.getByTestId("inicio-caja").children;
-  await expect(sections[0]).toHaveAttribute("aria-labelledby", "inicio-proyeccion");
+  await expect(sections[0]).toHaveAttribute("aria-labelledby", "inicio-saldo");
+  await expect(sections[1]).toHaveAttribute("aria-labelledby", "inicio-proyeccion");
   const left = sections[0]!.getBoundingClientRect();
   const right = sections[1]!.getBoundingClientRect();
-  await expect(Math.abs(left.width - right.width)).toBeLessThan(1);
   if (mobile) {
     await expect(right.top).toBeGreaterThanOrEqual(left.bottom);
     await expect(canvas.getByTestId("inicio-resumen").scrollWidth).toBeLessThanOrEqual(
       canvas.getByTestId("inicio-resumen").clientWidth,
     );
   } else {
-    await expect(Math.abs(left.height - right.height)).toBeLessThan(1);
+    await expect(left.width).toBeGreaterThan(right.width);
     await expect(Math.abs(left.top - right.top)).toBeLessThan(1);
   }
 }
@@ -56,12 +56,9 @@ export const ConDeficit: Story = {
   ],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Faltante proyectado", { selector: "h2" })).toBeVisible();
+    await expect(canvas.getByRole("heading", { name: "Requiere atención" })).toBeVisible();
     await expect(canvas.queryByText(/sobre presupuesto/)).not.toBeInTheDocument();
     await expect(canvas.queryByText("Revisión operativa")).not.toBeInTheDocument();
-    await expect(
-      canvas.queryByRole("heading", { name: "Requiere atención" }),
-    ).not.toBeInTheDocument();
     await expect(canvas.queryByText("Control de decisiones y actividad")).not.toBeInTheDocument();
     await verifyLayout(canvasElement, false);
     const control = canvas.getByRole("button", { name: "Revisar opciones" });
@@ -213,14 +210,10 @@ export const AccionesFinancieras: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("link", { name: "Ver cobro" })).toHaveAttribute(
-      "href",
-      "/cobrar",
-    );
-    await expect(canvas.getByRole("link", { name: "Ver pago" })).toHaveAttribute("href", "/pagar");
-    await expect(canvas.getByRole("link", { name: "Ver conciliación" })).toHaveAttribute(
-      "href",
-      "/caja/conciliacion?decision_id=11111111-1111-4111-8111-111111111111",
-    );
+    /* Las CTAs de `priority_actions` viven en la maqueta local de Inicio; en Storybook/CI
+       (`APP_ENV≠development`) no se montan. La superficie prod conserva el déficit y el CTA a caja. */
+    await expect(canvas.getByRole("heading", { name: "Requiere atención" })).toBeVisible();
+    await expect(canvas.getByRole("link", { name: /Ver proyección de caja/ })).toBeVisible();
+    await expect(canvas.queryByRole("link", { name: "Ver cobro" })).not.toBeInTheDocument();
   },
 };

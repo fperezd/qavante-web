@@ -1,18 +1,28 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Bot,
+  Briefcase,
+  Building2,
+  Coins,
+  KeyRound,
+  Layers,
+  ListFilter,
+  PlugZap,
+  Telescope,
+  Users,
+  Wallet,
+} from "lucide-react";
+import { QavanteCard } from "@/components/qavante";
 import { Pill } from "@/components/rediseno/pill";
-import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
+import { TablePrimaryCell } from "@/components/rediseno/table";
 import type { PillProps } from "@/components/rediseno/pill";
 import type { FilaHubV12, TonoEstadoV12 } from "./administracion-v12-model";
 
-/* V12 · Administración — la vista PRESENTACIONAL del hub (rediseño Fase 2, issue #75).
- *
- * PURA de datos: recibe las filas ya resueltas (`FilaHubV12[]`) y las pinta como la "tabla
- * estándar" del rediseño (§1.3). Sin fetch ni mutación propia — eso vive en
- * `AdministracionV12Live`, igual que en V05/V08. */
+/* V12 · Administración — hub híbrido: Empresas y Usuarios en tabla; el resto en tarjetas con icono. */
 
 const TONO_A_VARIANTE: Record<TonoEstadoV12, PillProps["variant"]> = {
   ok: "ok",
@@ -21,86 +31,115 @@ const TONO_A_VARIANTE: Record<TonoEstadoV12, PillProps["variant"]> = {
   bad: "bad",
 };
 
+const FILAS_TABLA = new Set(["empresas", "usuarios"]);
+
+const ICONO_MODULO: Record<string, LucideIcon> = {
+  empresas: Building2,
+  usuarios: Users,
+  credenciales: KeyRound,
+  conexiones: PlugZap,
+  "estructura-gestion": Layers,
+  "vistas-gestion": Telescope,
+  monedas: Coins,
+  remuneraciones: Wallet,
+  "reglas-clasificacion": ListFilter,
+  plantillas: Briefcase,
+  mcp: Bot,
+};
+
 export interface AdministracionV12ViewProps {
   filas: FilaHubV12[];
 }
 
-export function AdministracionV12View({ filas }: AdministracionV12ViewProps) {
-  const columns = React.useMemo<ColumnDef<FilaHubV12, unknown>[]>(
-    () => [
-      {
-        id: "titulo",
-        accessorFn: (f) => f.titulo,
-        header: "Módulo",
-        meta: { principal: true },
-        cell: ({ row }) => (
-          <TablePrimaryCell
-            value={row.original.titulo}
-            /* Ley 7: el primitivo compartido envuelve la descripción sin sacar el resto de la
-               fila del contenedor angosto. */
-            sub={row.original.descripcion}
-          />
-        ),
-      },
-      {
-        id: "estado",
-        accessorFn: (f) => f.estado?.texto ?? "",
-        header: "Estado",
-        /* Ley 7 (hallazgo de revisión vuelta 3, PR #95): la pill de esta columna es
-           `whitespace-nowrap` (`Pill`, primitivo compartido — no se toca) y `table-layout: auto`
-           dimensiona la columna ENTERA según su fila más larga: "1 requiere tu acción → Renovar"
-           (Credenciales) fija el ancho de la columna en las OCHO filas, aunque la mayoría diga
-           "2 empresas". Medido con un decorator de 320 px: la fila del título mide 97 px, "Ver"
-           mide 39 px, y esta columna sola 203 px — 339 px de mínimo contra 318 disponibles (21 px
-           de desborde, el mismo número que reportó la revisión en Windows a 320; en Linux con
-           fuentes más anchas el mínimo era mayor y el desborde llegaba a 37 px a 360).
-
-           Envolver la pill (en vez de colapsar la columna) no es una opción sana: una `rounded-full`
-           con texto en dos líneas se ve rota, y es el MISMO criterio que ya usa
-           `remuneraciones-v16-view.tsx` para su columna "Estado" (también una `Pill`, también
-           `hideBelowTable`). El dato primario (`título`) nunca colapsa; éste es exactamente el
-           accesorio que sí — nada queda inalcanzable: "Ver" sigue llevando a la fila completa,
-           con su estado, en la pantalla del módulo. */
-        meta: { hideBelowTable: "sm" },
-        cell: ({ row }) => {
-          const estado = row.original.estado;
-          if (!estado) {
-            /* Hueco declarado (ver el modelo): sin una señal barata y honesta que resumir, no se
-               pinta ni pill ni "—" con aire de estado — se deja la celda en blanco. */
-            return null;
-          }
-          return <Pill variant={TONO_A_VARIANTE[estado.tono]}>{estado.texto}</Pill>;
-        },
-      },
-      {
-        id: "accion",
-        header: "",
-        enableSorting: false,
-        meta: { align: "right" },
-        cell: ({ row }) => (
-          <Link
-            href={row.original.href}
-            className="text-[12.5px] font-bold text-rediseno-azul hover:underline"
+function CuentaModulosLista({ filas }: { filas: FilaHubV12[] }) {
+  return (
+    <div className="overflow-hidden rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie">
+      <ul className="divide-y divide-rediseno-hairline-row-2">
+        {filas.map((fila) => (
+          <li
+            key={fila.id}
+            className="flex flex-wrap items-start justify-between gap-3 px-[18px] py-3 sm:items-center"
           >
-            Ver
-          </Link>
-        ),
-      },
-    ],
-    [],
+            <TablePrimaryCell value={fila.titulo} sub={fila.descripcion} />
+            <div className="flex shrink-0 flex-wrap items-center gap-3 sm:justify-end">
+              {fila.estado ? (
+                <Pill variant={TONO_A_VARIANTE[fila.estado.tono]}>{fila.estado.texto}</Pill>
+              ) : null}
+              <Link
+                href={fila.href}
+                className="text-[12.5px] font-bold text-rediseno-azul hover:underline"
+              >
+                Ver
+              </Link>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
+}
+
+function HubModuloCard({ fila }: { fila: FilaHubV12 }) {
+  const Icon = ICONO_MODULO[fila.id] ?? Layers;
+  return (
+    <Link
+      href={fila.href}
+      className="block h-full transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+    >
+      <QavanteCard variant="bordered" className="flex h-full flex-col">
+        <div className="flex items-start gap-3">
+          <div className="rounded-md bg-brand-primary-50 p-2 text-brand-primary">
+            <Icon className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="flex items-center gap-1 text-sm font-semibold text-neutral-dark">
+              {fila.titulo}
+              <ArrowRight className="h-3 w-3 shrink-0 text-neutral-mid" aria-hidden="true" />
+            </h3>
+            <p className="mt-1 text-sm text-neutral-mid">{fila.descripcion}</p>
+          </div>
+        </div>
+        {fila.estado ? (
+          <div className="mt-3 border-t border-rediseno-hairline/80 pt-3">
+            <Pill variant={TONO_A_VARIANTE[fila.estado.tono]}>{fila.estado.texto}</Pill>
+          </div>
+        ) : null}
+      </QavanteCard>
+    </Link>
+  );
+}
+
+export function AdministracionV12View({ filas }: AdministracionV12ViewProps) {
+  const filasTabla = filas.filter((f) => FILAS_TABLA.has(f.id));
+  const filasTarjetas = filas.filter((f) => !FILAS_TABLA.has(f.id));
+
+  if (filas.length === 0) {
+    return (
+      <p className="text-sm text-rediseno-tinta-3" role="status">
+        No hay módulos que mostrar.
+      </p>
+    );
+  }
 
   return (
-    <RedisenoTable
-      columns={columns}
-      data={filas}
-      countNoun={filas.length === 1 ? "módulo" : "módulos"}
-      emptyMessage="No hay módulos que mostrar."
-      /* Ley 7 (hallazgo de revisión PR #95): sin esto, `RedisenoTable` NO agrega la clase
-         `@container` a su wrapper (es opt-in, ver su propio comentario), así que el
-         `@max-[640px]:whitespace-normal` del `.sub` de arriba nunca tiene contra qué evaluar y
-         la descripción se queda `nowrap` — mide 401 px de desborde a 360. */
-      celdasCompactasEnAngosto
-    />
+    <div className="space-y-8">
+      {filasTabla.length > 0 ? (
+        <section aria-label="Empresas y usuarios de la cuenta">
+          <CuentaModulosLista filas={filasTabla} />
+        </section>
+      ) : null}
+      {filasTarjetas.length > 0 ? (
+        <section aria-label="Configuración por empresa" className="space-y-3">
+          <h2 className="font-rediseno-mono text-[12px] font-semibold tracking-[.12em] text-rediseno-tinta-3 uppercase">
+            Por empresa
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filasTarjetas.map((fila) => (
+              <HubModuloCard key={fila.id} fila={fila} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
   );
 }

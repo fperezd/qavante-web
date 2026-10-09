@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SourceStatus } from "@/lib/api/sources-status";
 import {
+  estadoConexiones,
   estadoCredenciales,
   estadoEmpresas,
   estadoReglas,
@@ -32,6 +33,22 @@ const ERROR: CargaV12<never> = { tipo: "error" };
 /* `concordar` se movió a `src/lib/formatters/count.ts` (issue #94) — su cobertura genérica
  * vive en `count.test.ts`. Lo que este archivo sigue fijando es el TEXTO real que produce
  * `estadoEmpresas`/`estadoUsuarios`/`estadoCredenciales` con N=1, más abajo. */
+
+describe("estadoConexiones — Ley 1, misma fuente que el hub Conexiones", () => {
+  it("cargando usa texto de conexiones, no el de credenciales", () => {
+    expect(estadoConexiones(CARGANDO)).toEqual({
+      tono: "neutral",
+      texto: "Revisando conexiones…",
+    });
+  });
+
+  it("con acción pendiente no añade el sufijo de Renovar de credenciales", () => {
+    expect(estadoConexiones(listo([source({ state: "missing" })]))).toEqual({
+      tono: "warn",
+      texto: "1 requiere tu acción",
+    });
+  });
+});
 
 describe("estadoCredenciales — Ley 1, misma fuente que V11", () => {
   it("cargando → estado propio 'Cargando…' (tono neutral), NUNCA null", () => {
@@ -208,12 +225,13 @@ describe("filasHubV12", () => {
     mcpVisible: false,
   };
 
-  it("sin mcp: 9 filas, en el orden de la grilla actual", () => {
+  it("sin mcp: 10 filas, en el orden de la grilla actual", () => {
     const filas = filasHubV12(inputsBase);
     expect(filas.map((f) => f.id)).toEqual([
       "empresas",
       "usuarios",
       "credenciales",
+      "conexiones",
       "estructura-gestion",
       "vistas-gestion",
       "monedas",
@@ -225,7 +243,7 @@ describe("filasHubV12", () => {
 
   it("con mcpVisible: agrega la fila 'mcp' AL FINAL", () => {
     const filas = filasHubV12({ ...inputsBase, mcpVisible: true });
-    expect(filas).toHaveLength(10);
+    expect(filas).toHaveLength(11);
     expect(filas.at(-1)!.id).toBe("mcp");
   });
 
@@ -234,6 +252,7 @@ describe("filasHubV12", () => {
     const sinEstado = filas.filter(
       (f) =>
         f.id !== "credenciales" &&
+        f.id !== "conexiones" &&
         f.id !== "empresas" &&
         f.id !== "usuarios" &&
         f.id !== "reglas-clasificacion",
