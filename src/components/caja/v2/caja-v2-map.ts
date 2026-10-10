@@ -441,6 +441,19 @@ export function entradasSinClasificarLabel(sc: SinClasificarInput | undefined): 
   return partes.length > 0 ? partes.join(" · ") : null;
 }
 
+/** El gemelo de `entradasSinClasificarLabel` para salidas. B11 (QA real, 2026-10-10): el aviso de
+ *  "pendientes" sólo nombraba las entradas aunque el mismo lote tuviera salidas sin clasificar —
+ *  "11 movimientos pendientes (~$38.512.299 en entradas)" callaba 3 salidas por $313.040. `null`
+ *  si no hay salidas con moneda conocida. */
+export function salidasSinClasificarLabel(sc: {
+  outflowByCurrency: { currency: string; outflow: number; count: number }[];
+}): string | null {
+  const partes = (sc?.outflowByCurrency ?? [])
+    .filter((c) => c.outflow > 0)
+    .map((c) => formatMoney(c.outflow, c.currency));
+  return partes.length > 0 ? partes.join(" · ") : null;
+}
+
 /** Por qué no se puede determinar la completitud. `null` si sí se puede. Nombra las monedas:
  *  el usuario tiene que entender que no es un bug, es que falta una decisión (el tipo de cambio).
  *

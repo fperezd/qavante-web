@@ -852,43 +852,67 @@ export function progreso(resueltos: number, pendientes: number): ProgresoV07 {
   return { resueltos, total, pct };
 }
 
-/** Un monto resuelto en la sesión, con SU moneda. */
+/** Un monto resuelto en la sesión, con SU moneda y SU dirección.
+ *
+ *  B15 (QA real, 2026-10-10): `direccion` existe para que `montosResueltos` nunca vuelva a fundir
+ *  una entrada con una salida en la misma cifra (el total mostraba $16.948.028 cuando en realidad
+ *  eran $14.094.524 de entradas + $2.853.504 de salidas). `null`/ausente = la cola no supo decir
+ *  si entraba o salía plata (`ItemConciliarV07.direccion` puede ser `null`); esa plata se declara
+ *  aparte, nunca se asume de un signo. */
 export interface MontoMonedaV07 {
   monto: number;
   moneda: string | null;
+  direccion?: DireccionV07 | null;
 }
 
 /**
- * Lo resuelto en la sesión, UNA CIFRA POR MONEDA. Antes esto era un solo `number` que sumaba
- * todo y la pantalla lo rotulaba "$": mezclar pesos con dólares en un total y ponerle el signo
- * peso es la misma cifra falsa de B04, una línea más abajo. CLP primero (es la moneda del
- * negocio), después el resto por código, y la moneda no informada al final. PURO.
+ * Lo resuelto en la sesión, UNA CIFRA POR MONEDA **Y POR DIRECCIÓN**. Antes esto era un solo
+ * `number` que sumaba todo y la pantalla lo rotulaba "$": mezclar pesos con dólares en un total y
+ * ponerle el signo peso es la misma cifra falsa de B04, una línea más arriba — y sumar entradas
+ * con salidas en la MISMA moneda es su gemela, B15: dos movimientos de direcciones opuestas en
+ * CLP no son una sola cifra "$16.948.028", son $14.094.524 de entradas MÁS $2.853.504 de salidas,
+ * y declararlas por separado es la regla, no una mejora cosmética. CLP primero (es la moneda del
+ * negocio), después el resto por código; dentro de cada moneda, entradas antes que salidas, y la
+ * dirección desconocida al final. PURO.
  */
 export function montosResueltos(montos: readonly MontoMonedaV07[]): MontoMonedaV07[] {
-  const porMoneda = new Map<string, MontoMonedaV07>();
+  const porClave = new Map<string, MontoMonedaV07>();
   for (const m of montos) {
-    const clave = m.moneda ?? "";
-    const acc = porMoneda.get(clave);
+    const clave = `${m.moneda ?? ""}\u0000${m.direccion ?? ""}`;
+    const acc = porClave.get(clave);
     if (acc) acc.monto += Math.abs(m.monto);
-    else porMoneda.set(clave, { moneda: m.moneda, monto: Math.abs(m.monto) });
+    else
+      porClave.set(clave, { moneda: m.moneda, monto: Math.abs(m.monto), direccion: m.direccion });
   }
-  return [...porMoneda.values()].sort((a, b) => {
-    if (a.moneda === b.moneda) return 0;
-    if (a.moneda === null) return 1;
-    if (b.moneda === null) return -1;
-    if (a.moneda === "CLP") return -1;
-    if (b.moneda === "CLP") return 1;
-    return a.moneda.localeCompare(b.moneda);
+  const ordenDireccion = (d: DireccionV07 | null | undefined): number =>
+    d === "credit" ? 0 : d === "debit" ? 1 : 2;
+  return [...porClave.values()].sort((a, b) => {
+    if (a.moneda !== b.moneda) {
+      if (a.moneda === null) return 1;
+      if (b.moneda === null) return -1;
+      if (a.moneda === "CLP") return -1;
+      if (b.moneda === "CLP") return 1;
+      return a.moneda.localeCompare(b.moneda);
+    }
+    return ordenDireccion(a.direccion) - ordenDireccion(b.direccion);
   });
 }
 
 /**
  * Lo resuelto en la sesión, en palabras: "$1.234.567" o "$1.234.567 y US$ 5.862,30". Cada cifra
- * con SU moneda; nunca un total único sobre monedas distintas.
+ * con SU moneda; nunca un total único sobre monedas distintas. B15: cuando la cifra tiene
+ * dirección conocida (`credit`/`debit`), se nombra como "en entradas"/"en salidas" — así una
+ * entrada y una salida de la MISMA moneda nunca pueden leerse como una sola cifra fundida.
  */
 export function textoResuelto(montos: readonly MontoMonedaV07[]): string {
-  const partes = montosResueltos(montos).map((m) => formatMoney(m.monto, m.moneda));
-  if (partes.length === 0) return formatMoney(0, "CLP");
+  const agrupado = montosResueltos(montos);
+  if (agrupado.length === 0) return formatMoney(0, "CLP");
+  const partes = agrupado.map((m) => {
+    const cifra = formatMoney(m.monto, m.moneda);
+    if (m.direccion === "credit") return `${cifra} en entradas`;
+    if (m.direccion === "debit") return `${cifra} en salidas`;
+    return cifra;
+  });
   if (partes.length === 1) return partes[0]!;
   return `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`;
 }

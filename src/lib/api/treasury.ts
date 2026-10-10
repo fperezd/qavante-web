@@ -556,15 +556,32 @@ export interface UnclassifiedCurrencyInflow {
   count: number;
 }
 
-/** Desglose por moneda de las entradas sin clasificar. PURO (sin React). */
+/** Salidas sin clasificar de UNA moneda. Nunca se suman entre monedas ni con `inflow` (B11,
+ *  QA real: "11 movimientos pendientes (~$38.512.299 en entradas)" callaba 3 salidas por
+ *  $313.040 que estaban en el mismo `count`). */
+export interface UnclassifiedCurrencyOutflow {
+  /** ISO-4217 de la CUENTA del movimiento, normalizado a mayúsculas (ej. "CLP", "USD"). */
+  currency: string;
+  /** Suma de MAGNITUDES de las salidas (`debit`) de esa moneda, en esa moneda. */
+  outflow: number;
+  /** Movimientos sin clasificar de esa moneda (entradas y salidas). */
+  count: number;
+}
+
+/** Desglose por moneda de las entradas Y SALIDAS sin clasificar. PURO (sin React). */
 export interface UnclassifiedInflowBreakdown {
   /** Un total por moneda, orden estable por código (asc). NUNCA un total mezclado. */
   inflowByCurrency: UnclassifiedCurrencyInflow[];
+  /** El gemelo de `inflowByCurrency` para salidas. B11: antes esta forma no existía y el
+   *  consumidor no tenía de dónde leer "también hay salidas pendientes". */
+  outflowByCurrency: UnclassifiedCurrencyOutflow[];
   /** Movimientos cuya moneda NO se pudo determinar (su `bank_account_id` no está en el
    *  listado de cuentas). No entran en ningún total: sumarlos sería inventar la moneda. */
   unknownCurrencyCount: number;
   /** Cuántos de esos son ENTRADAS. Si es > 0 el total de entradas no se puede cerrar. */
   unknownInflowCount: number;
+  /** Cuántos de esos son SALIDAS. Si es > 0 el total de salidas no se puede cerrar. */
+  unknownOutflowCount: number;
 }
 
 export interface UnclassifiedSummary extends UnclassifiedInflowBreakdown {
@@ -596,9 +613,11 @@ export function groupUnclassifiedInflowByCurrency(
   items: BankMovement[],
   currencies: Map<string, string>,
 ): UnclassifiedInflowBreakdown {
-  const buckets = new Map<string, UnclassifiedCurrencyInflow>();
+  const inBuckets = new Map<string, UnclassifiedCurrencyInflow>();
+  const outBuckets = new Map<string, UnclassifiedCurrencyOutflow>();
   let unknownCurrencyCount = 0;
   let unknownInflowCount = 0;
+  let unknownOutflowCount = 0;
   for (const mv of items) {
     const amount = Number(mv.amount);
     const magnitud = Number.isFinite(amount) ? Math.abs(amount) : 0;
@@ -609,17 +628,36 @@ export function groupUnclassifiedInflowByCurrency(
     if (!currency) {
       unknownCurrencyCount += 1;
       if (esEntrada) unknownInflowCount += 1;
+      else unknownOutflowCount += 1;
       continue;
     }
-    const bucket = buckets.get(currency) ?? { currency, inflow: 0, count: 0 };
-    if (esEntrada) bucket.inflow += magnitud;
-    bucket.count += 1;
-    buckets.set(currency, bucket);
+    if (esEntrada) {
+      const bucket = inBuckets.get(currency) ?? { currency, inflow: 0, count: 0 };
+      bucket.inflow += magnitud;
+      bucket.count += 1;
+      inBuckets.set(currency, bucket);
+    } else {
+      // B11: la salida sin clasificar NO se descartaba — simplemente no quedaba en NINGÚN
+      // total, así que el aviso de "pendientes" la contaba en `count` y la callaba en el monto.
+      const bucket = outBuckets.get(currency) ?? { currency, outflow: 0, count: 0 };
+      bucket.outflow += magnitud;
+      bucket.count += 1;
+      outBuckets.set(currency, bucket);
+    }
   }
-  const inflowByCurrency = [...buckets.values()].sort((a, b) =>
+  const inflowByCurrency = [...inBuckets.values()].sort((a, b) =>
     a.currency.localeCompare(b.currency),
   );
-  return { inflowByCurrency, unknownCurrencyCount, unknownInflowCount };
+  const outflowByCurrency = [...outBuckets.values()].sort((a, b) =>
+    a.currency.localeCompare(b.currency),
+  );
+  return {
+    inflowByCurrency,
+    outflowByCurrency,
+    unknownCurrencyCount,
+    unknownInflowCount,
+    unknownOutflowCount,
+  };
 }
 
 /** Resumen de movimientos SIN CLASIFICAR en el rango (una consulta por mes, `useQueries`). El reporte

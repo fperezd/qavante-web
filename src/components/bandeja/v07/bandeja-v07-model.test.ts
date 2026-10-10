@@ -43,6 +43,7 @@ import {
   trasResolver,
   trasSaltar,
   type ItemClasificarV07,
+  type MontoMonedaV07,
   type OpcionCuentaV07,
 } from "./bandeja-v07-model";
 import {
@@ -676,6 +677,52 @@ describe("cabecera y progreso", () => {
     expect(mixto).toContain(" y ");
     // Sesión sin nada resuelto: el cero es un cero real, no una ausencia.
     expect(textoResuelto([])).toBe("$0");
+  });
+
+  /* B15 — QA real de producción, 2026-10-10: la cola de "Conciliar" mostraba $16.948.028 como UN
+     total, que en realidad era $14.094.524 de entradas MÁS $2.853.504 de salidas sumadas sin
+     declararlo. `montosResueltos`/`textoResuelto` ya separaban por MONEDA (B04); acá se prueba
+     que TAMBIÉN separan por DIRECCIÓN dentro de la misma moneda. */
+  it("B15 — una entrada y una salida de la MISMA moneda NUNCA se funden en un total", () => {
+    const montos: MontoMonedaV07[] = [
+      { monto: 14_094_524, moneda: "CLP", direccion: "credit" },
+      { monto: 2_853_504, moneda: "CLP", direccion: "debit" },
+    ];
+    expect(montosResueltos(montos)).toEqual([
+      { monto: 14_094_524, moneda: "CLP", direccion: "credit" },
+      { monto: 2_853_504, moneda: "CLP", direccion: "debit" },
+    ]);
+    const texto = textoResuelto(montos);
+    expect(texto).toContain("$14.094.524 en entradas");
+    expect(texto).toContain("$2.853.504 en salidas");
+    // La cifra mezclada del bug real no puede aparecer en ningún lado.
+    expect(texto.replace(/\D/g, "")).not.toContain("16948028");
+  });
+
+  it("B15 — varios movimientos de la MISMA dirección y moneda sí se suman entre ellos", () => {
+    const montos: MontoMonedaV07[] = [
+      { monto: 674_473, moneda: "CLP", direccion: "debit" },
+      { monto: 325_527, moneda: "CLP", direccion: "debit" },
+    ];
+    expect(montosResueltos(montos)).toEqual([
+      { monto: 1_000_000, moneda: "CLP", direccion: "debit" },
+    ]);
+    expect(textoResuelto(montos)).toBe("$1.000.000 en salidas");
+  });
+
+  it("B15 — dirección desconocida (`null`) se declara aparte, nunca se asume de un signo", () => {
+    const montos: MontoMonedaV07[] = [
+      { monto: 1000, moneda: "CLP", direccion: "credit" },
+      { monto: 500, moneda: "CLP", direccion: null },
+    ];
+    expect(montosResueltos(montos)).toEqual([
+      { monto: 1000, moneda: "CLP", direccion: "credit" },
+      { monto: 500, moneda: "CLP", direccion: null },
+    ]);
+    const texto = textoResuelto(montos);
+    expect(texto).toContain("$1.000 en entradas");
+    expect(texto).not.toContain("$500 en entradas");
+    expect(texto).not.toContain("$500 en salidas");
   });
 
   it("monedaDeContrato conserva la AUSENCIA: nunca completa con CLP", () => {

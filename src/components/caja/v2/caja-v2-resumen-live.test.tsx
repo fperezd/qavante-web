@@ -10,8 +10,10 @@ function calidad(overrides: Partial<UnclassifiedSummary> = {}): UnclassifiedSumm
     isLoading: false,
     isError: false,
     inflowByCurrency: [{ currency: "CLP", inflow: 2_000_000, count: 3 }],
+    outflowByCurrency: [],
     unknownCurrencyCount: 0,
     unknownInflowCount: 0,
+    unknownOutflowCount: 0,
     ...overrides,
   };
 }

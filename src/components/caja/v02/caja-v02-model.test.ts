@@ -462,6 +462,25 @@ describe("deudaDeDatos — banner de sin clasificar (INV-FX-001: un monto por mo
     const d = deudaDeDatos(sinClasificar({ isError: true, count: 5 }))!;
     expect(d.error).toBe(true);
   });
+
+  it("B11 (QA real 2026-10-10): salidas pendientes tienen SU PROPIO monto, nunca fundido con entradas ni callado", () => {
+    const d = deudaDeDatos(
+      sinClasificar({
+        count: 11,
+        inflowByCurrency: [
+          { currency: "CLP", inflow: 38_512_299, count: 7 },
+          { currency: "USD", inflow: 5862.3, count: 1 },
+        ],
+        outflowByCurrency: [{ currency: "CLP", outflow: 313_040, count: 3 }],
+      }),
+    )!;
+    expect(d.count).toBe(11);
+    expect(d.entradasLabel).toContain("38.512.299");
+    expect(d.entradasLabel).toContain("5.862,30");
+    expect(d.salidasLabel).toBe("$313.040");
+    // Gemelo: sin salidas pendientes, el gemelo de entradas no inventa una cifra.
+    expect(deudaDeDatos(sinClasificar())!.salidasLabel).toBeNull();
+  });
 });
 
 describe("comoSeCalcula — definición, incluye/excluye, fuente y frescura (§1.4)", () => {

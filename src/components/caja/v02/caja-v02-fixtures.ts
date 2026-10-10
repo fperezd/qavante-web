@@ -335,8 +335,10 @@ export function sinClasificar(over: Partial<UnclassifiedSummary> = {}): Unclassi
   return {
     count: 3,
     inflowByCurrency: [{ currency: "CLP", inflow: 2_100_000, count: 3 }],
+    outflowByCurrency: [],
     unknownCurrencyCount: 0,
     unknownInflowCount: 0,
+    unknownOutflowCount: 0,
     isLoading: false,
     isError: false,
     ...over,

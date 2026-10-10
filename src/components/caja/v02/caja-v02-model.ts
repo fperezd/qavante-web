@@ -38,7 +38,10 @@ import {
   formatHoraCorta,
   formatRelative,
 } from "@/lib/formatters/date";
-import { entradasSinClasificarLabel } from "@/components/caja/v2/caja-v2-map";
+import {
+  entradasSinClasificarLabel,
+  salidasSinClasificarLabel,
+} from "@/components/caja/v2/caja-v2-map";
 
 /** Ventana de la tríada KPI (spec §V02: "Entra 14d / Sale 14d"). */
 export const VENTANA_DIAS = 14;
@@ -491,8 +494,14 @@ export interface DeudaDatosV02 {
   entradasLabel: string | null;
   /** Entradas cuya moneda no se conoce: no están en ningún total. */
   entradasSinMoneda: number;
+  /** El gemelo de `entradasLabel` para salidas. B11 (QA real, 2026-10-10): el aviso sólo nombraba
+   *  las entradas aunque hubiera salidas pendientes en el mismo lote de `count` ("11 movimientos
+   *  pendientes (~$38.512.299 en entradas)" callaba 3 salidas por $313.040). `null` sin salidas. */
+  salidasLabel: string | null;
+  /** Salidas cuya moneda no se conoce: no están en ningún total. */
+  salidasSinMoneda: number;
   /** La consulta de sin-clasificar FALLÓ: `count` no es un cero real, es "no lo sabemos" (Ley 8).
-   *  Cuando es `true`, `count`/`entradasLabel`/`entradasSinMoneda` no se usan (banner de error). */
+   *  Cuando es `true`, el resto de los campos no se usan (banner de error). */
   error: boolean;
 }
 
@@ -502,13 +511,22 @@ export interface DeudaDatosV02 {
 export function deudaDeDatos(sc: UnclassifiedSummary | null | undefined): DeudaDatosV02 | null {
   if (!sc || sc.isLoading) return null;
   if (sc.isError) {
-    return { count: 0, entradasLabel: null, entradasSinMoneda: 0, error: true };
+    return {
+      count: 0,
+      entradasLabel: null,
+      entradasSinMoneda: 0,
+      salidasLabel: null,
+      salidasSinMoneda: 0,
+      error: true,
+    };
   }
   if (sc.count <= 0) return null;
   return {
     count: sc.count,
     entradasLabel: entradasSinClasificarLabel(sc),
     entradasSinMoneda: sc.unknownInflowCount,
+    salidasLabel: salidasSinClasificarLabel(sc),
+    salidasSinMoneda: sc.unknownOutflowCount,
     error: false,
   };
 }

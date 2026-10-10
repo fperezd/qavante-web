@@ -198,15 +198,19 @@ describe("groupUnclassifiedInflowByCurrency", () => {
       ],
       cuentas,
     );
-    // Normaliza "clp" → "CLP" y ordena por código; el USD egreso cuenta pero no suma al inflow.
+    // Normaliza "clp" → "CLP" y ordena por código; el USD egreso NO cuenta como entrada — B11:
+    // antes vivía fundido en el mismo `count` que la entrada, borrando que había una salida.
     expect(r.inflowByCurrency).toEqual([
       { currency: "CLP", inflow: 61_500_000, count: 1 },
-      { currency: "USD", inflow: 1200, count: 2 },
+      { currency: "USD", inflow: 1200, count: 1 },
     ]);
+    // La salida de USD aparece en SU propio desglose, nunca sumada al inflow.
+    expect(r.outflowByCurrency).toEqual([{ currency: "USD", outflow: 800, count: 1 }]);
     // La suma mezclada del bug habría dado 61.502.000 "pesos". Ese número no existe acá.
     expect(r.inflowByCurrency.some((c) => c.inflow === 61_502_000)).toBe(false);
     expect(r.unknownCurrencyCount).toBe(0);
     expect(r.unknownInflowCount).toBe(0);
+    expect(r.unknownOutflowCount).toBe(0);
   });
 
   it("moneda desconocida (cuenta fuera del listado) → aparte, fuera de todo total", () => {
@@ -221,6 +225,7 @@ describe("groupUnclassifiedInflowByCurrency", () => {
     expect(r.inflowByCurrency).toEqual([{ currency: "CLP", inflow: 5000, count: 1 }]);
     expect(r.unknownCurrencyCount).toBe(2);
     expect(r.unknownInflowCount).toBe(1); // solo la entrada
+    expect(r.unknownOutflowCount).toBe(1); // y la salida, aparte — B11
   });
 
   it("cuenta con currency_code vacío = desconocida (no cae a CLP)", () => {
@@ -241,6 +246,29 @@ describe("groupUnclassifiedInflowByCurrency", () => {
     const r = groupUnclassifiedInflowByCurrency([mv({}), mv({ id: "2" })], new Map());
     expect(r.inflowByCurrency).toEqual([]);
     expect(r.unknownCurrencyCount).toBe(2);
+  });
+
+  it("B11 (QA real 2026-10-10): 11 pendientes con entradas Y salidas — las salidas quedan en SU propio desglose, nunca calladas", () => {
+    /* Caso real: el aviso de Caja decía "11 movimientos pendientes (~$38.512.299 · US$ 5.862,30
+       en entradas)" y omitía que 3 de esos 11 eran salidas por $313.040. `count` ya traía las 11;
+       lo que faltaba era un lugar de donde leer el monto de las 3 salidas sin fundirlo con el de
+       las 8 entradas. */
+    const items: BankMovement[] = [
+      ...Array.from({ length: 7 }, (_, i) =>
+        mv({ id: `in-clp-${i}`, amount: "5501757", direction: "credit" }),
+      ),
+      mv({ id: "in-usd-1", bank_account_id: "acc-usd", amount: "5862.30", direction: "credit" }),
+      mv({ id: "out-1", amount: "-120000", direction: "debit" }),
+      mv({ id: "out-2", amount: "-98040", direction: "debit" }),
+      mv({ id: "out-3", amount: "-95000", direction: "debit" }),
+    ];
+    const r = groupUnclassifiedInflowByCurrency(items, cuentas);
+    expect(r.inflowByCurrency).toEqual([
+      { currency: "CLP", inflow: 38_512_299, count: 7 },
+      { currency: "USD", inflow: 5862.3, count: 1 },
+    ]);
+    // Las 3 salidas de CLP suman $313.040 — nunca entran al `inflow`, pero tampoco desaparecen.
+    expect(r.outflowByCurrency).toEqual([{ currency: "CLP", outflow: 313_040, count: 3 }]);
   });
 });
 

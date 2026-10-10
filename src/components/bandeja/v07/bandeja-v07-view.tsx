@@ -292,8 +292,9 @@ function BandejaV07Contenido({
   const { show } = useRedisenoToast();
   const [tab, setTab] = React.useState<TabV07>(tabInicial);
   const [resueltos, setResueltos] = React.useState<string[]>([]);
-  /* Cada monto viaja con SU moneda: lo resuelto se rinde una cifra por moneda, nunca un total
-     único con el signo peso sobre pesos y dólares mezclados. */
+  /* Cada monto viaja con SU moneda y SU dirección: lo resuelto se rinde una cifra por moneda (y
+     por dirección), nunca un total único con el signo peso sobre pesos y dólares mezclados — ni
+     sobre entradas y salidas mezcladas (B15). */
   const [montos, setMontos] = React.useState<MontoMonedaV07[]>([]);
   const [iConciliar, setIConciliar] = React.useState(0);
   const [iClasificar, setIClasificar] = React.useState(0);
@@ -385,7 +386,11 @@ function BandejaV07Contenido({
    *  que su monto no puede sumarse a lo que "dejó de estar en duda". */
   function marcarResuelto(item: ItemV07, largoCola: number, cuentaLaPlata = true) {
     setResueltos((prev) => [...prev, item.id]);
-    if (cuentaLaPlata) setMontos((prev) => [...prev, { monto: item.monto, moneda: item.moneda }]);
+    if (cuentaLaPlata)
+      setMontos((prev) => [
+        ...prev,
+        { monto: item.monto, moneda: item.moneda, direccion: item.direccion },
+      ]);
     const siguiente = trasResolver(
       item.tipo === "conciliar" ? idxConciliar : idxClasificar,
       largoCola - 1,
@@ -400,7 +405,11 @@ function BandejaV07Contenido({
     setResueltos((prev) => [...new Set([...prev, ...resueltosAhora.map((item) => item.id)])]);
     setMontos((prev) => [
       ...prev,
-      ...resueltosAhora.map((item) => ({ monto: item.monto, moneda: item.moneda })),
+      ...resueltosAhora.map((item) => ({
+        monto: item.monto,
+        moneda: item.moneda,
+        direccion: item.direccion,
+      })),
     ]);
     setIClasificar(0);
   }

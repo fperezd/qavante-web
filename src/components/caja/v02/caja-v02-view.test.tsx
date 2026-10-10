@@ -104,8 +104,40 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).toContain("+$14.498.964");
     expect(t).toContain("−$35.532.396");
     /* El agregado del servidor (`non_postponable_or_overdue_14d`), el MISMO que V05 publica como
-       "Pagos críticos en todo el registro" (Ley 1). */
-    expect(t).toContain("$7.574.979 críticos · 2 pagos críticos");
+       "Pagos críticos vencidos y próximos" (Ley 1). B10: el texto declara el alcance (vencidos de
+       cualquier antigüedad + próximos en 14d) en vez de dejarlo leer como un desglose del total. */
+    expect(t).toContain(
+      "$7.574.979 críticos vencidos (cualquier antigüedad) y próximos en estos 14 días · 2 pagos críticos",
+    );
+  });
+
+  it("B10 (QA real 2026-10-10): el crítico puede superar el total de Sale 14d sin que sea un error — el texto declara el alcance distinto", () => {
+    /* Caso real: Sale 14 días mostraba −$69.123.556 mientras "pagos críticos" mostraba "al menos
+       $73.386.764" — una cifra MAYOR que el total del que parecía ser desglose. No es un error de
+       suma: `non_postponable_or_overdue_14d` cuenta TODO lo vencido (cualquier antigüedad), un
+       universo más ancho que `due_14d`. La pantalla no reconcilia las dos cifras (sería inventar
+       una resta que el servidor no publica, #302 P2-6): declara honestamente el alcance distinto. */
+    const t = texto(
+      html({
+        pagos: pagos({
+          due_14d: "69123556",
+          non_postponable_or_overdue_14d: {
+            amount_clp: null,
+            known_amount_clp: "73386764",
+            complete: false,
+            count: 5,
+            unknown_due_date_count: 2,
+            excluded_by_currency: [],
+          },
+        }),
+      }),
+    );
+    // El total de "Sale" sigue siendo el que publica due_14d.
+    expect(t).toContain(`${MINUS}$69.123.556`);
+    // El crítico, mayor, se muestra tal cual — nunca clampeado para no superar el total.
+    expect(t).toContain("al menos $73.386.764 críticos vencidos (cualquier antigüedad)");
+    // Y el texto declara por qué puede ser mayor, en vez de callarlo.
+    expect(t).toContain("y próximos en estos 14 días");
   });
 
   it("no publica un negociable sumado desde los ítems de la página (#302 P2-6)", () => {
@@ -135,7 +167,9 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
         }),
       }),
     );
-    expect(t).toContain("al menos $174.979 críticos · 2 pagos críticos");
+    expect(t).toContain(
+      "al menos $174.979 críticos vencidos (cualquier antigüedad) y próximos en estos 14 días · 2 pagos críticos",
+    );
     expect(t).not.toContain("$0 críticos");
   });
 
@@ -157,6 +191,37 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(
       texto(html({ sinClasificar: sinClasificar({ count: 0, inflowByCurrency: [] }) })),
     ).not.toContain("sin clasificar");
+  });
+
+  it("B11 (QA real 2026-10-10): con entradas Y salidas pendientes, el aviso nombra las DOS direcciones", () => {
+    /* Caso real: "11 movimientos pendientes (~$38.512.299 · US$ 5.862,30 en entradas)" callaba
+       que 3 de esos 11 eran salidas por $313.040. Ninguna dirección se omite cuando la otra
+       está presente. */
+    const t = texto(
+      html({
+        sinClasificar: sinClasificar({
+          count: 11,
+          inflowByCurrency: [
+            { currency: "CLP", inflow: 38_512_299, count: 7 },
+            { currency: "USD", inflow: 5862.3, count: 1 },
+          ],
+          outflowByCurrency: [{ currency: "CLP", outflow: 313_040, count: 3 }],
+        }),
+      }),
+    );
+    expect(t).toContain("en entradas");
+    expect(t).toContain("$313.040 en salidas");
+    // Gemelo: solo entradas (sin salidas pendientes) no inventa un "en salidas".
+    const soloEntradas = texto(
+      html({
+        sinClasificar: sinClasificar({
+          count: 7,
+          inflowByCurrency: [{ currency: "CLP", inflow: 38_512_299, count: 7 }],
+          outflowByCurrency: [],
+        }),
+      }),
+    );
+    expect(soloEntradas).not.toContain("en salidas");
   });
 
   it('sin-clasificar en ERROR: el banner NO desaparece, dice "no sé" en vez de un $0 falso (remanente #82.5)', () => {

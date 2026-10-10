@@ -39,17 +39,27 @@ import {
 import { PostponePayableControl } from "./postpone-payable-control";
 
 /** Apellido de "Sale · 14 días": el agregado no postergable/vencido tal como lo publica el
- *  servidor. Un agregado parcial se dice "al menos"; uno ausente se declara, nunca se aproxima. */
+ *  servidor. Un agregado parcial se dice "al menos"; uno ausente se declara, nunca se aproxima.
+ *
+ *  B10 (QA de producción real, 2026-10-10): `non_postponable_or_overdue_14d` NO está acotado a la
+ *  ventana de 14 días de "Sale" — el propio contrato lo define como "saldos ya vencidos de
+ *  CUALQUIER categoría, sobre todo el universo vivo, MÁS impuestos/sueldos/deuda que vencen en
+ *  estos 14 días" (mismo agregado que V05 publica como "Pagos críticos vencidos y próximos"). Son
+ *  DOS universos distintos y el crítico puede, legítimamente, superar el total de "Sale 14 días"
+ *  (ej. real: Sale −$69.123.556 vs. críticos "al menos $73.386.764"). El texto declara el alcance
+ *  en vez de dejar que una cifra mayor se lea como un error de suma (Ley de desglose ≤ total: acá
+ *  no aplica porque no es un desglose de ese total). */
 function noPostergableTexto(np: NoPostergable14V02 | null): string {
   /* Las dos ramas sin monto decían "sin dato", que es una etiqueta de confianza pegada a un
      hueco: no dice QUÉ falta ni de quién depende. Una ausencia se nombra como lo que es. */
   if (!np) return "el agregado de pagos críticos no viene en esta respuesta";
   const pagos = `${np.n} ${concordar(np.n, "pago crítico", "pagos críticos")}`;
+  const alcance = "vencidos (cualquier antigüedad) y próximos en estos 14 días";
   if (np.completo && np.monto != null) {
-    return `${formatClp(np.monto)} críticos · ${pagos}`;
+    return `${formatClp(np.monto)} críticos ${alcance} · ${pagos}`;
   }
   if (np.conocido != null && np.conocido > 0) {
-    return `al menos ${formatClp(np.conocido)} críticos · ${pagos}`;
+    return `al menos ${formatClp(np.conocido)} críticos ${alcance} · ${pagos}`;
   }
   return `${pagos} · el monto que suman no viene en esta respuesta`;
 }
@@ -187,8 +197,11 @@ export function CajaV02View({
               <>
                 {/* Apellido (Ley 1): due_14d es acumulativo e incluye lo YA vencido. Lo que no se
                     posterga sale del agregado del servidor (`non_postponable_or_overdue_14d`), el
-                    MISMO que V05 publica como "Pagos críticos en todo el registro"; el contrato no
-                    publica cuánto es negociable y esta pantalla no lo reconstruye (#302 P2-6). */}
+                    MISMO que V05 publica como "Pagos críticos vencidos y próximos"; el contrato no
+                    publica cuánto es negociable y esta pantalla no lo reconstruye (#302 P2-6).
+                    B10: ese agregado NO es un desglose de este total — cuenta todo lo vencido de
+                    cualquier antigüedad, así que puede superarlo, y el texto lo declara en vez de
+                    implicar un subconjunto que no existe. */}
                 Incluye lo vencido · {noPostergableTexto(sale.noPostergable)}
               </>
             }
@@ -218,9 +231,22 @@ export function CajaV02View({
             <span className="min-w-0 flex-1">
               <b className="text-rediseno-tinta">{deuda.count}</b>{" "}
               {deuda.count === 1 ? "movimiento pendiente" : "movimientos pendientes"}
-              {deuda.entradasLabel ? ` (~${deuda.entradasLabel} en entradas)` : ""}
+              {/* B11 (QA real, 2026-10-10): con entradas Y salidas pendientes el aviso sólo
+                  nombraba las entradas — "11 movimientos pendientes (~$38.512.299 en entradas)"
+                  callaba 3 salidas por $313.040 que estaban en el MISMO `count`. Ninguna
+                  dirección se omite cuando la otra está presente (Ley de "silencios que afirman"). */}
+              {deuda.entradasLabel && deuda.salidasLabel
+                ? ` (~${deuda.entradasLabel} en entradas y ~${deuda.salidasLabel} en salidas)`
+                : deuda.entradasLabel
+                  ? ` (~${deuda.entradasLabel} en entradas)`
+                  : deuda.salidasLabel
+                    ? ` (~${deuda.salidasLabel} en salidas)`
+                    : ""}
               {deuda.entradasSinMoneda > 0
                 ? ` y ${deuda.entradasSinMoneda} ${deuda.entradasSinMoneda === 1 ? "entrada" : "entradas"} cuya moneda no conocemos`
+                : ""}
+              {deuda.salidasSinMoneda > 0
+                ? ` y ${deuda.salidasSinMoneda} ${deuda.salidasSinMoneda === 1 ? "salida" : "salidas"} cuya moneda no conocemos`
                 : ""}
               .
             </span>
