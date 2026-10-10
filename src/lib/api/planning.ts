@@ -2,7 +2,9 @@
    está acostumbrado a ver. Source de verdad: tag "planning" del OpenAPI.
      GET /api/planning/budget-vs-actual?period=YYYY-MM   → por línea de P&L (ingresos/costo/gastos/resultado)
      GET /api/planning/budget-by-account?period=YYYY-MM   → drill-down por cuenta de gestión
-   Solo LECTURA: el presupuesto se carga como financial-impacts (layer budget); no hay UI de carga aún. */
+     GET /api/planning/budget-closing-projection?year=&as_of= → cierre anual autoritativo (qavante-web#101)
+   Solo LECTURA salvo la grilla anual (`budget/{year}`, PATCH de celda + accept); el presupuesto mensual
+   se carga como financial-impacts (layer budget); no hay UI de carga mensual. */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
@@ -16,12 +18,18 @@ export type BudgetGridCategory = components["schemas"]["BudgetGridCategory"];
 export type BudgetEditRequest = components["schemas"]["BudgetEditRequest"];
 export type BudgetEditResponse = components["schemas"]["BudgetEditResponse"];
 export type BudgetAcceptResponse = components["schemas"]["BudgetAcceptResponse"];
+export type BudgetClosingProjectionResponse =
+  components["schemas"]["BudgetClosingProjectionResponse"];
+export type ClosingProjectionPeriod = components["schemas"]["ClosingProjectionPeriod"];
+export type ClosingProjectionSource = components["schemas"]["ClosingProjectionSource"];
 
 export const planningKeys = {
   all: ["planning"] as const,
   budgetVsActual: (period: string) => [...planningKeys.all, "budget-vs-actual", period] as const,
   budgetByAccount: (period: string) => [...planningKeys.all, "budget-by-account", period] as const,
   budgetGrid: (year: number) => [...planningKeys.all, "budget-grid", year] as const,
+  budgetClosingProjection: (year: number, asOf: string) =>
+    [...planningKeys.all, "budget-closing-projection", year, asOf] as const,
 };
 
 /** Query options de budget-by-account (plan vs real POR CUENTA de un mes). Compartido por `useQueries`
@@ -57,6 +65,15 @@ export function budgetVsActualQueryOptions(period: string, enabled = true) {
  *  `has_budget=false` si no hay presupuesto cargado del período (el contenedor muestra estado honesto). */
 export function useBudgetVsActual(period: string, enabled = true) {
   return useQuery(budgetVsActualQueryOptions(period, enabled));
+}
+
+/** `GET /api/planning/budget-by-account?period=YYYY-MM` — plan vs real POR CUENTA del mes (drill-down
+ *  nivel 1, qavante-web#101). El `concept` de cada cuenta es el puente canónico que publica el
+ *  productor (#432): `account.concept === fila.concepto` de `budget-vs-actual`, nunca una heurística
+ *  de nombre/signo/prefijo del frontend. `actual` es caja committed (`basis`), no devengado — el
+ *  cross-foot contra la fila de desvíos (devengado) se declara en el modelo, no se esconde. */
+export function useBudgetByAccount(period: string, enabled = true) {
+  return useQuery(budgetByAccountQueryOptions(period, enabled));
 }
 
 /* `POST /api/planning/budget/propose` (ADR-0091 F1a, CC-API #870) — PROPONE el presupuesto del año desde
@@ -126,5 +143,24 @@ export function useAcceptBudget(year: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: planningKeys.all });
     },
+  });
+}
+
+/* Cierre anual autoritativo (CC-API #431, qavante-web#101): "sin extrapolación de interfaz" — el
+   método es fijo (meses cerrados con resultado canónico + meses restantes con presupuesto vigente)
+   y lo fija el servidor. El frontend NUNCA calcula esta cifra; sólo la muestra o muestra la
+   abstención explícita (`projected_result: null` + `abstention_reasons`). */
+
+/** `GET /api/planning/budget-closing-projection?year=&as_of=` — cierre anual autoritativo. */
+export function useBudgetClosingProjection(year: number, asOf: string, enabled = true) {
+  return useQuery({
+    queryKey: planningKeys.budgetClosingProjection(year, asOf),
+    queryFn: () =>
+      api.get<BudgetClosingProjectionResponse>(
+        `/api/planning/budget-closing-projection?year=${year}&as_of=${encodeURIComponent(asOf)}`,
+      ),
+    enabled,
+    staleTime: 30_000,
+    retry: false,
   });
 }

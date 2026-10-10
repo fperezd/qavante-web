@@ -6,11 +6,15 @@ import {
   PERIODO,
   RESULT_OPERATIONAL_RESULT,
   RESULT_OPERATIONAL_RESULT_DIVERGENTE,
+  budgetByAccount,
   budgetVsActual,
   budgetVsActualIncompleto,
   budgetVsActualSinDesvios,
   budgetVsActualSinPresupuesto,
+  closingProjectionAbstiene,
+  closingProjectionDisponible,
 } from "./presupuesto-v09-fixtures";
+import { documentosServicioMensual } from "@/components/gestion/v08/gestion-v08-fixtures";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 
 /* V09 · Presupuesto — la vista, renderizada de verdad (react-dom/server, sin browser).
@@ -168,20 +172,126 @@ describe("PresupuestoV09View — tabla de desvíos", () => {
   });
 });
 
-describe("PresupuestoV09View — huecos declarados (issue #74)", () => {
-  it("declara en pantalla que el link a documentos y la proyección de cierre faltan", () => {
-    const t = texto(html());
-    expect(t).toMatch(/detalle documental de cada desvío/i);
-    expect(t).toMatch(/proyección de cierre del año/i);
+describe("PresupuestoV09View — huecos declarados (issue #101)", () => {
+  it("declara con precisión lo que SIGUE sin resolver (cuentas sin código no abren documentos)", () => {
+    expect(texto(html())).toMatch(/cuentas sin código.*no abren documentos/i);
   });
 
   it("no presenta referencias internas aunque se reciba la prop heredada", () => {
     expect(texto(html({ issueSucesor: "#101" }))).not.toContain("#101");
   });
+});
 
-  it("no ofrece NINGÚN link ni botón cuyo texto sea 'ver documentos' (el drill-down no existe)", () => {
-    const h = html();
-    expect(h).not.toMatch(/<a[^>]*>[^<]*ver documentos[^<]*<\/a>/i);
+describe("PresupuestoV09View — drill-down nivel 1: bucket 'Sin asignar / conflicto' (issue #101)", () => {
+  it("aparece, FUERA de cualquier concepto, cuando budget-by-account trae cuentas ambiguous/unassigned", () => {
+    const t = texto(html({ porCuenta: budgetByAccount() }));
+    expect(t).toMatch(/Sin asignar \/ conflicto/);
+    expect(t).toMatch(/2 cuentas fuera de todo concepto/);
+  });
+
+  it("no aparece mientras budget-by-account todavía no respondió (undefined)", () => {
+    expect(texto(html())).not.toMatch(/Sin asignar \/ conflicto/);
+  });
+
+  it("[control positivo] con accounts:[] tampoco aparece (nada que declarar)", () => {
+    expect(texto(html({ porCuenta: budgetByAccount({ accounts: [] }) }))).not.toMatch(
+      /Sin asignar \/ conflicto/,
+    );
+  });
+
+  it("declara el error de la consulta sin la causa técnica cruda", () => {
+    const t = texto(html({ porCuentaError: "planning_timeout_interno" }));
+    expect(t).not.toContain("planning_timeout_interno");
+  });
+});
+
+describe("PresupuestoV09View — drill-down nivel 2: documentos de una cuenta abierta (issue #101)", () => {
+  const cuentaServicioMensual = {
+    account_id: "op-1",
+    account_code: "operating_income.service_monthly",
+    account_name: "Servicio mensual",
+    budget: "10000000",
+    actual: "11000000",
+    variance: "1000000",
+    variance_pct: "10",
+    concept: "revenue" as const,
+    concept_status: "assigned" as const,
+  };
+
+  it("con concepto y cuenta abiertos + documentos, lista los documentos (mismo render que V08, resolverDrill reusado)", () => {
+    const t = texto(
+      html({
+        porCuenta: budgetByAccount({ accounts: [cuentaServicioMensual] }),
+        conceptoAbierto: "revenue",
+        onAbrirConcepto: () => {},
+        cuentaAbierta: {
+          accountCode: "operating_income.service_monthly",
+          accountName: "Servicio mensual",
+        },
+        documentos: documentosServicioMensual(),
+      }),
+    );
+    expect(t).toMatch(/FAC 435/);
+    expect(t).toMatch(/Comercial Kaufmann/);
+  });
+
+  it("cargando: dice qué se está trayendo, no un 'Cargando…' desnudo", () => {
+    const t = texto(
+      html({
+        porCuenta: budgetByAccount({ accounts: [cuentaServicioMensual] }),
+        conceptoAbierto: "revenue",
+        onAbrirConcepto: () => {},
+        cuentaAbierta: { accountCode: "operating_income.service_monthly", accountName: "Servicio mensual" },
+        documentosCargando: true,
+      }),
+    );
+    expect(t).toMatch(/Estamos trayendo los documentos de Servicio mensual/);
+  });
+
+  it("[control positivo] sin concepto abierto, la cuenta no aparece y sus documentos tampoco se renderizan", () => {
+    const t = texto(
+      html({
+        porCuenta: budgetByAccount({ accounts: [cuentaServicioMensual] }),
+        cuentaAbierta: {
+          accountCode: "operating_income.service_monthly",
+          accountName: "Servicio mensual",
+        },
+        documentos: documentosServicioMensual(),
+      }),
+    );
+    expect(t).not.toMatch(/FAC 435/);
+  });
+});
+
+describe("PresupuestoV09View — proyección de cierre autoritativa (CC-API #431, issue #101)", () => {
+  it("disponible: muestra el monto, nunca lo calcula el front (viene tal cual del fixture)", () => {
+    const t = texto(html({ proyeccion: closingProjectionDisponible() }));
+    expect(t).toContain("$118.000.000");
+    expect(t).toContain("Cobertura completa");
+  });
+
+  it("abstención: declara las razones explícitas, NUNCA un 0 ni 'cierre completo'", () => {
+    const t = texto(html({ proyeccion: closingProjectionAbstiene() }));
+    expect(t).not.toContain("$0");
+    expect(t).toMatch(/Todavía no podemos cerrar el año/);
+    expect(t).toMatch(/falta la conciliación del RCV/);
+  });
+
+  it("[mutante nulo de control] disponible y abstención producen HTML distinto", () => {
+    expect(html({ proyeccion: closingProjectionDisponible() })).not.toBe(
+      html({ proyeccion: closingProjectionAbstiene() }),
+    );
+  });
+
+  it("todavía sin responder (undefined): no afirma ni un monto de cierre ni una abstención", () => {
+    const t = texto(html());
+    expect(t).not.toContain("Todavía no podemos cerrar el año");
+    expect(t).not.toContain("Cobertura");
+  });
+
+  it("el CTA 'Ajustar plan' aparece junto al banner (abre la grilla integrada, Ley de este módulo)", () => {
+    const h = html({ proyeccion: closingProjectionDisponible(), onToggleAjustarPlan: () => {} });
+    expect(h).toMatch(/Ajustar plan/);
   });
 });
 

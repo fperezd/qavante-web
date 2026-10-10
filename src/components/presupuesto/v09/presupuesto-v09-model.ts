@@ -5,16 +5,23 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  *
  * Contesta UNA pregunta: "¿cómo vas contra tu plan, y en qué concepto te desviaste?"
  *
- * ── ALCANCE RECORTADO A PROPÓSITO (issue #74) ────────────────────────────────────────────────
- * Esta pantalla entrega la tríada Plan/Real/Desvío + la tabla de desvíos por concepto. NO entrega
- * (huecos declarados, no default plausible encima):
- *   · el link a los documentos que explican cada desvío (drill-down monto→documentos): es el fork
- *     de diseño del BO (ADR-0091 F1b) — "no se decide sin Fernando" (issue #74, comentario
- *     2026-08-31). El endpoint que lo alimentaría (`/operational-result/documents`) YA EXISTE y
- *     V08 ya lo usa: el bloqueo es de FORMA, no de dato.
- *   · el banner de proyección de cierre ("a este ritmo…"): depende de la MISMA decisión de forma
- *     (¿se navega a documentos igual que el drill-down o no?), así que queda igual de bloqueado.
- * Ver issue sucesor declarado en `presupuesto-v09-view.tsx`.
+ * ── ALCANCE (issue #101, cierre de los huecos declarados en #74) ───────────────────────────────
+ * Esta pantalla entrega la tríada Plan/Real/Desvío + la tabla de desvíos por concepto + el
+ * drill-down concepto→cuentas→documentos (decisión BO ratificada 2026-09-20: MISMA interacción
+ * que V08 · Gestión, Ley 1) + el banner de proyección de cierre autoritativo del servidor (CC-API
+ * #431, "sin extrapolación de interfaz" — este módulo nunca calcula esa cifra).
+ *
+ * El puente concepto→cuenta lo publica el productor, nunca una heurística del frontend:
+ * `BudgetAccountLine.concept` es "la misma partición que las líneas de budget-vs-actual" (#432).
+ * `cuentasDeConcepto`/`bucketSinAsignar` filtran por ese campo tal cual llega; `concept_status !==
+ * "assigned"` siempre va al bucket "Sin asignar / conflicto", nunca se reparte entre conceptos
+ * (el contrato dice que `ambiguous` es "conflicto explícito, no se reparte").
+ *
+ * `BudgetByAccountResponse.basis` es `"cash_committed"`: el `actual` de estas cuentas es CAJA
+ * committed, NO devengado — `budget-vs-actual` (la fila de desvíos) publica el devengado. El total
+ * de cuentas `assigned` de un concepto por diseño NO calza con el `real` de esa fila (dos bases
+ * contables distintas, no un bug); `crossFootConcepto` declara la diferencia con su propio copy,
+ * nunca el "descuadra" rojo que usa V08 para datos incompletos.
  *
  * ── LEY 1 — el "Real" de esta vista es el MISMO número que el "Resultado" de V08 ────────────────
  * RETRACTACIÓN (revisión adversarial, PR #102 vuelta 2): la vuelta 1 fijaba esto comparando la
@@ -53,7 +60,15 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  * "available" o `missing_sources` no vacío) como buckets propios — la vista nunca pinta un plan
  * o un desvío inventado sobre ninguno de los dos. */
 
-import type { BudgetLine, BudgetVsActualResponse } from "@/lib/api/planning";
+import type {
+  BudgetAccountLine,
+  BudgetByAccountResponse,
+  BudgetClosingProjectionResponse,
+  BudgetLine,
+  BudgetVsActualResponse,
+  ClosingProjectionPeriod,
+  ClosingProjectionSource,
+} from "@/lib/api/planning";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 import { csv, csvCell } from "@/lib/export/csv";
 import { currentPeriodSantiago, shiftPeriod } from "../../gestion/gestion-format";
@@ -230,4 +245,126 @@ export function csvDesviosV09Table(filas: ReadonlyArray<DesvioLineaV09>): Export
 export function csvDesviosV09(filas: ReadonlyArray<DesvioLineaV09>): string {
   const table = csvDesviosV09Table(filas);
   return csv(table.headers, table.rows, table.dialect);
+}
+
+/* ═══════════════════════════ Drill-down nivel 1: concepto → cuentas (issue #101) ═══════════════
+ * `budget-by-account` trae TODAS las cuentas del período en una sola consulta (`presupuesto-v09-
+ * live.tsx` la pide una vez, siempre habilitada — alimenta tanto el drill-down por concepto como
+ * el bucket fijo de "Sin asignar"). Estas funciones sólo FILTRAN la respuesta ya recibida; nunca
+ * recalculan `actual`/`budget`/`variance` (mismo principio que `desviosV09`). */
+
+/** Cuentas `assigned` a un concepto, orden por `|actual|` descendente (la más grande primero —
+ *  mismo criterio de lectura que la tabla de desvíos). Nunca incluye `ambiguous`/`unassigned`:
+ *  esas van SIEMPRE al bucket separado (`bucketSinAsignar`), nunca repartidas por heurística. */
+export function cuentasDeConcepto(
+  porCuenta: Pick<BudgetByAccountResponse, "accounts"> | undefined,
+  concepto: Exclude<BudgetLine["concept"], "result">,
+): BudgetAccountLine[] {
+  return (porCuenta?.accounts ?? [])
+    .filter((c) => c.concept_status === "assigned" && c.concept === concepto)
+    .slice()
+    .sort((a, b) => Math.abs(parseAmount(b.actual)) - Math.abs(parseAmount(a.actual)));
+}
+
+/** Bucket "Sin asignar / conflicto": toda cuenta con `concept_status !== "assigned"` —
+ *  `ambiguous` (sus impactos caen en más de un concepto: "conflicto explícito, no se reparte",
+ *  contrato de `BudgetAccountLine`) o `unassigned` (ningún impacto pertenece al P&L operacional).
+ *  Vive FUERA de cualquier concepto, con su propio total — nunca se suma silenciosamente a una
+ *  fila de la tabla de desvíos ni se omite. */
+export interface BucketSinAsignarV09 {
+  cuentas: BudgetAccountLine[];
+  totalActual: number;
+  totalBudget: number;
+}
+
+export function bucketSinAsignar(
+  porCuenta: Pick<BudgetByAccountResponse, "accounts"> | undefined,
+): BucketSinAsignarV09 {
+  const cuentas = (porCuenta?.accounts ?? [])
+    .filter((c) => c.concept_status !== "assigned")
+    .slice()
+    .sort((a, b) => Math.abs(parseAmount(b.actual)) - Math.abs(parseAmount(a.actual)));
+  return {
+    cuentas,
+    totalActual: cuentas.reduce((s, c) => s + parseAmount(c.actual), 0),
+    totalBudget: cuentas.reduce((s, c) => s + parseAmount(c.budget), 0),
+  };
+}
+
+/** Cross-foot del nivel 1 contra la fila de desvíos del mismo concepto: declara la diferencia,
+ *  nunca la esconde ni la trata como un bug. `basisDistinto` es SIEMPRE `true` cuando hay cuentas
+ *  `assigned` que sumar — es un hecho del contrato (`basis: "cash_committed"` vs el devengado de
+ *  `budget-vs-actual`), no una detección de anomalía; por eso no hay un umbral de tolerancia como
+ *  `TOLERANCIA_DRILL_CLP` en V08: ahí el descuadre SÍ es señal de datos incompletos, acá es
+ *  estructural y esperado. */
+export interface CrossFootConceptoV09 {
+  totalCuentasCommitted: number;
+  totalFilaDevengado: number;
+  diferencia: number;
+  /** `false` sólo cuando no hay ninguna cuenta `assigned` que sumar (nada que cross-footear). */
+  basisDistinto: boolean;
+}
+
+export function crossFootConcepto(
+  cuentas: ReadonlyArray<BudgetAccountLine>,
+  filaDesvio: Pick<DesvioLineaV09, "real">,
+): CrossFootConceptoV09 {
+  const totalCuentasCommitted = cuentas.reduce((s, c) => s + parseAmount(c.actual), 0);
+  return {
+    totalCuentasCommitted,
+    totalFilaDevengado: filaDesvio.real,
+    diferencia: totalCuentasCommitted - filaDesvio.real,
+    basisDistinto: cuentas.length > 0,
+  };
+}
+
+/* ═══════════════════════════ Proyección de cierre (CC-API #431, issue #101) ═════════════════════
+ * Autoritativa del servidor: "cierre anual autoritativo, sin extrapolación de interfaz". Este
+ * módulo SOLO traduce la respuesta a algo legible — jamás suma, resta ni proyecta un monto. Si
+ * `projected_result` es `null`, `disponible` es `false` y la vista muestra `abstentionReasons`
+ * (Ley 3: "no sé" explícito), nunca un 0 ni el banner "completo". */
+
+const METODO_PROYECCION_LABEL: Record<BudgetClosingProjectionResponse["method"], string> = {
+  closed_actual_plus_remaining_budget:
+    "resultado real de los meses ya cerrados + presupuesto de los meses restantes",
+};
+
+const COBERTURA_LABEL: Record<BudgetClosingProjectionResponse["coverage"], string> = {
+  complete: "completa",
+  partial: "parcial",
+  unknown: "desconocida",
+};
+
+export interface ProyeccionCierreV09 {
+  disponible: boolean;
+  monto: number | null;
+  moneda: string;
+  metodoLabel: string;
+  coberturaLabel: string;
+  dataState: BudgetClosingProjectionResponse["data_state"];
+  asOf: string;
+  fiscalYear: number;
+  abstentionReasons: string[];
+  periods: ClosingProjectionPeriod[];
+  sources: ClosingProjectionSource[];
+}
+
+export function resolverProyeccionCierre(
+  resp: BudgetClosingProjectionResponse | undefined,
+): ProyeccionCierreV09 | null {
+  if (!resp) return null;
+  const monto = resp.projected_result != null ? parseAmount(resp.projected_result) : null;
+  return {
+    disponible: monto != null,
+    monto,
+    moneda: resp.currency,
+    metodoLabel: METODO_PROYECCION_LABEL[resp.method] ?? resp.method,
+    coberturaLabel: COBERTURA_LABEL[resp.coverage] ?? resp.coverage,
+    dataState: resp.data_state,
+    asOf: resp.as_of,
+    fiscalYear: resp.fiscal_year,
+    abstentionReasons: resp.abstention_reasons ?? [],
+    periods: resp.periods ?? [],
+    sources: resp.sources ?? [],
+  };
 }

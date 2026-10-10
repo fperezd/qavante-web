@@ -4244,6 +4244,35 @@ const gestionHandlers = [
       { status: 200 },
     );
   }),
+  /* Cierre anual autoritativo (CC-API #431, qavante-web#101). Default: cobertura completa con
+     monto. */
+  http.get("*/api/planning/budget-closing-projection", ({ request }) => {
+    const url = new URL(request.url);
+    const year = Number(url.searchParams.get("year") ?? "2026");
+    const asOf = url.searchParams.get("as_of") ?? "2026-08-01";
+    return HttpResponse.json(
+      {
+        fiscal_year: year,
+        as_of: asOf,
+        method: "closed_actual_plus_remaining_budget",
+        currency: "CLP",
+        data_state: "estimated",
+        coverage: "complete",
+        projected_result: "118000000",
+        generated_at: "2026-08-01T12:00:00Z",
+        periods: [
+          { period: `${year}-01`, basis: "actual_closed", data_state: "available", amount: "9000000" },
+          { period: `${year}-02`, basis: "budget_remaining", data_state: "available", amount: "9500000" },
+        ],
+        sources: [
+          { code: "operational_result", covered_periods: [`${year}-01`], missing_periods: [] },
+          { code: "approved_budget", covered_periods: [`${year}-02`], missing_periods: [] },
+        ],
+        abstention_reasons: [],
+      },
+      { status: 200 },
+    );
+  }),
   /* PROPONE el presupuesto del año (ADR-0091 F1a). En e2e marca el flag → el refetch de
      budget-vs-actual tras invalidar pasa a has_budget:true (poblado). */
   http.post("*/api/planning/budget/propose", async ({ request }) => {

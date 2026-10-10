@@ -1,16 +1,23 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { within, expect, fn, waitFor } from "storybook/test";
+import { within, expect, fn, userEvent, waitFor } from "storybook/test";
 import { PresupuestoV09View } from "./presupuesto-v09-view";
 import {
   PERIODO,
   RESULT_OPERATIONAL_RESULT_DIVERGENTE,
+  budgetByAccount,
+  budgetByAccountVacio,
   budgetVsActual,
   budgetVsActualIncompleto,
   budgetVsActualSinDesvios,
   budgetVsActualSinPresupuesto,
+  closingProjectionAbstiene,
+  closingProjectionDisponible,
 } from "./presupuesto-v09-fixtures";
+import { documentosServicioMensual } from "@/components/gestion/v08/gestion-v08-fixtures";
+import { buildBudgetGrid } from "../budget-grid-model";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { SOLO_TEST_STORYBOOK } from "@/test/storybook/solo-test-storybook";
+import type { BudgetGridResponse } from "@/lib/api/planning";
 
 /* V09 · Presupuesto — "¿cómo vas contra tu plan?" en sus estados (ESPECIFICACION §V09, issue #74).
  * Corren en Chromium headless como gate (`npm run test:storybook`).
@@ -22,6 +29,29 @@ import { SOLO_TEST_STORYBOOK } from "@/test/storybook/solo-test-storybook";
  * el HTML estático (incluida la concordancia N=1) en `presupuesto-v09-view.test.tsx`. */
 
 const PERIODO_LABEL = formatPeriodLabel(PERIODO);
+
+/** Fixture mínimo de la grilla anual (mismo shape que `budget-grid-model.test.ts`) para la story
+ *  del panel "Ajustar plan" — reusa `BudgetGridView`/`buildBudgetGrid`, nunca un cálculo nuevo. */
+const GRID_FIXTURE: BudgetGridResponse = {
+  year: 2026,
+  currency: "CLP",
+  status: "draft",
+  accepted: false,
+  has_budget: true,
+  is_template: false,
+  total_year: "0",
+  generated_at: "2026-08-01T00:00:00Z",
+  categories: [
+    {
+      account_id: "a1",
+      account_code: "4.1",
+      account_name: "Ventas",
+      impact_type: "revenue",
+      months: { "1": "10000000", "2": "12000000" },
+      total_year: "22000000",
+    },
+  ],
+};
 
 /** Ley 2 — los elementos con token rojo que hay en pantalla (ambos sistemas de tokens del repo). */
 function rojos(canvasElement: HTMLElement): Element[] {
@@ -100,7 +130,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V09 · Presupuesto (ESPECIFICACION §V09, issue #74): tríada Plan/Real/Desvío + tabla de desvíos por concepto sobre `GET /api/planning/budget-vs-actual` · `variance`/`variance_pct` YA calculados por el backend, nunca recalculados en el front (Ley 1). INV-FIN-001: el "Real" de acá es el MISMO número que el "Resultado" de V08. Alcance recortado a propósito: sin el link a documentos (drill-down, fork del BO) ni el banner de proyección de cierre · huecos declarados EN pantalla, issue sucesor #101. Flag `presupuestoV09`, apagado por defecto.',
+          'V09 · Presupuesto (ESPECIFICACION §V09, issue #74/#101): tríada Plan/Real/Desvío + tabla de desvíos por concepto sobre `GET /api/planning/budget-vs-actual` · `variance`/`variance_pct` YA calculados por el backend, nunca recalculados en el front (Ley 1). INV-FIN-001: el "Real" de acá es el MISMO número que el "Resultado" de V08. Drill-down concepto→cuentas→documentos (MISMA interacción de V08, decisión BO 2026-09-20) + banner de proyección de cierre autoritativo del servidor (CC-API #431) con CTA "Ajustar plan" sobre la grilla anual ya existente. Flag `presupuestoV09`, apagado por defecto.',
       },
     },
   },
@@ -110,6 +140,13 @@ const meta = {
     issueSucesor: "#101",
     onReintentar: fn(),
     onProponer: fn(),
+    porCuenta: budgetByAccount(),
+    onReintentarPorCuenta: fn(),
+    onAbrirConcepto: fn(),
+    onAbrirCuenta: fn(),
+    proyeccion: closingProjectionDisponible(),
+    onReintentarProyeccion: fn(),
+    onToggleAjustarPlan: fn(),
   },
 } satisfies Meta<typeof PresupuestoV09View>;
 
@@ -127,10 +164,115 @@ export const Normal: Story = {
     await expect(canvas.getByText("Costo directo")).toBeInTheDocument();
     await expect(canvas.getByText("Ingresos")).toBeInTheDocument();
     await expect(canvas.getByText("Gastos operacionales")).toBeInTheDocument();
+    // Bucket "Sin asignar / conflicto": fijo, fuera de cualquier concepto.
+    await expect(canvas.getByText("Sin asignar / conflicto")).toBeInTheDocument();
+    // Proyección de cierre, autoritativa del servidor.
+    await expect(canvas.getByText("$118.000.000")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Ajustar plan" })).toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
-    // Huecos declarados, visibles en pantalla.
-    expect(texto(canvasElement)).toContain("El detalle documental de cada desvío");
+    // Huecos declarados (lo que SIGUE sin resolver), visibles en pantalla.
+    expect(texto(canvasElement)).toContain("cuentas sin código");
     expect(texto(canvasElement)).not.toContain("issue sucesor");
+  },
+};
+
+export const DrillConceptoACuentas: Story = {
+  name: "Drill-down nivel 1 · click en un concepto abre sus cuentas (Ley 1, misma interacción de V08)",
+  args: {
+    // Sin `onAbrirConcepto`: la vista cae a su estado interno, así el click abre de verdad
+    // (en el camino vivo `presupuesto-v09-live.tsx` SÍ lo controla, igual que `cuentaAbierta`).
+    onAbrirConcepto: undefined,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const filaIngresos = canvas.getByText("Ingresos").closest("tr")!;
+    await userEvent.click(filaIngresos);
+    // Las DOS cuentas `assigned` a "revenue" del fixture.
+    await expect(canvas.getByText("Ventas Chile")).toBeInTheDocument();
+    await expect(canvas.getByText("Ventas Exportación")).toBeInTheDocument();
+    // Cross-foot: declarado con su propio copy, nunca un "descuadra" rojo.
+    await expect(canvas.getByText(/bases contables distintas, no un error/)).toBeInTheDocument();
+    await expect(rojos(canvasElement)).toHaveLength(0);
+  },
+};
+
+export const DrillCuentaADocumentos: Story = {
+  name: "Drill-down nivel 2 · click en una cuenta abre sus documentos (reusa resolverDrill de V08)",
+  args: {
+    conceptoAbierto: "revenue",
+    porCuenta: budgetByAccount({
+      accounts: [
+        {
+          account_id: "op-1",
+          account_code: "operating_income.service_monthly",
+          account_name: "Servicio mensual",
+          budget: "10000000",
+          actual: "11000000",
+          variance: "1000000",
+          variance_pct: "10",
+          concept: "revenue",
+          concept_status: "assigned",
+        },
+      ],
+    }),
+    cuentaAbierta: {
+      accountCode: "operating_income.service_monthly",
+      accountName: "Servicio mensual",
+    },
+    documentos: documentosServicioMensual(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/FAC 435/)).toBeInTheDocument();
+    await expect(canvas.getByText(/Comercial Kaufmann/)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/3 documentos · suman \$14\.616\.879/),
+    ).toBeInTheDocument();
+    // El click en la fila de la cuenta es lo que dispara la consulta de documentos (controlado).
+    const filaCuenta = canvas.getByText("Servicio mensual").closest("tr")!;
+    await userEvent.click(filaCuenta);
+    await expect(args.onAbrirCuenta).toHaveBeenCalledWith(null); // ya estaba abierta → la cierra
+    await expect(rojos(canvasElement)).toHaveLength(0);
+  },
+};
+
+export const SinAsignarVacio: Story = {
+  name: "Bucket 'Sin asignar' no aparece cuando budget-by-account no trae cuentas",
+  args: { porCuenta: budgetByAccountVacio() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    expect(canvas.queryByText("Sin asignar / conflicto")).not.toBeInTheDocument();
+  },
+};
+
+export const ProyeccionAbstiene: Story = {
+  name: "Proyección de cierre · abstención explícita, nunca un 0 (Ley 3)",
+  args: { proyeccion: closingProjectionAbstiene() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Todavía no podemos cerrar el año/)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/julio de 2026 todavía no tiene el resultado operacional cerrado/i),
+    ).toBeInTheDocument();
+    expect(texto(canvasElement)).not.toContain("$0");
+    await expect(rojos(canvasElement)).toHaveLength(0); // ámbar, no rojo (Ley 2)
+  },
+};
+
+export const AjustarPlanAbierto: Story = {
+  name: "CTA 'Ajustar plan' · abre la grilla anual YA existente, integrada en esta pantalla",
+  args: {
+    ajustarPlanAbierto: true,
+    grid: buildBudgetGrid(GRID_FIXTURE),
+    onEditarCeldaGrid: fn(),
+    onAceptarGrid: fn(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: "Cerrar ajuste" })).toBeInTheDocument();
+    // La grilla trae las cuentas del fixture (mismo componente `BudgetGridView` de Presupuesto F1a).
+    await expect(canvas.getByText("Ventas")).toBeInTheDocument();
+    await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };
 

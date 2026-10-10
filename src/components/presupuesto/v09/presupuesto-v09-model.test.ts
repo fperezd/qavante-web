@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { BudgetLine, BudgetVsActualResponse } from "@/lib/api/planning";
+import type { BudgetAccountLine, BudgetLine, BudgetVsActualResponse } from "@/lib/api/planning";
 import {
+  bucketSinAsignar,
+  crossFootConcepto,
   csvDesviosV09,
+  cuentasDeConcepto,
   desviosV09,
   estadoDatosV09,
   periodoDefaultV09,
+  resolverProyeccionCierre,
   resultRealCoincideConResultado,
   revenueRealCoincideConResultado,
   triadaV09,
 } from "./presupuesto-v09-model";
+import { budgetByAccount, closingProjectionAbstiene, closingProjectionDisponible } from "./presupuesto-v09-fixtures";
 
 /* Fixture con la forma REAL del contrato verificado contra producción (issue #74, comentario
  * 2026-08-31): 4 líneas (revenue/direct_cost/operating_expense/result), `variance`/`variance_pct`
@@ -316,3 +321,114 @@ describe("csvDesviosV09 — exportar (§5.5), exacto sobre lo mostrado", () => {
 /* `concordar` se movió a `src/lib/formatters/count.ts` (issue #94) — su cobertura genérica vive
  * en `count.test.ts`. El texto real ("1 concepto desviado" / "N conceptos desviados") ya se fija
  * arriba, en la tabla de desvíos. */
+
+describe("cuentasDeConcepto — drill-down nivel 1, el puente lo publica el productor (issue #101)", () => {
+  it("sólo trae cuentas assigned al concepto pedido, nunca ambiguous/unassigned", () => {
+    const cuentas = cuentasDeConcepto(budgetByAccount(), "revenue");
+    expect(cuentas).toHaveLength(2);
+    expect(cuentas.every((c) => c.concept === "revenue" && c.concept_status === "assigned")).toBe(
+      true,
+    );
+  });
+
+  it("[control positivo] con otro concepto trae otras cuentas (no siempre las mismas)", () => {
+    const cuentas = cuentasDeConcepto(budgetByAccount(), "direct_cost");
+    expect(cuentas).toHaveLength(1);
+    expect(cuentas[0]!.account_name).toBe("Insumos de producción");
+  });
+
+  it("[] cuando budget-by-account no respondió (undefined), no inventa cuentas", () => {
+    expect(cuentasDeConcepto(undefined, "revenue")).toEqual([]);
+  });
+
+  it("[] cuando el concepto no tiene ninguna cuenta assigned", () => {
+    expect(cuentasDeConcepto(budgetByAccount({ accounts: [] }), "revenue")).toEqual([]);
+  });
+
+  it("ordena por |actual| descendente", () => {
+    const cuentas = cuentasDeConcepto(budgetByAccount(), "revenue");
+    expect(cuentas[0]!.account_name).toBe("Ventas Chile"); // 30M > 2.3M
+  });
+});
+
+describe("bucketSinAsignar — conflicto explícito, nunca repartido (issue #101)", () => {
+  it("trae las cuentas ambiguous y unassigned, nunca las assigned", () => {
+    const bucket = bucketSinAsignar(budgetByAccount());
+    expect(bucket.cuentas).toHaveLength(2);
+    expect(bucket.cuentas.map((c) => c.concept_status).sort()).toEqual(["ambiguous", "unassigned"]);
+  });
+
+  it("[control positivo] ninguna cuenta assigned se cuela en el bucket", () => {
+    const bucket = bucketSinAsignar(budgetByAccount());
+    expect(bucket.cuentas.some((c) => c.concept_status === "assigned")).toBe(false);
+  });
+
+  it("totalActual suma el actual de esas cuentas, sin recalcular", () => {
+    // -200.000 (mixta) + -2.800.000 (capex) = -3.000.000
+    expect(bucketSinAsignar(budgetByAccount()).totalActual).toBe(-3_000_000);
+  });
+
+  it("vacío cuando no hay cuentas sin asignar", () => {
+    const soloAssigned: BudgetAccountLine[] = [
+      {
+        account_id: "x",
+        account_code: "1",
+        account_name: "x",
+        budget: "1",
+        actual: "1",
+        variance: "0",
+        variance_pct: "0",
+        concept: "revenue",
+        concept_status: "assigned",
+      },
+    ];
+    expect(bucketSinAsignar(budgetByAccount({ accounts: soloAssigned })).cuentas).toEqual([]);
+  });
+
+  it("[] cuando budget-by-account no respondió (undefined)", () => {
+    expect(bucketSinAsignar(undefined).cuentas).toEqual([]);
+  });
+});
+
+describe("crossFootConcepto — committed vs devengado, declarado no escondido (issue #101)", () => {
+  it("basisDistinto = true cuando hay cuentas que sumar (es estructural, no una detección de bug)", () => {
+    const cuentas = cuentasDeConcepto(budgetByAccount(), "revenue");
+    const r = crossFootConcepto(cuentas, { real: 32_500_000 });
+    expect(r.basisDistinto).toBe(true);
+    expect(r.totalCuentasCommitted).toBe(32_300_000); // 30M + 2.3M (committed)
+    expect(r.totalFilaDevengado).toBe(32_500_000); // devengado de la fila de desvíos
+    expect(r.diferencia).toBe(32_300_000 - 32_500_000);
+  });
+
+  it("basisDistinto = false cuando no hay ninguna cuenta assigned (nada que cross-footear)", () => {
+    const r = crossFootConcepto([], { real: 0 });
+    expect(r.basisDistinto).toBe(false);
+    expect(r.totalCuentasCommitted).toBe(0);
+  });
+});
+
+describe("resolverProyeccionCierre — autoritativa del servidor, nunca calculada en el cliente (CC-API #431)", () => {
+  it("disponible=true y expone el monto, método legible y cobertura cuando projected_result viene", () => {
+    const r = resolverProyeccionCierre(closingProjectionDisponible())!;
+    expect(r.disponible).toBe(true);
+    expect(r.monto).toBe(118_000_000);
+    expect(r.metodoLabel).not.toBe("closed_actual_plus_remaining_budget"); // traducido, no el enum crudo
+    expect(r.coberturaLabel).toBe("completa");
+  });
+
+  it("disponible=false y abstentionReasons no vacío cuando projected_result es null (Ley 3)", () => {
+    const r = resolverProyeccionCierre(closingProjectionAbstiene())!;
+    expect(r.disponible).toBe(false);
+    expect(r.monto).toBeNull();
+    expect(r.abstentionReasons.length).toBeGreaterThan(0);
+  });
+
+  it("[control positivo] disponible=true NUNCA trae abstentionReasons que oculten el monto", () => {
+    const r = resolverProyeccionCierre(closingProjectionDisponible())!;
+    expect(r.monto).not.toBeNull();
+  });
+
+  it("null cuando la respuesta todavía no llegó (undefined) — no inventa un estado", () => {
+    expect(resolverProyeccionCierre(undefined)).toBeNull();
+  });
+});

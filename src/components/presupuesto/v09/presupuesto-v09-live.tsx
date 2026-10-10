@@ -1,12 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { useBudgetVsActual, useProposeBudget } from "@/lib/api/planning";
-import { useOperationalResult } from "@/lib/api/gestion";
+import {
+  useBudgetByAccount,
+  useBudgetClosingProjection,
+  useBudgetGrid,
+  useBudgetVsActual,
+  useEditBudgetLine,
+  useAcceptBudget,
+  useProposeBudget,
+} from "@/lib/api/planning";
+import { useOperationalResult, useOperationalResultDocuments } from "@/lib/api/gestion";
 import { ApiError } from "@/lib/api/errors";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
+import { buildBudgetGrid } from "../budget-grid-model";
 import { periodoDefaultV09 } from "./presupuesto-v09-model";
-import { PresupuestoV09View } from "./presupuesto-v09-view";
+import { PresupuestoV09View, type CuentaAbiertaV09 } from "./presupuesto-v09-view";
 
 /* Cableado de V09 · Presupuesto. La vista es presentacional; acá se resuelven las fuentes.
  *
@@ -25,15 +34,50 @@ import { PresupuestoV09View } from "./presupuesto-v09-view";
  * sin retry): si el usuario visitó Gestión hace poco, esta consulta sale de caché.
  *
  * Período: fijo al último mes CERRADO (`periodoDefaultV09`), sin selector — MVP de una pantalla,
- * una pregunta (Ley 10), igual que V16 · Remuneraciones. */
+ * una pregunta (Ley 10), igual que V16 · Remuneraciones.
+ *
+ * ── Drill-down (issue #101) ──────────────────────────────────────────────────────────────────
+ * `budget-by-account` se pide SIEMPRE (no sólo al abrir una fila): alimenta tanto el drill-down
+ * por concepto como el bucket fijo "Sin asignar", que la vista muestra sin que el dueño tenga que
+ * expandir nada. `cuentaAbierta` SÍ es lazy — abrir una cuenta es lo único que dispara
+ * `useOperationalResultDocuments`, igual que `drill` en `gestion-v08-live.tsx`.
+ *
+ * ── Proyección de cierre + "Ajustar plan" (CC-API #431) ─────────────────────────────────────────
+ * `budget-closing-projection` se pide siempre (es un banner fijo de la pantalla, no algo que el
+ * dueño tenga que abrir). La grilla anual (`budget-grid`) SÍ es lazy: sólo se pide cuando el
+ * dueño abre el panel "Ajustar plan" — mismas mutations (`useEditBudgetLine`/`useAcceptBudget`)
+ * que ya usa la pantalla Presupuesto Fase 1a (`presupuesto-view.tsx`), nunca un cálculo nuevo. */
 
 export function PresupuestoV09Live(_props: { issueSucesor?: string } = {}) {
   void _props;
   const [periodo] = React.useState(() => periodoDefaultV09(new Date()));
+  const [asOf] = React.useState(() => new Date().toISOString().slice(0, 10));
+  const [conceptoAbierto, setConceptoAbierto] = React.useState<
+    "revenue" | "direct_cost" | "operating_expense" | "sin_asignar" | null
+  >(null);
+  const [cuentaAbierta, setCuentaAbierta] = React.useState<CuentaAbiertaV09 | null>(null);
+  const [ajustarPlanAbierto, setAjustarPlanAbierto] = React.useState(false);
+
+  const year = Number(periodo.slice(0, 4));
 
   const bvaQuery = useBudgetVsActual(periodo);
   const resultQuery = useOperationalResult(periodo);
   const propose = useProposeBudget();
+
+  const porCuentaQuery = useBudgetByAccount(periodo);
+  const documentosQuery = useOperationalResultDocuments(
+    periodo,
+    cuentaAbierta?.accountCode ?? "",
+    cuentaAbierta != null,
+  );
+
+  const proyeccionQuery = useBudgetClosingProjection(year, asOf);
+
+  const gridQuery = useBudgetGrid(year, ajustarPlanAbierto);
+  const editLine = useEditBudgetLine(year);
+  const acceptGrid = useAcceptBudget(year);
+  const grid =
+    gridQuery.data && gridQuery.data.has_budget ? buildBudgetGrid(gridQuery.data) : null;
 
   const periodoLabel = formatPeriodLabel(periodo);
 
@@ -45,10 +89,32 @@ export function PresupuestoV09Live(_props: { issueSucesor?: string } = {}) {
       bva={bvaQuery.data}
       error={bvaQuery.isError ? motivo(bvaQuery.error) : null}
       onReintentar={() => void bvaQuery.refetch()}
-      onProponer={() => propose.mutate({ fiscal_year: Number(periodo.slice(0, 4)) })}
+      onProponer={() => propose.mutate({ fiscal_year: year })}
       proponiendo={propose.isPending}
       errorProponer={propose.isError}
       resultOperacional={resultQuery.data?.result}
+      porCuenta={porCuentaQuery.data}
+      porCuentaError={porCuentaQuery.isError ? motivo(porCuentaQuery.error) : null}
+      onReintentarPorCuenta={() => void porCuentaQuery.refetch()}
+      conceptoAbierto={conceptoAbierto}
+      onAbrirConcepto={setConceptoAbierto}
+      cuentaAbierta={cuentaAbierta}
+      onAbrirCuenta={setCuentaAbierta}
+      documentos={documentosQuery.data}
+      documentosCargando={documentosQuery.isLoading}
+      proyeccion={proyeccionQuery.data}
+      proyeccionError={proyeccionQuery.isError ? motivo(proyeccionQuery.error) : null}
+      onReintentarProyeccion={() => void proyeccionQuery.refetch()}
+      ajustarPlanAbierto={ajustarPlanAbierto}
+      onToggleAjustarPlan={() => setAjustarPlanAbierto((v) => !v)}
+      grid={grid}
+      gridCargando={gridQuery.isLoading}
+      gridSaving={editLine.isPending}
+      gridAccepting={acceptGrid.isPending}
+      onEditarCeldaGrid={(accountId, impactType, month, montoSignado) =>
+        editLine.mutate({ account_id: accountId, month, amount: montoSignado, impact_type: impactType })
+      }
+      onAceptarGrid={() => acceptGrid.mutate()}
     />
   );
 }
